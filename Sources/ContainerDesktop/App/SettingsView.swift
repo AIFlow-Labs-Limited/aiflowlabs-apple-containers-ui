@@ -61,7 +61,7 @@ struct UpdatesSettingsTab: View {
         Form {
             Section("Container Desktop") {
                 LabeledContent("Installed version", value: Diagnostics.appVersion)
-                Link(destination: URL(string: "https://github.com/aiflowlabs/container-desktop/releases")!) {
+                Link(destination: URL(string: "https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/releases")!) {
                     Label("Check on GitHub", systemImage: "arrow.up.right.square")
                 }
                 Text("Automatic update checks arrive in a later release.").font(.caption).foregroundStyle(.secondary)
