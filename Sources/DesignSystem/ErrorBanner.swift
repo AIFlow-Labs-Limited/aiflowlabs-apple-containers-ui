@@ -21,10 +21,11 @@ public struct ErrorBanner: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(error.title).font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Text(error.errorDescription ?? "Unknown error")
                     .font(.callout)
                     .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(6)
                 if let command = error.failedCommand {
                     HStack(spacing: Spacing.xs) {
                         Text(command)

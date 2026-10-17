@@ -44,7 +44,7 @@ public struct OutputLogView: View {
                 Divider()
             }
             ScrollViewReader { proxy in
-                ScrollView([.vertical, .horizontal]) {
+                ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(visible, id: \.offset) { row in
                             LogRow(line: row.element, showsTimestamp: showsTimestamps)
@@ -85,7 +85,7 @@ private struct LogRow: View {
             }
             Text(line.text.isEmpty ? " " : line.text)
                 .foregroundStyle(line.stream == .stderr ? AnyShapeStyle(.statusError) : AnyShapeStyle(.primary))
-                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .font(.monoCaption)
         .textSelection(.enabled)

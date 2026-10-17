@@ -153,10 +153,10 @@ private struct PortsCell: View {
             HStack(spacing: Spacing.xs) {
                 ForEach(ports, id: \.self) { p in
                     if let url = p.hostURL {
-                        Link("\(p.hostPort):\(p.containerPort)", destination: url)
+                        Link(String(p.hostPort) + ":" + String(p.containerPort), destination: url)
                             .help("Open \(url.absoluteString)")
                     } else {
-                        Text("\(p.hostPort):\(p.containerPort)")
+                        Text(verbatim: "\(p.hostPort):\(p.containerPort)")
                     }
                 }
             }
