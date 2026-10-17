@@ -36,6 +36,7 @@ let package = Package(
         // MARK: Design tokens + reusable SwiftUI components (no business logic)
         .target(
             name: "DesignSystem",
+            dependencies: ["ContainerKit"],
             swiftSettings: swiftSettings
         ),
         // MARK: Observable stores, polling, settings, command bus (SwiftUI-agnostic where possible)
