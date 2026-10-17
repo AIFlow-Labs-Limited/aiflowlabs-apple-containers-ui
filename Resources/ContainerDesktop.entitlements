@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Container Desktop entitlements (hardened runtime is enabled at signing time).
+
+  Deliberately NO com.apple.security.app-sandbox: the app spawns /usr/local/bin/container and talks to
+  launchd-managed container services, neither of which works from inside the App Sandbox.
+  No allow-jit / disable-library-validation: not needed.
+-->
+<plist version="1.0">
+<dict>
+	<!-- Required for the osascript "with administrator privileges" prompt used for DNS domain setup. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>
