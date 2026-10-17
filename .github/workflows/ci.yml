@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build, test, bundle
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # CFBundleVersion = commit count
+
+      - name: Select Xcode
+        run: |
+          if [ -d /Applications/Xcode_27.0.app ]; then
+            xcode=/Applications/Xcode_27.0.app
+          else
+            # Newest installed Xcode by version-sorting the bundle names.
+            xcode="$(find /Applications -maxdepth 1 -name 'Xcode*.app' | sort -V | tail -n 1)"
+          fi
+          echo "Using $xcode"
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          swift --version
+
+      - name: Cache SwiftPM build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - name: Lint
+        run: make lint
+
+      - name: Bundle app
+        run: make app
+
+      - name: Zip app
+        run: ditto -c -k --keepParent "build/Container Desktop.app" "build/Container-Desktop-${{ github.sha }}.zip"
+
+      - name: Upload app
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Container-Desktop-app
+          path: build/Container-Desktop-${{ github.sha }}.zip
+          retention-days: 14
+          if-no-files-found: error

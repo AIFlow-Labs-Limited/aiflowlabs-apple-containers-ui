@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the GitHub release
+
+jobs:
+  release:
+    name: Build DMG and publish release
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: |
+          if [ -d /Applications/Xcode_27.0.app ]; then
+            xcode=/Applications/Xcode_27.0.app
+          else
+            xcode="$(find /Applications -maxdepth 1 -name 'Xcode*.app' | sort -V | tail -n 1)"
+          fi
+          echo "Using $xcode"
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: Derive version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: swift test
+
+      # Ad-hoc signed until Developer ID secrets are configured (see docs/release/RELEASING.md).
+      - name: Build DMG
+        run: make dmg VERSION="${{ steps.version.outputs.version }}"
+
+      - name: Checksum
+        run: |
+          cd build
+          shasum -a 256 "Container-Desktop-${{ steps.version.outputs.version }}-arm64.dmg" \
+            > "Container-Desktop-${{ steps.version.outputs.version }}-arm64.dmg.sha256"
+          cat ./*.sha256
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            build/Container-Desktop-${{ steps.version.outputs.version }}-arm64.dmg
+            build/Container-Desktop-${{ steps.version.outputs.version }}-arm64.dmg.sha256

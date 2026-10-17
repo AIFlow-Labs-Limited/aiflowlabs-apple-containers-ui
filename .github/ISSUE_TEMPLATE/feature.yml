@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest something Container Desktop should do.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should it work? Mention the Docker Desktop equivalent if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: cli
+    attributes:
+      label: Underlying `container` command
+      description: If the feature maps to a CLI command or flag, name it.
+      render: shell
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

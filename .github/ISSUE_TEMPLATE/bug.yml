@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in Container Desktop is broken or behaves unexpectedly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. Please check existing issues first.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Containers
+        2. Click …
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Failing command / error banner
+      description: Error banners show the exact `container` command — paste it with its output.
+      render: shell
+  - type: input
+    id: app-version
+    attributes:
+      label: Container Desktop version
+      description: About window, or `defaults read "/Applications/Container Desktop.app/Contents/Info" CFBundleShortVersionString`
+    validations:
+      required: true
+  - type: input
+    id: container-version
+    attributes:
+      label: "`container --version`"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac model
+      placeholder: macOS 26.1, MacBook Pro M4
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / crash report
+      description: Settings → About → Export diagnostics, or a crash report from Console.app.
+      render: text
