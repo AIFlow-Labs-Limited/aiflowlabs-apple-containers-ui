@@ -1,16 +1,38 @@
 import Foundation
 
-/// Backend that drives `/usr/local/bin/container`. STUB — the "kit" workstream replaces this file with the
-/// real implementation (see docs/ARCHITECTURE.md § CLIBackend). The public surface below is the contract
-/// other modules may rely on: `init(executable:)`, `CLIBackend.locateExecutable()`, `backendDescription`.
+/// Backend that drives the `container` CLI (`/usr/local/bin/container`), using `--format json` wherever the
+/// CLI offers it and parsing tables elsewhere. It keeps no state; stores cache.
+///
+/// Operations live in per-area extensions (`CLIBackend+Containers.swift`, `+Images`, …). Every command goes
+/// through the injected `CommandRunning`, so tests can record the exact argv.
 public actor CLIBackend: ContainerBackend {
+    /// Where the CLI is looked for when neither an explicit path nor `$CONTAINER_CLI` is given.
     public static let defaultSearchPaths = ["/usr/local/bin/container", "/opt/homebrew/bin/container"]
 
+    /// Absolute path of the `container` executable.
     public let executable: String
+    /// Runs every child process.
+    public let runner: any CommandRunning
+    /// Explicit `config.toml` location; `nil` means `$CONTAINER_CONFIG_PATH` or `~/.config/container/config.toml`.
+    public let configPath: String?
+
+    /// Default timeout for quick, read-only commands (`ls`, `inspect`, …).
+    static let queryTimeout: Duration = .seconds(60)
+    /// Default timeout for state-changing commands that should finish promptly (`stop`, `rm`, …).
+    static let actionTimeout: Duration = .seconds(180)
+
+    /// Diagnostics name, e.g. `CLI (/usr/local/bin/container)`.
     public nonisolated var backendDescription: String { "CLI (\(executable))" }
 
-    /// - Parameter executable: explicit path; defaults to `$CONTAINER_CLI` or the first existing search path.
-    public init(executable: String? = nil) throws {
+    /// Creates a CLI backend.
+    /// - Parameters:
+    ///   - executable: explicit path; defaults to `$CONTAINER_CLI` or the first existing search path.
+    ///   - runner: process runner (inject a fake in tests).
+    ///   - configPath: `config.toml` override (tests); defaults to `$CONTAINER_CONFIG_PATH` / `~/.config/container/config.toml`.
+    /// - Throws: `BackendError.cliNotInstalled` when no executable is found.
+    public init(executable: String? = nil, runner: any CommandRunning = ProcessRunner(), configPath: String? = nil) throws {
+        self.runner = runner
+        self.configPath = configPath
         if let executable { self.executable = executable; return }
         guard let found = CLIBackend.locateExecutable() else {
             throw BackendError.cliNotInstalled(searchedPaths: CLIBackend.defaultSearchPaths)
@@ -18,43 +40,13 @@ public actor CLIBackend: ContainerBackend {
         self.executable = found
     }
 
+    /// `$CONTAINER_CLI` if executable, else the first executable entry of `defaultSearchPaths`.
     public static func locateExecutable() -> String? {
         if let env = ProcessInfo.processInfo.environment["CONTAINER_CLI"], FileManager.default.isExecutableFile(atPath: env) { return env }
         return defaultSearchPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    private func unsupported(_ name: String = #function) -> BackendError {
-        .unsupported(feature: name, reason: "CLIBackend not implemented yet")
-    }
-
-    // MARK: SystemBackend
-    public func systemStatus() async throws -> SystemStatus { throw unsupported() }
-    public func systemStart() async throws { throw unsupported() }
-    public func systemStop() async throws { throw unsupported() }
-    public func systemProperties() async throws -> SystemProperties { throw unsupported() }
-    public func diskUsage() async throws -> DiskUsage { throw unsupported() }
-    public func systemLogs(lines: Int) async throws -> [OutputLine] { throw unsupported() }
-    public func listDNSDomains() async throws -> [DNSDomain] { throw unsupported() }
-    public func createDNSDomain(_ domain: String, localhostAddress: String?) async throws { throw unsupported() }
-    public func deleteDNSDomain(_ domain: String) async throws { throw unsupported() }
-    public func readConfigTOML() async throws -> String { throw unsupported() }
-    public func writeConfigTOML(_ text: String) async throws { throw unsupported() }
-
-    // MARK: ContainerOperations
-    public func listContainers(includeStopped: Bool) async throws -> [Container] { throw unsupported() }
-    public func inspectContainer(_ id: String) async throws -> Container { throw unsupported() }
-    public nonisolated func runContainer(_ spec: RunSpec) -> LineStream { failing() }
-    public func createContainer(_ spec: RunSpec) async throws -> String { throw unsupported() }
-    public func startContainer(_ id: String) async throws { throw unsupported() }
-    public func stopContainer(_ id: String, timeoutSeconds: Int?, signal: String?) async throws { throw unsupported() }
-    public func killContainer(_ id: String, signal: String?) async throws { throw unsupported() }
-    public func deleteContainer(_ id: String, force: Bool) async throws { throw unsupported() }
-    public func pruneContainers() async throws { throw unsupported() }
-    public nonisolated func containerLogs(_ id: String, follow: Bool, boot: Bool, tail: Int?) -> LineStream { failing() }
-    public func containerStats(ids: [String]) async throws -> [ContainerStats] { throw unsupported() }
-    public func execCapture(_ id: String, command: [String], workingDirectory: String?) async throws -> (exitCode: Int32, stdout: String, stderr: String) { throw unsupported() }
-    public func copy(from source: String, to destination: String) async throws { throw unsupported() }
-    public func exportContainer(_ id: String, to tarPath: String) async throws { throw unsupported() }
+    /// Command line an embedded terminal should spawn for an interactive session.
     public nonisolated func terminalCommand(for target: TerminalTarget) -> CommandLine {
         switch target {
         case .container(let id, let command): return CommandLine(executable: executable, arguments: ["exec", "-it", id] + command)
@@ -63,59 +55,98 @@ public actor CLIBackend: ContainerBackend {
         }
     }
 
-    // MARK: ImageOperations
-    public func listImages() async throws -> [Image] { throw unsupported() }
-    public func inspectImage(_ reference: String) async throws -> Image { throw unsupported() }
-    public nonisolated func pullImage(_ reference: String, platform: Platform?) -> LineStream { failing() }
-    public nonisolated func pushImage(_ reference: String, platform: Platform?) -> LineStream { failing() }
-    public func deleteImage(_ reference: String) async throws { throw unsupported() }
-    public func tagImage(_ reference: String, newReference: String) async throws { throw unsupported() }
-    public func pruneImages(all: Bool) async throws { throw unsupported() }
-    public func saveImages(_ references: [String], to tarPath: String, platform: Platform?) async throws { throw unsupported() }
-    public func loadImages(from tarPath: String) async throws { throw unsupported() }
-    public nonisolated func buildImage(_ spec: BuildSpec) -> LineStream { failing() }
-    public func builderStatus() async throws -> Container? { throw unsupported() }
-    public func builderStart(cpus: Int?, memory: MemorySize?) async throws { throw unsupported() }
-    public func builderStop() async throws { throw unsupported() }
-    public func builderDelete() async throws { throw unsupported() }
+    // MARK: - Command helpers
 
-    // MARK: VolumeOperations
-    public func listVolumes() async throws -> [Volume] { throw unsupported() }
-    public func inspectVolume(_ name: String) async throws -> Volume { throw unsupported() }
-    public func createVolume(name: String, size: MemorySize?, journal: String?, labels: [String: String]) async throws { throw unsupported() }
-    public func deleteVolume(_ name: String) async throws { throw unsupported() }
-    public func pruneVolumes() async throws { throw unsupported() }
+    /// Shell-quoted command line for error messages and "copy command".
+    nonisolated func display(_ arguments: [String]) -> String {
+        CommandLine(executable: executable, arguments: arguments).display
+    }
 
-    // MARK: NetworkOperations
-    public func listNetworks() async throws -> [Network] { throw unsupported() }
-    public func inspectNetwork(_ name: String) async throws -> Network { throw unsupported() }
-    public func createNetwork(name: String, subnet: String?, subnetV6: String?, labels: [String: String]) async throws { throw unsupported() }
-    public func deleteNetwork(_ name: String) async throws { throw unsupported() }
-    public func pruneNetworks() async throws { throw unsupported() }
+    /// Runs `container <arguments>` and returns the raw result without interpreting the exit code.
+    nonisolated func runRaw(_ arguments: [String], stdin: Data? = nil, timeout: Duration? = queryTimeout) async throws -> ProcessResult {
+        do {
+            return try await runner.run([executable] + arguments, stdin: stdin, timeout: timeout, environment: [:])
+        } catch let error as BackendError {
+            throw error
+        } catch is CancellationError {
+            throw BackendError.cancelled
+        } catch {
+            throw BackendError.other(error.localizedDescription)
+        }
+    }
 
-    // MARK: RegistryOperations
-    public func listRegistries() async throws -> [RegistryLogin] { throw unsupported() }
-    public func registryLogin(server: String, username: String, password: String, scheme: String?) async throws { throw unsupported() }
-    public func registryLogout(server: String) async throws { throw unsupported() }
+    /// Runs `container <arguments>`; a non-zero exit throws the mapped `BackendError`.
+    @discardableResult
+    nonisolated func execute(_ arguments: [String], stdin: Data? = nil, timeout: Duration? = queryTimeout) async throws -> ProcessResult {
+        let result = try await runRaw(arguments, stdin: stdin, timeout: timeout)
+        guard result.exitCode == 0 else { throw await failure(arguments, result) }
+        return result
+    }
 
-    // MARK: MachineOperations
-    public func listMachines() async throws -> [Machine] { throw unsupported() }
-    public func inspectMachine(_ name: String) async throws -> Machine { throw unsupported() }
-    public nonisolated func createMachine(_ spec: MachineSpec) -> LineStream { failing() }
-    public func stopMachine(_ name: String) async throws { throw unsupported() }
-    public func deleteMachine(_ name: String) async throws { throw unsupported() }
-    public func setDefaultMachine(_ name: String) async throws { throw unsupported() }
-    public func configureMachine(_ name: String, settings: [String: String]) async throws { throw unsupported() }
-    public func machineLogs(_ name: String) async throws -> [OutputLine] { throw unsupported() }
+    /// Runs a JSON-producing command and decodes its stdout.
+    nonisolated func decode<T: Decodable>(_ type: T.Type, _ arguments: [String]) async throws -> T {
+        let result = try await execute(arguments)
+        do {
+            return try CLIJSON.decode(type, from: result.stdout)
+        } catch {
+            throw BackendError.decoding(command: display(arguments), underlying: String(describing: error))
+        }
+    }
 
-    // MARK: KubernetesOperations
-    public func kubernetesAvailable() async -> Bool { false }
-    public func listClusters() async throws -> [KubernetesCluster] { throw unsupported() }
-    public nonisolated func createCluster(_ spec: ClusterSpec) -> LineStream { failing() }
-    public func deleteCluster(_ name: String) async throws { throw unsupported() }
-    public nonisolated func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream { failing() }
+    /// Decodes an `inspect`-style JSON array and returns its first element (`notFound` when empty).
+    nonisolated func inspectFirst<T: Decodable>(_ type: T.Type, kind: String, id: String, _ arguments: [String]) async throws -> T {
+        guard let first = try await decode([T].self, arguments).first else { throw BackendError.notFound(kind: kind, id: id) }
+        return first
+    }
 
-    private nonisolated func failing(_ name: String = #function) -> LineStream {
-        AsyncThrowingStream { $0.finish(throwing: BackendError.unsupported(feature: name, reason: "CLIBackend not implemented yet")) }
+    /// Maps a failed result, probing `system status` to disambiguate `Plugins are unavailable`.
+    nonisolated func failure(_ arguments: [String], _ result: ProcessResult) async -> BackendError {
+        let mapped = CLIErrorMapper.map(
+            command: display(arguments), exitCode: result.exitCode, stderr: result.stderrText, stdout: result.stdoutText)
+        return await refine(mapped, arguments: arguments, rawOutput: result.stderrText + result.stdoutText)
+    }
+
+    /// Upgrades an ambiguous `commandFailed` to `.systemNotRunning` when `system status` also fails.
+    nonisolated func refine(_ error: BackendError, arguments: [String], rawOutput: String) async -> BackendError {
+        guard case .commandFailed = error, CLIErrorMapper.isPluginsUnavailable(rawOutput),
+              Array(arguments.prefix(2)) != ["system", "status"] else { return error }
+        let status = try? await runner.run([executable, "system", "status"], stdin: nil, timeout: .seconds(15), environment: [:])
+        return status?.exitCode == 0 ? error : .systemNotRunning
+    }
+
+    /// Streams `container <arguments>`, remapping a failure to the most specific `BackendError`.
+    nonisolated func streamCommand(_ arguments: [String]) -> LineStream {
+        let upstream = runner.stream([executable] + arguments, environment: [:])
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await line in upstream { continuation.yield(line) }
+                    continuation.finish()
+                } catch BackendError.commandFailed(let command, let code, let message) {
+                    let mapped = CLIErrorMapper.map(command: command, exitCode: code, stderr: message)
+                    continuation.finish(throwing: await self.refine(mapped, arguments: arguments, rawOutput: message))
+                } catch is CancellationError {
+                    continuation.finish(throwing: BackendError.cancelled)
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// A stream that immediately fails (unsupported option combinations).
+    nonisolated func failedStream(_ error: BackendError) -> LineStream {
+        AsyncThrowingStream { $0.finish(throwing: error) }
+    }
+
+    /// Appends `--label key=value` pairs sorted by key (stable argv for tests and "copy command").
+    static func labelArguments(_ labels: [String: String], flag: String = "--label") -> [String] {
+        labels.sorted { $0.key < $1.key }.flatMap { [flag, "\($0.key)=\($0.value)"] }
+    }
+
+    /// Splits stdout into non-empty lines.
+    static func lines(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 }
