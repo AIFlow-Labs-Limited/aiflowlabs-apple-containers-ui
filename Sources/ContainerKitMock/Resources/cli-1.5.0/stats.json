@@ -1,0 +1,24 @@
+[
+  {
+    "blockReadBytes": 21660672,
+    "blockWriteBytes": 8192,
+    "cpuUsageUsec": 164295,
+    "id": "probe",
+    "memoryLimitBytes": 536870912,
+    "memoryUsageBytes": 38293504,
+    "networkRxBytes": 432,
+    "networkTxBytes": 602,
+    "numProcesses": 1
+  },
+  {
+    "blockReadBytes": 106766336,
+    "blockWriteBytes": 422838272,
+    "cpuUsageUsec": 6878669,
+    "id": "buildkit",
+    "memoryLimitBytes": 2147483648,
+    "memoryUsageBytes": 579301376,
+    "networkRxBytes": 15671149,
+    "networkTxBytes": 223681,
+    "numProcesses": 20
+  }
+]

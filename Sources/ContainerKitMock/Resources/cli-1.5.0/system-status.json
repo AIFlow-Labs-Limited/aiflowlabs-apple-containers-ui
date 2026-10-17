@@ -1,0 +1,29 @@
+{
+  "client": {
+    "appName": "container",
+    "build": "release",
+    "commit": "d265d669ecae041bf338cb3b39c4118316d138f0",
+    "version": "1.5.0"
+  },
+  "host": {
+    "architecture": "arm64",
+    "cpus": 18,
+    "operatingSystem": "Version 26.6.2 (Build 25G83)"
+  },
+  "paths": {
+    "appRoot": "/Users/ilessio/Library/Application Support/com.apple.container/",
+    "installRoot": "/usr/local/"
+  },
+  "resources": {
+    "containersRunning": 1,
+    "containersTotal": 1,
+    "images": 13
+  },
+  "server": {
+    "appName": "container-apiserver",
+    "build": "release",
+    "commit": "d265d669ecae041bf338cb3b39c4118316d138f0",
+    "version": "1.5.0"
+  },
+  "status": "running"
+}

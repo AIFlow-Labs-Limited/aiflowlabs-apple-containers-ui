@@ -1,0 +1,3 @@
+COMPONENT            VERSION  BUILD    COMMIT
+container            1.5.0    release  d265d669ecae041bf338cb3b39c4118316d138f0
+container-apiserver  1.5.0    release  d265d669ecae041bf338cb3b39c4118316d138f0

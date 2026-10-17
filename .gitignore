@@ -1,0 +1,12 @@
+.build/
+build/
+*.xcodeproj
+*.xcworkspace
+.swiftpm/xcode/
+DerivedData/
+.DS_Store
+*.dmg
+*.zip
+.env
+*.log
+/Resources/AppIcon.iconset/

@@ -1,0 +1,230 @@
+[
+  {
+    "configuration": {
+      "capAdd": [],
+      "capDrop": [],
+      "creationDate": "2026-10-17T19:08:25Z",
+      "dns": {
+        "domain": "test",
+        "nameservers": [],
+        "options": [],
+        "searchDomains": []
+      },
+      "id": "probe",
+      "image": {
+        "descriptor": {
+          "digest": "sha256:5aa3872d12a059e22fda84b7556a8d103dc9dff314d044d2d47d5785378c5856",
+          "mediaType": "application/vnd.oci.image.index.v1+json",
+          "size": 10293
+        },
+        "reference": "docker.io/library/python:alpine"
+      },
+      "initProcess": {
+        "arguments": [
+          "-m",
+          "http.server",
+          "8000"
+        ],
+        "environment": [
+          "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "PYTHON_VERSION=3.15.0",
+          "PYTHON_SHA256=ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575"
+        ],
+        "executable": "python3",
+        "rlimits": [],
+        "supplementalGroups": [],
+        "terminal": false,
+        "user": {
+          "id": {
+            "gid": 0,
+            "uid": 0
+          }
+        },
+        "workingDirectory": "/"
+      },
+      "labels": {
+        "app": "probe"
+      },
+      "mounts": [
+        {
+          "destination": "/data",
+          "options": [],
+          "source": "/Users/ilessio/Library/Application Support/com.apple.container/volumes/probevol/volume.img",
+          "type": {
+            "volume": {
+              "cache": {
+                "on": {}
+              },
+              "format": "ext4",
+              "name": "probevol",
+              "sync": {
+                "fsync": {}
+              }
+            }
+          }
+        }
+      ],
+      "networks": [
+        {
+          "network": "default",
+          "options": {
+            "hostname": "probe.test.",
+            "mtu": 1280
+          }
+        }
+      ],
+      "platform": {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      "publishedPorts": [
+        {
+          "containerPort": 8000,
+          "count": 1,
+          "hostAddress": "127.0.0.1",
+          "hostPort": 18099,
+          "proto": "tcp"
+        }
+      ],
+      "publishedSockets": [],
+      "readOnly": false,
+      "resources": {
+        "cpuOverhead": 1,
+        "cpus": 4,
+        "memoryInBytes": 536870912
+      },
+      "rosetta": false,
+      "runtimeHandler": "container-runtime-linux",
+      "ssh": false,
+      "sysctls": {},
+      "useInit": false,
+      "virtualization": false
+    },
+    "id": "probe",
+    "status": {
+      "networks": [
+        {
+          "hostname": "probe.test.",
+          "ipv4Address": "192.168.64.31/24",
+          "ipv4Gateway": "192.168.64.1",
+          "ipv6Address": "fd39:2018:8755:87f8:f0f2:6aff:fe28:899/64",
+          "macAddress": "f2:f2:6a:28:08:99",
+          "mtu": 1280,
+          "network": "default",
+          "variant": "reserved"
+        }
+      ],
+      "startedDate": "2026-10-17T19:08:26Z",
+      "state": "running"
+    }
+  },
+  {
+    "configuration": {
+      "capAdd": [
+        "ALL"
+      ],
+      "capDrop": [],
+      "creationDate": "2026-10-17T18:49:57Z",
+      "dns": {
+        "nameservers": [],
+        "options": [],
+        "searchDomains": []
+      },
+      "id": "buildkit",
+      "image": {
+        "descriptor": {
+          "digest": "sha256:b5b3f7fa81e662db6929f1ad66d835d151a1b03f682cfe5f9fcb17fa46d6bcc9",
+          "mediaType": "application/vnd.oci.image.index.v1+json",
+          "size": 856
+        },
+        "reference": "ghcr.io/apple/container-builder-shim/builder:0.13.1"
+      },
+      "initProcess": {
+        "arguments": [
+          "--debug",
+          "--vsock"
+        ],
+        "environment": [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "BUILDKIT_SETUP_CGROUPV2_ROOT=1"
+        ],
+        "executable": "/usr/local/bin/container-builder-shim",
+        "rlimits": [],
+        "supplementalGroups": [],
+        "terminal": false,
+        "user": {
+          "id": {
+            "gid": 0,
+            "uid": 0
+          }
+        },
+        "workingDirectory": "/"
+      },
+      "labels": {
+        "com.apple.container.plugin": "builder",
+        "com.apple.container.resource.role": "builder"
+      },
+      "mounts": [
+        {
+          "destination": "/run",
+          "options": [],
+          "source": "",
+          "type": {
+            "tmpfs": {}
+          }
+        },
+        {
+          "destination": "/var/lib/container-builder-shim/exports",
+          "options": [],
+          "source": "/Users/ilessio/Library/Application Support/com.apple.container/builder/",
+          "type": {
+            "virtiofs": {}
+          }
+        }
+      ],
+      "networks": [
+        {
+          "network": "default",
+          "options": {
+            "hostname": "buildkit"
+          }
+        }
+      ],
+      "platform": {
+        "architecture": "arm64",
+        "os": "linux",
+        "variant": "v8"
+      },
+      "publishedPorts": [],
+      "publishedSockets": [],
+      "readOnly": false,
+      "resources": {
+        "cpuOverhead": 1,
+        "cpus": 2,
+        "memoryInBytes": 2147483648
+      },
+      "rosetta": true,
+      "runtimeHandler": "container-runtime-linux",
+      "ssh": false,
+      "sysctls": {},
+      "useInit": false,
+      "virtualization": false
+    },
+    "id": "buildkit",
+    "status": {
+      "networks": [
+        {
+          "hostname": "buildkit",
+          "ipv4Address": "192.168.64.14/24",
+          "ipv4Gateway": "192.168.64.1",
+          "ipv6Address": "fd39:2018:8755:87f8:f8e0:4cff:fe52:8d8d/64",
+          "macAddress": "fa:e0:4c:52:8d:8d",
+          "network": "default",
+          "variant": "reserved"
+        }
+      ],
+      "startedDate": "2026-10-17T18:49:58Z",
+      "state": "running"
+    }
+  }
+]

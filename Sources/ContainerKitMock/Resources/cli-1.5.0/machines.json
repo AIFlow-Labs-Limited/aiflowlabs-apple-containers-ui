@@ -1,0 +1,11 @@
+[
+  {
+    "diskSize": 1169506304,
+    "cpus": 9,
+    "id": "probe-m",
+    "status": "stopped",
+    "memory": 68719476736,
+    "default": true,
+    "createdDate": "2026-10-17T19:11:12Z"
+  }
+]

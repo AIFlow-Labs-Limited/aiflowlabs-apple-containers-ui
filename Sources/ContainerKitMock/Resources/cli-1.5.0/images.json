@@ -1,0 +1,1473 @@
+[
+  {
+    "configuration": {
+      "creationDate": "2026-10-17T18:58:22Z",
+      "descriptor": {
+        "annotations": {
+          "com.apple.containerization.image.name": "acdemo-api:latest",
+          "io.containerd.image.name": "docker.io/library/acdemo-api:latest",
+          "org.opencontainers.image.created": "2026-10-17T19:01:45Z",
+          "org.opencontainers.image.ref.name": "latest"
+        },
+        "digest": "sha256:b328988a6a29d26aec3be550ba464477523d368a7de19fa1848ebdfbb9ac4b53",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 375
+      },
+      "name": "acdemo-api:latest"
+    },
+    "id": "b328988a6a29d26aec3be550ba464477523d368a7de19fa1848ebdfbb9ac4b53",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "uvicorn",
+              "app:app",
+              "--app-dir",
+              "/",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8080"
+            ],
+            "Env": [
+              "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "LANG=C.UTF-8",
+              "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "PYTHON_VERSION=3.11.17",
+              "PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599"
+            ]
+          },
+          "created": "2026-10-17T18:58:22.245285014Z",
+          "history": [
+            {
+              "comment": "debuerreotype 0.17",
+              "created": "2026-10-05T00:00:00Z",
+              "created_by": "# debian.sh --arch 'arm64' out/ 'trixie' '@1791158400'"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV LANG=C.UTF-8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tca-certificates \t\tnetbase \t\ttzdata \t; \tapt-get dist-clean # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PYTHON_VERSION=3.11.17",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.607781068Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\tsavedAptMark=\"$(apt-mark showmanual)\"; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tdpkg-dev \t\tg++ \t\tgcc \t\tgnupg \t\tlibbluetooth-dev \t\tlibbz2-dev \t\tlibc6-dev \t\tlibdb-dev \t\tlibffi-dev \t\tlibgdbm-dev \t\tliblzma-dev \t\tlibncursesw5-dev \t\tlibreadline-dev \t\tlibsqlite3-dev \t\tlibssl-dev \t\tmake \t\ttk-dev \t\tuuid-dev \t\twget \t\txz-utils \t\tzlib1g-dev \t; \t\twget -O python.tar.xz \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz\"; \techo \"$PYTHON_SHA256 *python.tar.xz\" | sha256sum -c -; \twget -O python.tar.xz.asc \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc\"; \tGNUPGHOME=\"$(mktemp -d)\"; export GNUPGHOME; \tgpg --batch --keyserver hkps://keys.openpgp.org --recv-keys \"$GPG_KEY\"; \tgpg --batch --verify python.tar.xz.asc python.tar.xz; \tgpgconf --kill all; \trm -rf \"$GNUPGHOME\" python.tar.xz.asc; \tmkdir -p /usr/src/python; \ttar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz; \trm python.tar.xz; \t\tcd /usr/src/python; \tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \t./configure \t\t--build=\"$gnuArch\" \t\t--enable-loadable-sqlite-extensions \t\t--enable-optimizations \t\t--enable-option-checking=fatal \t\t--enable-shared \t\t$(test \"${gnuArch%%-*}\" != 'riscv64' && echo '--with-lto') \t\t--with-ensurepip \t; \tnproc=\"$(nproc)\"; \tEXTRA_CFLAGS=\"$(dpkg-buildflags --get CFLAGS)\"; \tLDFLAGS=\"$(dpkg-buildflags --get LDFLAGS)\"; \tLDFLAGS=\"${LDFLAGS:-} -Wl,--strip-all\"; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-}\" \t; \trm python; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-} -Wl,-rpath='\\$\\$ORIGIN/../lib'\" \t\tpython \t; \tmake install; \t\tcd /; \trm -rf /usr/src/python; \t\tfind /usr/local -depth \t\t\\( \t\t\t\\( -type d -a \\( -name test -o -name tests -o -name idle_test \\) \\) \t\t\t-o \\( -type f -a \\( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \\) \\) \t\t\\) -exec rm -rf '{}' + \t; \t\tldconfig; \t\tapt-mark auto '.*' > /dev/null; \tapt-mark manual $savedAptMark; \tfind /usr/local -type f -executable -not \\( -name '*tkinter*' \\) -exec ldd '{}' ';' \t\t| awk '/=>/ { so = $(NF-1); if (index(so, \"/usr/local/\") == 1) { next }; gsub(\"^/(usr/)?\", \"\", so); printf \"*%s\\n\", so }' \t\t| sort -u \t\t| xargs -rt dpkg-query --search \t\t| awk 'sub(\":$\", \"\", $1) { print $1 }' \t\t| sort -u \t\t| xargs -r apt-mark manual \t; \tapt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \tapt-get dist-clean; \t\texport PYTHONDONTWRITEBYTECODE=1; \tpython3 --version; \t\tpip3 install \t\t--disable-pip-version-check \t\t--no-cache-dir \t\t--no-compile \t\t'setuptools==79.0.1' \t\t'wheel==0.46.3' \t; \tpip3 --version # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.717734222Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tfor src in idle3 pip3 pydoc3 python3 python3-config; do \t\tdst=\"$(echo \"$src\" | tr -d 3)\"; \t\t[ -s \"/usr/local/bin/$src\" ]; \t\t[ ! -e \"/usr/local/bin/$dst\" ]; \t\tln -svT \"$src\" \"/usr/local/bin/$dst\"; \tdone # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.717734222Z",
+              "created_by": "CMD [\"python3\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:58:22.226344847Z",
+              "created_by": "RUN /bin/sh -c pip install --no-cache-dir fastapi==0.115.0 uvicorn==0.30.6 # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:58:22.245285014Z",
+              "created_by": "COPY app.py /app.py # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:58:22.245285014Z",
+              "created_by": "CMD [\"uvicorn\" \"app:app\" \"--app-dir\" \"/\" \"--host\" \"0.0.0.0\" \"--port\" \"8080\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:258ba1f62b513e7bb7492d3cc8ce445e4ef176a14980f193f789b6d7270ae61c",
+              "sha256:e608bc52e64389b35f8ddd810bd219299785ba45a063ee9571fa75cf7fd106ad",
+              "sha256:d378fb5ec83eb7b6fe50bb189f5d1933741713980ee9a81a999429c117e03832",
+              "sha256:e497a1edfdd33c45a8881175e57e55f9f520cfb306d7cbf8ae18243633edde86",
+              "sha256:869f085acbc6a9794bbf67872e36a00dbe842ac2558282d301bebf7346a4c1c2",
+              "sha256:1599c1cfd8db8fd40bd02ac40f8965f356b721ea48fcbcfcd652d9652c637717"
+            ],
+            "type": "layers"
+          }
+        },
+        "digest": "sha256:4364620fdba09ffbf7b38431ab5e11ce77baa3bc06d39c13ae320767869d7e46",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux"
+        },
+        "size": 55037732
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-09-17T20:37:30Z",
+      "descriptor": {
+        "digest": "sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 9218
+      },
+      "name": "docker.io/library/alpine:3.22"
+    },
+    "id": "5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "/bin/sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "WorkingDir": "/"
+          },
+          "created": "2026-09-17T20:37:30.780047516Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:30.780047516Z",
+              "created_by": "ADD alpine-minirootfs-3.22.6-aarch64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:30.780047516Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:9fd9b3248f2fb670edfab1393d1d1e8cd828eb9c65de376b2fcc23268a45d500"
+            ],
+            "type": "layers"
+          },
+          "variant": "v8"
+        },
+        "digest": "sha256:2e1a7aa4cbc4e9e5222bb4c24a839aa1a6170ea5492d644777ce7b178824e44f",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        "size": 4124736
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-09-17T20:37:05Z",
+      "descriptor": {
+        "digest": "sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 9218
+      },
+      "name": "docker.io/library/alpine:latest"
+    },
+    "id": "294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6",
+    "variants": [
+      {
+        "config": {
+          "architecture": "amd64",
+          "config": {
+            "Cmd": [
+              "/bin/sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "WorkingDir": "/"
+          },
+          "created": "2026-09-17T20:37:20.889221879Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:20.889221879Z",
+              "created_by": "ADD alpine-minirootfs-3.24.2-x86_64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:20.889221879Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:74d97c428c51a828f9051a7a40a53ff1fc99e54fc30323ce36760701b0b7f711"
+            ],
+            "type": "layers"
+          }
+        },
+        "digest": "sha256:d56c381f961d307a21b3ca004cf1e3910f106644aefb1f43e654c8a56c4fd395",
+        "platform": {
+          "architecture": "amd64",
+          "os": "linux"
+        },
+        "size": 3851371
+      },
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "/bin/sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "WorkingDir": "/"
+          },
+          "created": "2026-09-17T20:37:05.258369293Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:05.258369293Z",
+              "created_by": "ADD alpine-minirootfs-3.24.2-aarch64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:05.258369293Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:1b349a3334531b575b01d409540dd8aca14ef29abddacd50f36643d7c949db4b"
+            ],
+            "type": "layers"
+          },
+          "variant": "v8"
+        },
+        "digest": "sha256:260479a1cfaf304c4c20da7f8405d3ce313513dcd534bb743257bdd2fe0f3e2d",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        "size": 4189311
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-09-17T21:33:33Z",
+      "descriptor": {
+        "digest": "sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 10301
+      },
+      "name": "docker.io/library/postgres:16-alpine"
+    },
+    "id": "721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "postgres"
+            ],
+            "Entrypoint": [
+              "docker-entrypoint.sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "GOSU_VERSION=1.19",
+              "LANG=en_US.utf8",
+              "PG_MAJOR=16",
+              "PG_VERSION=16.15",
+              "PG_SHA256=c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed",
+              "DOCKER_PG_LLVM_DEPS=llvm21-dev \t\tclang21",
+              "PGDATA=/var/lib/postgresql/data"
+            ],
+            "StopSignal": "SIGINT",
+            "WorkingDir": "/"
+          },
+          "created": "2026-09-17T21:33:33.594772508Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:05.258369293Z",
+              "created_by": "ADD alpine-minirootfs-3.24.2-aarch64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:05.258369293Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:28:24.375755404Z",
+              "created_by": "RUN /bin/sh -c set -eux; \taddgroup -g 70 -S postgres; \tadduser -u 70 -S -D -G postgres -H -h /var/lib/postgresql -s /bin/sh postgres; \tinstall --verbose --directory --owner postgres --group postgres --mode 1777 /var/lib/postgresql # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:28:27.005744242Z",
+              "created_by": "ENV GOSU_VERSION=1.19",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:28:27.005744242Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\tapk add --no-cache --virtual .gosu-deps \t\tca-certificates \t\tdpkg \t\tgnupg \t; \t\tdpkgArch=\"$(dpkg --print-architecture | awk -F- '{ print $NF }')\"; \twget -O /usr/local/bin/gosu \"https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch\"; \twget -O /usr/local/bin/gosu.asc \"https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch.asc\"; \t\texport GNUPGHOME=\"$(mktemp -d)\"; \tgpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4; \tgpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu; \tgpgconf --kill all; \trm -rf \"$GNUPGHOME\" /usr/local/bin/gosu.asc; \t\tapk del --no-network .gosu-deps; \t\tchmod +x /usr/local/bin/gosu; \tgosu --version; \tgosu nobody true # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:31:19.26765039Z",
+              "created_by": "RUN /bin/sh -c set -eux; ln -svf gosu /usr/local/bin/su-exec; su-exec nobody true # backwards compatibility (removed in PostgreSQL 17+) # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:31:19.26765039Z",
+              "created_by": "ENV LANG=en_US.utf8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:31:19.329267017Z",
+              "created_by": "RUN /bin/sh -c mkdir /docker-entrypoint-initdb.d # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:31:19.329267017Z",
+              "created_by": "ENV PG_MAJOR=16",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:31:19.329267017Z",
+              "created_by": "ENV PG_VERSION=16.15",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:31:19.329267017Z",
+              "created_by": "ENV PG_SHA256=c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:31:19.329267017Z",
+              "created_by": "ENV DOCKER_PG_LLVM_DEPS=llvm21-dev \t\tclang21",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.170372023Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\twget -O postgresql.tar.bz2 \"https://ftp.postgresql.org/pub/source/v$PG_VERSION/postgresql-$PG_VERSION.tar.bz2\"; \techo \"$PG_SHA256 *postgresql.tar.bz2\" | sha256sum -c -; \tmkdir -p /usr/src/postgresql; \ttar \t\t--extract \t\t--file postgresql.tar.bz2 \t\t--directory /usr/src/postgresql \t\t--strip-components 1 \t; \trm postgresql.tar.bz2; \t\tapk add --no-cache --virtual .build-deps \t\t$DOCKER_PG_LLVM_DEPS \t\tbison \t\tcoreutils \t\tdpkg-dev dpkg \t\tflex \t\tg++ \t\tgcc \t\tkrb5-dev \t\tlibc-dev \t\tlibedit-dev \t\tlibxml2-dev \t\tlibxslt-dev \t\tlinux-headers \t\tmake \t\topenldap-dev \t\topenssl-dev \t\tperl-dev \t\tperl-ipc-run \t\tperl-utils \t\tpython3-dev \t\ttcl-dev \t\tutil-linux-dev \t\tzlib-dev \t\ticu-dev \t\tlz4-dev \t\tzstd-dev \t; \t\tcd /usr/src/postgresql; \tawk '$1 == \"#define\" && $2 == \"DEFAULT_PGSOCKET_DIR\" && $3 == \"\\\"/tmp\\\"\" { $3 = \"\\\"/var/run/postgresql\\\"\"; print; next } { print }' src/include/pg_config_manual.h > src/include/pg_config_manual.h.new; \tgrep '/var/run/postgresql' src/include/pg_config_manual.h.new; \tmv src/include/pg_config_manual.h.new src/include/pg_config_manual.h; \tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \t\texport LLVM_CONFIG=\"/usr/lib/llvm21/bin/llvm-config\"; \texport CLANG=clang-21; \t\t./configure \t\t--enable-option-checking=fatal \t\t--build=\"$gnuArch\" \t\t--enable-integer-datetimes \t\t--enable-thread-safety \t\t--enable-tap-tests \t\t--disable-rpath \t\t--with-uuid=e2fs \t\t--with-pgport=5432 \t\t--with-system-tzdata=/usr/share/zoneinfo \t\t--prefix=/usr/local \t\t--with-includes=/usr/local/include \t\t--with-libraries=/usr/local/lib \t\t--with-gssapi \t\t--with-icu \t\t--with-ldap \t\t--with-libxml \t\t--with-libxslt \t\t--with-llvm \t\t--with-lz4 \t\t--with-openssl \t\t--with-perl \t\t--with-python \t\t--with-tcl \t\t--with-zstd \t; \tmake -j \"$(nproc)\" world-bin; \tmake install-world-bin; \tmake -C contrib install; \t\trunDeps=\"$( \t\tscanelf --needed --nobanner --format '%n#p' --recursive /usr/local \t\t\t| tr ',' '\\n' \t\t\t| sort -u \t\t\t| awk 'system(\"[ -e /usr/local/lib/\" $1 \" ]\") == 0 { next } { print \"so:\" $1 }' \t\t\t| grep -v -e perl -e python -e tcl \t)\"; \tapk add --no-cache --virtual .postgresql-rundeps \t\t$runDeps \t\tbash \t\ttzdata \t\tzstd \t\ticu-data-full \t\t$([ \"$(apk --print-arch)\" != 'ppc64le' ] && echo 'nss_wrapper') \t; \tapk del --no-network .build-deps; \tcd /; \trm -rf \t\t/usr/src/postgresql \t\t/usr/local/share/doc \t\t/usr/local/share/man \t; \t\tpostgres --version # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.287242646Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tcp -v /usr/local/share/postgresql/postgresql.conf.sample /usr/local/share/postgresql/postgresql.conf.sample.orig; \tsed -ri \"s!^#?(listen_addresses)\\s*=\\s*\\S+.*!\\1 = '*'!\" /usr/local/share/postgresql/postgresql.conf.sample; \tgrep -F \"listen_addresses = '*'\" /usr/local/share/postgresql/postgresql.conf.sample # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.372070719Z",
+              "created_by": "RUN /bin/sh -c install --verbose --directory --owner postgres --group postgres --mode 3777 /var/run/postgresql # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.372070719Z",
+              "created_by": "ENV PGDATA=/var/lib/postgresql/data",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.474616162Z",
+              "created_by": "RUN /bin/sh -c install --verbose --directory --owner postgres --group postgres --mode 1777 \"$PGDATA\" # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.474616162Z",
+              "created_by": "VOLUME [/var/lib/postgresql/data]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.505310347Z",
+              "created_by": "COPY docker-entrypoint.sh docker-ensure-initdb.sh /usr/local/bin/ # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.594772508Z",
+              "created_by": "RUN /bin/sh -c ln -sT docker-ensure-initdb.sh /usr/local/bin/docker-enforce-initdb.sh # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.594772508Z",
+              "created_by": "ENTRYPOINT [\"docker-entrypoint.sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.594772508Z",
+              "created_by": "STOPSIGNAL SIGINT",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.594772508Z",
+              "created_by": "EXPOSE map[5432/tcp:{}]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:33:33.594772508Z",
+              "created_by": "CMD [\"postgres\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:1b349a3334531b575b01d409540dd8aca14ef29abddacd50f36643d7c949db4b",
+              "sha256:4f15852adea5bdfc80dad482ca74229db16b7ad54ddc6c7c177713c51972cd1c",
+              "sha256:df8342f772ba15617229eeb4a16b6130db838adbaf5728c9eac525ec7e701539",
+              "sha256:85c7f475efea074dd4bf7be009d713737efd4c0c77db233a561e9963800405a2",
+              "sha256:192732c44ddd8d6b5adf9c4a21c0aff6841d496b702081983211aeb5f9654d0c",
+              "sha256:67e7ed93ecbd4876106cc32ead79171012b90725c7979d315c514a80fbe024ea",
+              "sha256:79dad632b73e1b910ceb67aeee987cb142ca69111eb37f472bf40136187a1d9c",
+              "sha256:5ddc1f8f3b1eb05544dce808a2b463888043fc594e0ed2bc6d06bfa5b2e7c1ac",
+              "sha256:63d903263c96962b3acf566be16ad2de55b12dce49c65006a608720b75503512",
+              "sha256:eae3baafa0b1d58579a19f4971ac284be19cc28979bdb5b3901fbb6ec34da32f",
+              "sha256:0c53597c8b96194560f5193e1e2f0d0f67fbb7bfd636190a13834d97b8fd8590"
+            ],
+            "type": "layers"
+          },
+          "variant": "v8"
+        },
+        "digest": "sha256:2c942175a1255a9abe0366e48c1b401d9f50f835b04dfea13f111609b5530df7",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        "size": 113895089
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-10-06T02:04:46Z",
+      "descriptor": {
+        "digest": "sha256:e88e9763f943ec1834f992a4b51e0f24500486803e8bc534e5767af9ea65f6ce",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 10373
+      },
+      "name": "docker.io/library/python:3.11-slim"
+    },
+    "id": "e88e9763f943ec1834f992a4b51e0f24500486803e8bc534e5767af9ea65f6ce",
+    "variants": [
+      {
+        "config": {
+          "architecture": "amd64",
+          "config": {
+            "Cmd": [
+              "python3"
+            ],
+            "Env": [
+              "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "LANG=C.UTF-8",
+              "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "PYTHON_VERSION=3.11.17",
+              "PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599"
+            ]
+          },
+          "created": "2026-10-06T02:04:46.323675117Z",
+          "history": [
+            {
+              "comment": "debuerreotype 0.17",
+              "created": "2026-10-05T00:00:00Z",
+              "created_by": "# debian.sh --arch 'amd64' out/ 'trixie' '@1791158400'"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV LANG=C.UTF-8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tca-certificates \t\tnetbase \t\ttzdata \t; \tapt-get dist-clean # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV PYTHON_VERSION=3.11.17",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:04:46.226660024Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\tsavedAptMark=\"$(apt-mark showmanual)\"; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tdpkg-dev \t\tg++ \t\tgcc \t\tgnupg \t\tlibbluetooth-dev \t\tlibbz2-dev \t\tlibc6-dev \t\tlibdb-dev \t\tlibffi-dev \t\tlibgdbm-dev \t\tliblzma-dev \t\tlibncursesw5-dev \t\tlibreadline-dev \t\tlibsqlite3-dev \t\tlibssl-dev \t\tmake \t\ttk-dev \t\tuuid-dev \t\twget \t\txz-utils \t\tzlib1g-dev \t; \t\twget -O python.tar.xz \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz\"; \techo \"$PYTHON_SHA256 *python.tar.xz\" | sha256sum -c -; \twget -O python.tar.xz.asc \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc\"; \tGNUPGHOME=\"$(mktemp -d)\"; export GNUPGHOME; \tgpg --batch --keyserver hkps://keys.openpgp.org --recv-keys \"$GPG_KEY\"; \tgpg --batch --verify python.tar.xz.asc python.tar.xz; \tgpgconf --kill all; \trm -rf \"$GNUPGHOME\" python.tar.xz.asc; \tmkdir -p /usr/src/python; \ttar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz; \trm python.tar.xz; \t\tcd /usr/src/python; \tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \t./configure \t\t--build=\"$gnuArch\" \t\t--enable-loadable-sqlite-extensions \t\t--enable-optimizations \t\t--enable-option-checking=fatal \t\t--enable-shared \t\t$(test \"${gnuArch%%-*}\" != 'riscv64' && echo '--with-lto') \t\t--with-ensurepip \t; \tnproc=\"$(nproc)\"; \tEXTRA_CFLAGS=\"$(dpkg-buildflags --get CFLAGS)\"; \tLDFLAGS=\"$(dpkg-buildflags --get LDFLAGS)\"; \tLDFLAGS=\"${LDFLAGS:-} -Wl,--strip-all\"; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-}\" \t; \trm python; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-} -Wl,-rpath='\\$\\$ORIGIN/../lib'\" \t\tpython \t; \tmake install; \t\tcd /; \trm -rf /usr/src/python; \t\tfind /usr/local -depth \t\t\\( \t\t\t\\( -type d -a \\( -name test -o -name tests -o -name idle_test \\) \\) \t\t\t-o \\( -type f -a \\( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \\) \\) \t\t\\) -exec rm -rf '{}' + \t; \t\tldconfig; \t\tapt-mark auto '.*' > /dev/null; \tapt-mark manual $savedAptMark; \tfind /usr/local -type f -executable -not \\( -name '*tkinter*' \\) -exec ldd '{}' ';' \t\t| awk '/=>/ { so = $(NF-1); if (index(so, \"/usr/local/\") == 1) { next }; gsub(\"^/(usr/)?\", \"\", so); printf \"*%s\\n\", so }' \t\t| sort -u \t\t| xargs -rt dpkg-query --search \t\t| awk 'sub(\":$\", \"\", $1) { print $1 }' \t\t| sort -u \t\t| xargs -r apt-mark manual \t; \tapt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \tapt-get dist-clean; \t\texport PYTHONDONTWRITEBYTECODE=1; \tpython3 --version; \t\tpip3 install \t\t--disable-pip-version-check \t\t--no-cache-dir \t\t--no-compile \t\t'setuptools==79.0.1' \t\t'wheel==0.46.3' \t; \tpip3 --version # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:04:46.323675117Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tfor src in idle3 pip3 pydoc3 python3 python3-config; do \t\tdst=\"$(echo \"$src\" | tr -d 3)\"; \t\t[ -s \"/usr/local/bin/$src\" ]; \t\t[ ! -e \"/usr/local/bin/$dst\" ]; \t\tln -svT \"$src\" \"/usr/local/bin/$dst\"; \tdone # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:04:46.323675117Z",
+              "created_by": "CMD [\"python3\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:15f1c8eb1ab18eae260c7fb6296434cbe1ff0e1e30fd814ae92a80dd54005e62",
+              "sha256:56864e09c37360dbf846cf5ac9fc3090034f02e382fd0fbe4c7b576207436200",
+              "sha256:ba18d048b43a42f86dc288babadbdfe01602571200fd60c9e172deb8abf4147f",
+              "sha256:020f37c339b9fc549a11bcc5a937b81e3500281270bb62edde29022b27919d86"
+            ],
+            "type": "layers"
+          }
+        },
+        "digest": "sha256:e529028263dbe6910a2d96f7d2b8f5266385e917fd45d286ef166977c094a51e",
+        "platform": {
+          "architecture": "amd64",
+          "os": "linux"
+        },
+        "size": 45601793
+      },
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "python3"
+            ],
+            "Env": [
+              "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "LANG=C.UTF-8",
+              "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "PYTHON_VERSION=3.11.17",
+              "PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599"
+            ]
+          },
+          "created": "2026-10-06T02:11:46.717734222Z",
+          "history": [
+            {
+              "comment": "debuerreotype 0.17",
+              "created": "2026-10-05T00:00:00Z",
+              "created_by": "# debian.sh --arch 'arm64' out/ 'trixie' '@1791158400'"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV LANG=C.UTF-8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tca-certificates \t\tnetbase \t\ttzdata \t; \tapt-get dist-clean # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PYTHON_VERSION=3.11.17",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.607781068Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\tsavedAptMark=\"$(apt-mark showmanual)\"; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tdpkg-dev \t\tg++ \t\tgcc \t\tgnupg \t\tlibbluetooth-dev \t\tlibbz2-dev \t\tlibc6-dev \t\tlibdb-dev \t\tlibffi-dev \t\tlibgdbm-dev \t\tliblzma-dev \t\tlibncursesw5-dev \t\tlibreadline-dev \t\tlibsqlite3-dev \t\tlibssl-dev \t\tmake \t\ttk-dev \t\tuuid-dev \t\twget \t\txz-utils \t\tzlib1g-dev \t; \t\twget -O python.tar.xz \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz\"; \techo \"$PYTHON_SHA256 *python.tar.xz\" | sha256sum -c -; \twget -O python.tar.xz.asc \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc\"; \tGNUPGHOME=\"$(mktemp -d)\"; export GNUPGHOME; \tgpg --batch --keyserver hkps://keys.openpgp.org --recv-keys \"$GPG_KEY\"; \tgpg --batch --verify python.tar.xz.asc python.tar.xz; \tgpgconf --kill all; \trm -rf \"$GNUPGHOME\" python.tar.xz.asc; \tmkdir -p /usr/src/python; \ttar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz; \trm python.tar.xz; \t\tcd /usr/src/python; \tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \t./configure \t\t--build=\"$gnuArch\" \t\t--enable-loadable-sqlite-extensions \t\t--enable-optimizations \t\t--enable-option-checking=fatal \t\t--enable-shared \t\t$(test \"${gnuArch%%-*}\" != 'riscv64' && echo '--with-lto') \t\t--with-ensurepip \t; \tnproc=\"$(nproc)\"; \tEXTRA_CFLAGS=\"$(dpkg-buildflags --get CFLAGS)\"; \tLDFLAGS=\"$(dpkg-buildflags --get LDFLAGS)\"; \tLDFLAGS=\"${LDFLAGS:-} -Wl,--strip-all\"; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-}\" \t; \trm python; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-} -Wl,-rpath='\\$\\$ORIGIN/../lib'\" \t\tpython \t; \tmake install; \t\tcd /; \trm -rf /usr/src/python; \t\tfind /usr/local -depth \t\t\\( \t\t\t\\( -type d -a \\( -name test -o -name tests -o -name idle_test \\) \\) \t\t\t-o \\( -type f -a \\( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \\) \\) \t\t\\) -exec rm -rf '{}' + \t; \t\tldconfig; \t\tapt-mark auto '.*' > /dev/null; \tapt-mark manual $savedAptMark; \tfind /usr/local -type f -executable -not \\( -name '*tkinter*' \\) -exec ldd '{}' ';' \t\t| awk '/=>/ { so = $(NF-1); if (index(so, \"/usr/local/\") == 1) { next }; gsub(\"^/(usr/)?\", \"\", so); printf \"*%s\\n\", so }' \t\t| sort -u \t\t| xargs -rt dpkg-query --search \t\t| awk 'sub(\":$\", \"\", $1) { print $1 }' \t\t| sort -u \t\t| xargs -r apt-mark manual \t; \tapt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \tapt-get dist-clean; \t\texport PYTHONDONTWRITEBYTECODE=1; \tpython3 --version; \t\tpip3 install \t\t--disable-pip-version-check \t\t--no-cache-dir \t\t--no-compile \t\t'setuptools==79.0.1' \t\t'wheel==0.46.3' \t; \tpip3 --version # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.717734222Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tfor src in idle3 pip3 pydoc3 python3 python3-config; do \t\tdst=\"$(echo \"$src\" | tr -d 3)\"; \t\t[ -s \"/usr/local/bin/$src\" ]; \t\t[ ! -e \"/usr/local/bin/$dst\" ]; \t\tln -svT \"$src\" \"/usr/local/bin/$dst\"; \tdone # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.717734222Z",
+              "created_by": "CMD [\"python3\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:258ba1f62b513e7bb7492d3cc8ce445e4ef176a14980f193f789b6d7270ae61c",
+              "sha256:e608bc52e64389b35f8ddd810bd219299785ba45a063ee9571fa75cf7fd106ad",
+              "sha256:d378fb5ec83eb7b6fe50bb189f5d1933741713980ee9a81a999429c117e03832",
+              "sha256:e497a1edfdd33c45a8881175e57e55f9f520cfb306d7cbf8ae18243633edde86"
+            ],
+            "type": "layers"
+          },
+          "variant": "v8"
+        },
+        "digest": "sha256:1847ca1d1bc792b4b58fff39c82c67942112e3e1ebc0ee1d06b9014873152ce7",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        "size": 45891223
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-10-16T22:27:06Z",
+      "descriptor": {
+        "digest": "sha256:5aa3872d12a059e22fda84b7556a8d103dc9dff314d044d2d47d5785378c5856",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 10293
+      },
+      "name": "docker.io/library/python:alpine"
+    },
+    "id": "5aa3872d12a059e22fda84b7556a8d103dc9dff314d044d2d47d5785378c5856",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "python3"
+            ],
+            "Env": [
+              "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "PYTHON_VERSION=3.15.0",
+              "PYTHON_SHA256=ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575"
+            ],
+            "WorkingDir": "/"
+          },
+          "created": "2026-10-16T22:27:06.447873298Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:05.258369293Z",
+              "created_by": "ADD alpine-minirootfs-3.24.2-aarch64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:05.258369293Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-16T22:24:25.812284537Z",
+              "created_by": "ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-16T22:24:25.812284537Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tapk add --no-cache \t\tca-certificates \t\ttzdata \t; # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-16T22:24:25.812284537Z",
+              "created_by": "ENV PYTHON_VERSION=3.15.0",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-16T22:24:25.812284537Z",
+              "created_by": "ENV PYTHON_SHA256=ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-16T22:27:06.375326439Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\tapk add --no-cache --virtual .build-deps \t\tbluez-dev \t\tbzip2-dev \t\tdpkg-dev dpkg \t\tfindutils \t\tg++ \t\tgcc \t\tgdbm-dev \t\tgnupg \t\tlibc-dev \t\tlibffi-dev \t\tlibnsl-dev \t\tlibtirpc-dev \t\tlinux-headers \t\tmake \t\tmpdecimal-dev \t\tncurses-dev \t\topenssl-dev \t\tpax-utils \t\treadline-dev \t\tsqlite-dev \t\ttar \t\ttcl-dev \t\ttk \t\ttk-dev \t\tutil-linux-dev \t\txz \t\txz-dev \t\tzlib-dev \t\tzstd-dev \t; \t\twget -O python.tar.xz \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz\"; \techo \"$PYTHON_SHA256 *python.tar.xz\" | sha256sum -c -; \tmkdir -p /usr/src/python; \ttar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz; \trm python.tar.xz; \t\tcd /usr/src/python; \tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \t./configure \t\t--build=\"$gnuArch\" \t\t--enable-loadable-sqlite-extensions \t\t--enable-option-checking=fatal \t\t--enable-shared \t\t$(test \"${gnuArch%%-*}\" != 'riscv64' && echo '--with-lto') \t\t--with-ensurepip \t; \tnproc=\"$(nproc)\"; \tEXTRA_CFLAGS=\"-DTHREAD_STACK_SIZE=0x100000\"; \tLDFLAGS=\"${LDFLAGS:-} -Wl,--strip-all\"; \tarch=\"$(apk --print-arch)\"; \tcase \"$arch\" in \t\tx86_64|aarch64) \t\t\tEXTRA_CFLAGS=\"${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer\"; \t\t\t;; \t\tx86) \t\t\t;; \t\t*) \t\t\tEXTRA_CFLAGS=\"${EXTRA_CFLAGS:-} -fno-omit-frame-pointer\"; \t\t\t;; \tesac; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-}\" \t; \trm python; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-} -Wl,-rpath='\\$\\$ORIGIN/../lib'\" \t\tpython \t; \tmake install; \t\tcd /; \trm -rf /usr/src/python; \t\tfind /usr/local -depth \t\t\\( \t\t\t\\( -type d -a \\( -name test -o -name tests -o -name idle_test \\) \\) \t\t\t-o \\( -type f -a \\( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \\) \\) \t\t\\) -exec rm -rf '{}' + \t; \t\tfind /usr/local -type f -executable -not \\( -name '*tkinter*' \\) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \t\t| tr ',' '\\n' \t\t| sort -u \t\t| awk 'system(\"[ -e /usr/local/lib/\" $1 \" ]\") == 0 { next } { print \"so:\" $1 }' \t\t| xargs -rt apk add --no-network --virtual .python-rundeps \t; \tapk del --no-network .build-deps; \t\texport PYTHONDONTWRITEBYTECODE=1; \tpython3 --version; \tpip3 --version # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-16T22:27:06.447873298Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tfor src in idle3 pip3 pydoc3 python3 python3-config; do \t\tdst=\"$(echo \"$src\" | tr -d 3)\"; \t\t[ -s \"/usr/local/bin/$src\" ]; \t\t[ ! -e \"/usr/local/bin/$dst\" ]; \t\tln -svT \"$src\" \"/usr/local/bin/$dst\"; \tdone # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-16T22:27:06.447873298Z",
+              "created_by": "CMD [\"python3\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:1b349a3334531b575b01d409540dd8aca14ef29abddacd50f36643d7c949db4b",
+              "sha256:144e0471496f7e1b2e7cab4be4cf8b3a54616e04e0f459086d72c53fc5fa0bf7",
+              "sha256:cb0a850164793e2124d78e81d25ae9a5aab2dd9e7a9d4bce7c38cb483309d509",
+              "sha256:97ebea77b9be8a38e0afd1c90d187c622776a7d85815171f8499070708cab2f9"
+            ],
+            "type": "layers"
+          },
+          "variant": "v8"
+        },
+        "digest": "sha256:48e36f31b62575b7ce08dc0e05769ac944baf8073b0f96c04bb1b2d1595a91bc",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        "size": 22907587
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-09-17T21:34:51Z",
+      "descriptor": {
+        "digest": "sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 10213
+      },
+      "name": "docker.io/library/redis:7-alpine"
+    },
+    "id": "858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "redis-server"
+            ],
+            "Entrypoint": [
+              "docker-entrypoint.sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "REDIS_VERSION=7.4.11"
+            ],
+            "WorkingDir": "/data"
+          },
+          "created": "2026-09-17T21:34:51.403061283Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:38:00.361973766Z",
+              "created_by": "ADD alpine-minirootfs-3.21.8-aarch64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:38:00.361973766Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:08.623301412Z",
+              "created_by": "RUN /bin/sh -c set -eux; \taddgroup -S -g 1000 redis; \tadduser -S -G redis -u 999 redis # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:09.207058921Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tapk add --no-cache \t\ttzdata \t\tsetpriv \t; # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.258866756Z",
+              "created_by": "ENV REDIS_VERSION=7.4.11",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.258866756Z",
+              "created_by": "ARG REDIS_DOWNLOAD_URL=https://github.com/redis/redis/archive/refs/tags/7.4.11.tar.gz",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.258866756Z",
+              "created_by": "ARG REDIS_DOWNLOAD_SHA=e973da69febfea096ab94690b44bf976482788a1b5e070df373b4f27697d57d4",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.258866756Z",
+              "created_by": "RUN |2 REDIS_DOWNLOAD_URL=https://github.com/redis/redis/archive/refs/tags/7.4.11.tar.gz REDIS_DOWNLOAD_SHA=e973da69febfea096ab94690b44bf976482788a1b5e070df373b4f27697d57d4 /bin/sh -c set -eux; \t\tapk add --no-cache --virtual .build-deps \t\tcoreutils \t\tdpkg-dev dpkg \t\tgcc \t\tlinux-headers \t\tmake \t\tmusl-dev \t\topenssl-dev \t\twget \t; \twget -O redis.tar.gz \"$REDIS_DOWNLOAD_URL\"; \techo \"$REDIS_DOWNLOAD_SHA *redis.tar.gz\" | sha256sum -c -; \tmkdir -p /usr/src/redis; \ttar -xzf redis.tar.gz -C /usr/src/redis --strip-components=1; \trm redis.tar.gz; \t\tgrep -E '^ *createBoolConfig[(]\"protected-mode\",.*, *1 *,.*[)],$' /usr/src/redis/src/config.c; \tsed -ri 's!^( *createBoolConfig[(]\"protected-mode\",.*, *)1( *,.*[)],)$!\\10\\2!' /usr/src/redis/src/config.c; \tgrep -E '^ *createBoolConfig[(]\"protected-mode\",.*, *0 *,.*[)],$' /usr/src/redis/src/config.c; \t\tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \textraJemallocConfigureFlags=\"--build=$gnuArch\"; \tdpkgArch=\"$(dpkg --print-architecture)\"; \tcase \"${dpkgArch##*-}\" in \t\tamd64 | i386 | x32) extraJemallocConfigureFlags=\"$extraJemallocConfigureFlags --with-lg-page=12\" ;; \t\t*) extraJemallocConfigureFlags=\"$extraJemallocConfigureFlags --with-lg-page=16\" ;; \tesac; \textraJemallocConfigureFlags=\"$extraJemallocConfigureFlags --with-lg-hugepage=21\"; \tgrep -F 'cd jemalloc && ./configure ' /usr/src/redis/deps/Makefile; \tsed -ri 's!cd jemalloc && ./configure !&'\"$extraJemallocConfigureFlags\"' !' /usr/src/redis/deps/Makefile; \tgrep -F \"cd jemalloc && ./configure $extraJemallocConfigureFlags \" /usr/src/redis/deps/Makefile; \t\texport BUILD_TLS=yes; \tmake -C /usr/src/redis -j \"$(nproc)\" all; \tmake -C /usr/src/redis install; \t\trm -r /usr/src/redis; \t\trunDeps=\"$( \t\tscanelf --needed --nobanner --format '%n#p' --recursive /usr/local \t\t\t| tr ',' '\\n' \t\t\t| sort -u \t\t\t| awk 'system(\"[ -e /usr/local/lib/\" $1 \" ]\") == 0 { next } { print \"so:\" $1 }' \t)\"; \tapk add --no-network --virtual .redis-rundeps $runDeps; \tapk del --no-network .build-deps; \t\tredis-cli --version; \tredis-server --version; # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.348099798Z",
+              "created_by": "RUN |2 REDIS_DOWNLOAD_URL=https://github.com/redis/redis/archive/refs/tags/7.4.11.tar.gz REDIS_DOWNLOAD_SHA=e973da69febfea096ab94690b44bf976482788a1b5e070df373b4f27697d57d4 /bin/sh -c mkdir /data && chown redis:redis /data # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.348099798Z",
+              "created_by": "VOLUME [/data]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.375053004Z",
+              "created_by": "WORKDIR /data"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.403061283Z",
+              "created_by": "COPY docker-entrypoint.sh /usr/local/bin/ # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.403061283Z",
+              "created_by": "ENTRYPOINT [\"docker-entrypoint.sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.403061283Z",
+              "created_by": "EXPOSE map[6379/tcp:{}]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T21:34:51.403061283Z",
+              "created_by": "CMD [\"redis-server\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:545d2c9a9459641b6e79f68d7e5cc87f1a8c03461997e936d0fd77485887cd69",
+              "sha256:e1acaef088afe3b29dfd3ed014c8a231b548e65d647b40bbf06cab78fe8d8d98",
+              "sha256:56f96c0022576e272d2ab4709a29564147e6ad12953543578a96d8ac3840eb3e",
+              "sha256:ad6cef4fd6e14d39f2e5c249691ca7db827dd08502a5e241b8afe366699de291",
+              "sha256:8c53334a5e0a75bf741ecad974a5af6dfaed0705bca8e73275d0d8f69d9f6961",
+              "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+              "sha256:525bb7d27557ed69fb21ad2e1fc9860d1140be7007009a6099118772de9a4380"
+            ],
+            "type": "layers"
+          },
+          "variant": "v8"
+        },
+        "digest": "sha256:1f09a89a207d794a8c61d9edfc26e7c58427de10ccef7c5d18d638df79a63b85",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        "size": 16765394
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-10-17T00:34:53Z",
+      "descriptor": {
+        "digest": "sha256:422ce4f534bfe208b5b008c0d02b58012a92adaa31eafa81a767c26e488ba667",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 2665
+      },
+      "name": "docker.io/library/ros:jazzy-ros-core"
+    },
+    "id": "422ce4f534bfe208b5b008c0d02b58012a92adaa31eafa81a767c26e488ba667",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "bash"
+            ],
+            "Entrypoint": [
+              "/ros_entrypoint.sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "LANG=C.UTF-8",
+              "LC_ALL=C.UTF-8",
+              "ROS_DISTRO=jazzy"
+            ],
+            "Labels": {
+              "org.opencontainers.image.version": "24.04"
+            }
+          },
+          "created": "2026-10-17T00:34:53.590454125Z",
+          "history": [
+            {
+              "created": "2026-10-02T08:10:23.611274251Z",
+              "created_by": "/bin/sh -c #(nop)  ARG RELEASE",
+              "empty_layer": true
+            },
+            {
+              "created": "2026-10-02T08:10:23.652428415Z",
+              "created_by": "/bin/sh -c #(nop)  ARG LAUNCHPAD_BUILD_ARCH",
+              "empty_layer": true
+            },
+            {
+              "created": "2026-10-02T08:10:23.689941749Z",
+              "created_by": "/bin/sh -c #(nop)  LABEL org.opencontainers.image.version=24.04",
+              "empty_layer": true
+            },
+            {
+              "created": "2026-10-02T08:10:25.882803293Z",
+              "created_by": "/bin/sh -c #(nop) ADD file:41d2e63ceb0b90641106340bc81ee11125254db51ee5a9d49e666bcf0388814f in / "
+            },
+            {
+              "created": "2026-10-02T08:10:26.157815299Z",
+              "created_by": "/bin/sh -c #(nop)  CMD [\"/bin/bash\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:33:51.025325587Z",
+              "created_by": "RUN /bin/sh -c echo 'Etc/UTC' > /etc/timezone &&     ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime &&     apt-get update &&     apt-get install -q -y --no-install-recommends tzdata &&     rm -rf /var/lib/apt/lists/* # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:04.157210175Z",
+              "created_by": "RUN /bin/sh -c apt-get update && apt-get install -q -y --no-install-recommends     ca-certificates     curl     dirmngr     gnupg2     && rm -rf /var/lib/apt/lists/* # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:09.598648411Z",
+              "created_by": "RUN /bin/sh -c curl -L -s -f -o /tmp/ros2-apt-source.deb https://github.com/ros-infrastructure/ros-apt-source/releases/download/1.2.0/ros2-apt-source_1.2.0.noble_all.deb     && echo \"0804d9b13db770eb87019be414cd78378835228ad5fa801fc88758596dd8f7e5 */tmp/ros2-apt-source.deb\" | sha256sum --strict --check     && apt-get update     && apt-get install /tmp/ros2-apt-source.deb     && rm -f /tmp/ros2-apt-source.deb     && rm -rf /var/lib/apt/lists/* # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:53.436683963Z",
+              "created_by": "ENV LANG=C.UTF-8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:53.436683963Z",
+              "created_by": "ENV LC_ALL=C.UTF-8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:53.436683963Z",
+              "created_by": "ENV ROS_DISTRO=jazzy",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:53.436683963Z",
+              "created_by": "RUN /bin/sh -c apt-get update && apt-get install -y --no-install-recommends     ros-jazzy-ros-core=0.11.0-1*     && rm -rf /var/lib/apt/lists/* # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:53.590454125Z",
+              "created_by": "COPY ./ros_entrypoint.sh / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:53.590454125Z",
+              "created_by": "ENTRYPOINT [\"/ros_entrypoint.sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T00:34:53.590454125Z",
+              "created_by": "CMD [\"bash\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:9a354992483c962fa69075527e7a2690fd9103f53d2c10af083fb31f24335256",
+              "sha256:151f2a2b21768ddab3fe7dc0ab03431e1844f097bd79acb400c77b1c5442b924",
+              "sha256:a0e07b09edd55d1423153370b1af73b902ebdb7366d4db1e8cd1b18442d1a22f",
+              "sha256:1ad98c2a458c567d01af9a5076a3a99e0c5e3b1e8dfde4a17cad4696ce0cd5ed",
+              "sha256:e20859a2f9e28ce857b6f2dbec659517c73f5ccf069f7fad39b1a45e5c172744",
+              "sha256:a4b861fa48547e24e5f7414b7e675a1a4175f2a27051182bc0944f8bbe291568"
+            ],
+            "type": "layers"
+          },
+          "variant": "v8"
+        },
+        "digest": "sha256:7ebff333371416040751b15978a89f7d4348090c88f6f798feecf961567e2210",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        "size": 151914477
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2025-07-01T02:09:02Z",
+      "descriptor": {
+        "digest": "sha256:28a33e0390da2b341d05e53803c6766977039baedfc8a82a4910d5acc4755b66",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 5413
+      },
+      "name": "ghcr.io/linuxcontainers/alpine:3.20"
+    },
+    "id": "28a33e0390da2b341d05e53803c6766977039baedfc8a82a4910d5acc4755b66",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "/bin/sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Labels": {
+              "maintainer": "peter@linuxcontainers.dev",
+              "org.opencontainers.image.authors": "Peter, peter@linuxcontainers.dev, https://www.linuxcontainers.dev/",
+              "org.opencontainers.image.source": "https://github.com/linuxcontainers/alpine",
+              "org.opencontainers.image.title": "alpine",
+              "org.opencontainers.image.version": "3.20"
+            },
+            "WorkingDir": "/"
+          },
+          "created": "2025-07-01T02:09:02.161632948Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2025-02-14T03:00:07Z",
+              "created_by": "ADD alpine-minirootfs-3.20.6-aarch64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2025-02-14T03:00:07Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2025-07-01T02:09:02.161632948Z",
+              "created_by": "LABEL maintainer=peter@linuxcontainers.dev org.opencontainers.image.authors=Peter, peter@linuxcontainers.dev, https://www.linuxcontainers.dev/ org.opencontainers.image.source=https://github.com/linuxcontainers/alpine org.opencontainers.image.title=alpine",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2025-07-01T02:09:02.161632948Z",
+              "created_by": "RUN /bin/sh -c /sbin/apk update --no-cache     && /sbin/apk upgrade --no-cache     && /bin/rm -rf /var/cache/apk/* # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2025-07-01T02:09:02.161632948Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:dd9c8f8612c8721a83c67026272f1c54979060748d7abea08715bf7eaaf58d40",
+              "sha256:0e2b7fd86f43c82806941f8bd6ef7ac7e296dc90497a8cd4978f865ba527d106"
+            ],
+            "type": "layers"
+          }
+        },
+        "digest": "sha256:ceace5415c6b24e6a8da0b1912dc61d1a76cd11d9902eacdb512796db837c623",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux"
+        },
+        "size": 4101131
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-10-17T18:50:13Z",
+      "descriptor": {
+        "annotations": {
+          "com.apple.containerization.image.name": "local/alpine-machine:latest",
+          "io.containerd.image.name": "docker.io/local/alpine-machine:latest",
+          "org.opencontainers.image.created": "2026-10-17T18:50:13Z",
+          "org.opencontainers.image.ref.name": "latest"
+        },
+        "digest": "sha256:8d421b14d8f5db4570176e5625145549885e778ce3e77eadef72fd008b6547d8",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 374
+      },
+      "name": "local/alpine-machine:latest"
+    },
+    "id": "8d421b14d8f5db4570176e5625145549885e778ce3e77eadef72fd008b6547d8",
+    "variants": [
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "/bin/sh"
+            ],
+            "Env": [
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "WorkingDir": "/"
+          },
+          "created": "2026-10-17T18:50:13.073401131Z",
+          "history": [
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:30.780047516Z",
+              "created_by": "ADD alpine-minirootfs-3.22.6-aarch64.tar.gz / # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-09-17T20:37:30.780047516Z",
+              "created_by": "CMD [\"/bin/sh\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:50:13.073401131Z",
+              "created_by": "RUN /bin/sh -c apk add --no-cache openrc sudo bash coreutils # buildkit"
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:9fd9b3248f2fb670edfab1393d1d1e8cd828eb9c65de376b2fcc23268a45d500",
+              "sha256:2473dbf567c3e32c04fb45bd927a8fdfa7bb42b594299b4f1089b2e89699cea6"
+            ],
+            "type": "layers"
+          }
+        },
+        "digest": "sha256:a3b2695dbd31b8176a063bf5a9ec1db585fe4c9bc17e65695e3d9506c4486f09",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux"
+        },
+        "size": 6889156
+      }
+    ]
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-10-17T18:39:58Z",
+      "descriptor": {
+        "annotations": {
+          "com.apple.containerization.image.name": "local/anima-smoke:latest",
+          "io.containerd.image.name": "docker.io/local/anima-smoke:latest",
+          "org.opencontainers.image.created": "2026-10-17T18:39:59Z",
+          "org.opencontainers.image.ref.name": "latest"
+        },
+        "digest": "sha256:e8719298250568a27808f5de073831342849aca394fa0e09c7b7eacbf72c3707",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 647
+      },
+      "name": "local/anima-smoke:latest"
+    },
+    "id": "e8719298250568a27808f5de073831342849aca394fa0e09c7b7eacbf72c3707",
+    "variants": [
+      {
+        "config": {
+          "architecture": "amd64",
+          "config": {
+            "Cmd": [
+              "uvicorn",
+              "app:app",
+              "--app-dir",
+              "/",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8080"
+            ],
+            "Env": [
+              "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "LANG=C.UTF-8",
+              "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "PYTHON_VERSION=3.11.17",
+              "PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599"
+            ]
+          },
+          "created": "2026-10-17T18:39:58.714409167Z",
+          "history": [
+            {
+              "comment": "debuerreotype 0.17",
+              "created": "2026-10-05T00:00:00Z",
+              "created_by": "# debian.sh --arch 'amd64' out/ 'trixie' '@1791158400'"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV LANG=C.UTF-8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tca-certificates \t\tnetbase \t\ttzdata \t; \tapt-get dist-clean # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV PYTHON_VERSION=3.11.17",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T01:56:16.602148125Z",
+              "created_by": "ENV PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:04:46.226660024Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\tsavedAptMark=\"$(apt-mark showmanual)\"; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tdpkg-dev \t\tg++ \t\tgcc \t\tgnupg \t\tlibbluetooth-dev \t\tlibbz2-dev \t\tlibc6-dev \t\tlibdb-dev \t\tlibffi-dev \t\tlibgdbm-dev \t\tliblzma-dev \t\tlibncursesw5-dev \t\tlibreadline-dev \t\tlibsqlite3-dev \t\tlibssl-dev \t\tmake \t\ttk-dev \t\tuuid-dev \t\twget \t\txz-utils \t\tzlib1g-dev \t; \t\twget -O python.tar.xz \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz\"; \techo \"$PYTHON_SHA256 *python.tar.xz\" | sha256sum -c -; \twget -O python.tar.xz.asc \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc\"; \tGNUPGHOME=\"$(mktemp -d)\"; export GNUPGHOME; \tgpg --batch --keyserver hkps://keys.openpgp.org --recv-keys \"$GPG_KEY\"; \tgpg --batch --verify python.tar.xz.asc python.tar.xz; \tgpgconf --kill all; \trm -rf \"$GNUPGHOME\" python.tar.xz.asc; \tmkdir -p /usr/src/python; \ttar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz; \trm python.tar.xz; \t\tcd /usr/src/python; \tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \t./configure \t\t--build=\"$gnuArch\" \t\t--enable-loadable-sqlite-extensions \t\t--enable-optimizations \t\t--enable-option-checking=fatal \t\t--enable-shared \t\t$(test \"${gnuArch%%-*}\" != 'riscv64' && echo '--with-lto') \t\t--with-ensurepip \t; \tnproc=\"$(nproc)\"; \tEXTRA_CFLAGS=\"$(dpkg-buildflags --get CFLAGS)\"; \tLDFLAGS=\"$(dpkg-buildflags --get LDFLAGS)\"; \tLDFLAGS=\"${LDFLAGS:-} -Wl,--strip-all\"; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-}\" \t; \trm python; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-} -Wl,-rpath='\\$\\$ORIGIN/../lib'\" \t\tpython \t; \tmake install; \t\tcd /; \trm -rf /usr/src/python; \t\tfind /usr/local -depth \t\t\\( \t\t\t\\( -type d -a \\( -name test -o -name tests -o -name idle_test \\) \\) \t\t\t-o \\( -type f -a \\( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \\) \\) \t\t\\) -exec rm -rf '{}' + \t; \t\tldconfig; \t\tapt-mark auto '.*' > /dev/null; \tapt-mark manual $savedAptMark; \tfind /usr/local -type f -executable -not \\( -name '*tkinter*' \\) -exec ldd '{}' ';' \t\t| awk '/=>/ { so = $(NF-1); if (index(so, \"/usr/local/\") == 1) { next }; gsub(\"^/(usr/)?\", \"\", so); printf \"*%s\\n\", so }' \t\t| sort -u \t\t| xargs -rt dpkg-query --search \t\t| awk 'sub(\":$\", \"\", $1) { print $1 }' \t\t| sort -u \t\t| xargs -r apt-mark manual \t; \tapt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \tapt-get dist-clean; \t\texport PYTHONDONTWRITEBYTECODE=1; \tpython3 --version; \t\tpip3 install \t\t--disable-pip-version-check \t\t--no-cache-dir \t\t--no-compile \t\t'setuptools==79.0.1' \t\t'wheel==0.46.3' \t; \tpip3 --version # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:04:46.323675117Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tfor src in idle3 pip3 pydoc3 python3 python3-config; do \t\tdst=\"$(echo \"$src\" | tr -d 3)\"; \t\t[ -s \"/usr/local/bin/$src\" ]; \t\t[ ! -e \"/usr/local/bin/$dst\" ]; \t\tln -svT \"$src\" \"/usr/local/bin/$dst\"; \tdone # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:04:46.323675117Z",
+              "created_by": "CMD [\"python3\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:39:58.697470709Z",
+              "created_by": "RUN /bin/sh -c pip install --no-cache-dir fastapi==0.115.0 uvicorn==0.30.6 # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:39:58.714409167Z",
+              "created_by": "COPY app.py /app.py # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:39:58.714409167Z",
+              "created_by": "CMD [\"uvicorn\" \"app:app\" \"--app-dir\" \"/\" \"--host\" \"0.0.0.0\" \"--port\" \"8080\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:15f1c8eb1ab18eae260c7fb6296434cbe1ff0e1e30fd814ae92a80dd54005e62",
+              "sha256:56864e09c37360dbf846cf5ac9fc3090034f02e382fd0fbe4c7b576207436200",
+              "sha256:ba18d048b43a42f86dc288babadbdfe01602571200fd60c9e172deb8abf4147f",
+              "sha256:020f37c339b9fc549a11bcc5a937b81e3500281270bb62edde29022b27919d86",
+              "sha256:9358ffac6fe97e4abbddc7cf302bb912ad98ed1fbaadce190fe721570ffcf9d9",
+              "sha256:bf7860a3af8342a72db9ab04a694fd663e3bf0b5f29a3caf9bb501088566fb1b"
+            ],
+            "type": "layers"
+          }
+        },
+        "digest": "sha256:3d7b75f884dec4c17e77a5a39b3df0d2413d79b30413614dab31c74e16d816ba",
+        "platform": {
+          "architecture": "amd64",
+          "os": "linux"
+        },
+        "size": 54840938
+      },
+      {
+        "config": {
+          "architecture": "arm64",
+          "config": {
+            "Cmd": [
+              "uvicorn",
+              "app:app",
+              "--app-dir",
+              "/",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8080"
+            ],
+            "Env": [
+              "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "LANG=C.UTF-8",
+              "GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "PYTHON_VERSION=3.11.17",
+              "PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599"
+            ]
+          },
+          "created": "2026-10-17T18:39:58.142457042Z",
+          "history": [
+            {
+              "comment": "debuerreotype 0.17",
+              "created": "2026-10-05T00:00:00Z",
+              "created_by": "# debian.sh --arch 'arm64' out/ 'trixie' '@1791158400'"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV LANG=C.UTF-8",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tca-certificates \t\tnetbase \t\ttzdata \t; \tapt-get dist-clean # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV GPG_KEY=A035C8C19219BA821ECEA86B64E628F8D684696D",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PYTHON_VERSION=3.11.17",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:00:12.925649285Z",
+              "created_by": "ENV PYTHON_SHA256=bfb74ad39efae27cda510f134ab408e00f9992c56851cfc0b1cdb5646da11599",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.607781068Z",
+              "created_by": "RUN /bin/sh -c set -eux; \t\tsavedAptMark=\"$(apt-mark showmanual)\"; \tapt-get update; \tapt-get install -y --no-install-recommends \t\tdpkg-dev \t\tg++ \t\tgcc \t\tgnupg \t\tlibbluetooth-dev \t\tlibbz2-dev \t\tlibc6-dev \t\tlibdb-dev \t\tlibffi-dev \t\tlibgdbm-dev \t\tliblzma-dev \t\tlibncursesw5-dev \t\tlibreadline-dev \t\tlibsqlite3-dev \t\tlibssl-dev \t\tmake \t\ttk-dev \t\tuuid-dev \t\twget \t\txz-utils \t\tzlib1g-dev \t; \t\twget -O python.tar.xz \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz\"; \techo \"$PYTHON_SHA256 *python.tar.xz\" | sha256sum -c -; \twget -O python.tar.xz.asc \"https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc\"; \tGNUPGHOME=\"$(mktemp -d)\"; export GNUPGHOME; \tgpg --batch --keyserver hkps://keys.openpgp.org --recv-keys \"$GPG_KEY\"; \tgpg --batch --verify python.tar.xz.asc python.tar.xz; \tgpgconf --kill all; \trm -rf \"$GNUPGHOME\" python.tar.xz.asc; \tmkdir -p /usr/src/python; \ttar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz; \trm python.tar.xz; \t\tcd /usr/src/python; \tgnuArch=\"$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)\"; \t./configure \t\t--build=\"$gnuArch\" \t\t--enable-loadable-sqlite-extensions \t\t--enable-optimizations \t\t--enable-option-checking=fatal \t\t--enable-shared \t\t$(test \"${gnuArch%%-*}\" != 'riscv64' && echo '--with-lto') \t\t--with-ensurepip \t; \tnproc=\"$(nproc)\"; \tEXTRA_CFLAGS=\"$(dpkg-buildflags --get CFLAGS)\"; \tLDFLAGS=\"$(dpkg-buildflags --get LDFLAGS)\"; \tLDFLAGS=\"${LDFLAGS:-} -Wl,--strip-all\"; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-}\" \t; \trm python; \tmake -j \"$nproc\" \t\t\"EXTRA_CFLAGS=${EXTRA_CFLAGS:-}\" \t\t\"LDFLAGS=${LDFLAGS:-} -Wl,-rpath='\\$\\$ORIGIN/../lib'\" \t\tpython \t; \tmake install; \t\tcd /; \trm -rf /usr/src/python; \t\tfind /usr/local -depth \t\t\\( \t\t\t\\( -type d -a \\( -name test -o -name tests -o -name idle_test \\) \\) \t\t\t-o \\( -type f -a \\( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \\) \\) \t\t\\) -exec rm -rf '{}' + \t; \t\tldconfig; \t\tapt-mark auto '.*' > /dev/null; \tapt-mark manual $savedAptMark; \tfind /usr/local -type f -executable -not \\( -name '*tkinter*' \\) -exec ldd '{}' ';' \t\t| awk '/=>/ { so = $(NF-1); if (index(so, \"/usr/local/\") == 1) { next }; gsub(\"^/(usr/)?\", \"\", so); printf \"*%s\\n\", so }' \t\t| sort -u \t\t| xargs -rt dpkg-query --search \t\t| awk 'sub(\":$\", \"\", $1) { print $1 }' \t\t| sort -u \t\t| xargs -r apt-mark manual \t; \tapt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \tapt-get dist-clean; \t\texport PYTHONDONTWRITEBYTECODE=1; \tpython3 --version; \t\tpip3 install \t\t--disable-pip-version-check \t\t--no-cache-dir \t\t--no-compile \t\t'setuptools==79.0.1' \t\t'wheel==0.46.3' \t; \tpip3 --version # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.717734222Z",
+              "created_by": "RUN /bin/sh -c set -eux; \tfor src in idle3 pip3 pydoc3 python3 python3-config; do \t\tdst=\"$(echo \"$src\" | tr -d 3)\"; \t\t[ -s \"/usr/local/bin/$src\" ]; \t\t[ ! -e \"/usr/local/bin/$dst\" ]; \t\tln -svT \"$src\" \"/usr/local/bin/$dst\"; \tdone # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-06T02:11:46.717734222Z",
+              "created_by": "CMD [\"python3\"]",
+              "empty_layer": true
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:39:58.109071334Z",
+              "created_by": "RUN /bin/sh -c pip install --no-cache-dir fastapi==0.115.0 uvicorn==0.30.6 # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:39:58.142457042Z",
+              "created_by": "COPY app.py /app.py # buildkit"
+            },
+            {
+              "comment": "buildkit.dockerfile.v0",
+              "created": "2026-10-17T18:39:58.142457042Z",
+              "created_by": "CMD [\"uvicorn\" \"app:app\" \"--app-dir\" \"/\" \"--host\" \"0.0.0.0\" \"--port\" \"8080\"]",
+              "empty_layer": true
+            }
+          ],
+          "os": "linux",
+          "rootfs": {
+            "diff_ids": [
+              "sha256:258ba1f62b513e7bb7492d3cc8ce445e4ef176a14980f193f789b6d7270ae61c",
+              "sha256:e608bc52e64389b35f8ddd810bd219299785ba45a063ee9571fa75cf7fd106ad",
+              "sha256:d378fb5ec83eb7b6fe50bb189f5d1933741713980ee9a81a999429c117e03832",
+              "sha256:e497a1edfdd33c45a8881175e57e55f9f520cfb306d7cbf8ae18243633edde86",
+              "sha256:254535bb8e4fb7d93dad18cb8f12a83686cd823b34ce35522fb34b880ca94ad1",
+              "sha256:bf7860a3af8342a72db9ab04a694fd663e3bf0b5f29a3caf9bb501088566fb1b"
+            ],
+            "type": "layers"
+          }
+        },
+        "digest": "sha256:063f9376566c954cee392abccc4c9b4d5e3ac276fe2d70f884a4f18bf143fad4",
+        "platform": {
+          "architecture": "arm64",
+          "os": "linux"
+        },
+        "size": 55037737
+      }
+    ]
+  }
+]

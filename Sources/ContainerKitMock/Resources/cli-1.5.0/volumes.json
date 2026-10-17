@@ -1,0 +1,15 @@
+[
+  {
+    "configuration": {
+      "creationDate": "2026-10-17T19:08:25Z",
+      "driver": "local",
+      "format": "ext4",
+      "labels": {},
+      "name": "probevol",
+      "options": {},
+      "sizeInBytes": 549755813888,
+      "source": "/Users/ilessio/Library/Application Support/com.apple.container/volumes/probevol/volume.img"
+    },
+    "id": "probevol"
+  }
+]
