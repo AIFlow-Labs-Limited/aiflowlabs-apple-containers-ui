@@ -72,8 +72,10 @@ struct ImagesListView: View {
         }
         .inspector(isPresented: .constant(selectedRows.count == 1)) {
             if let row = selectedRows.first {
-                ImageDetailView(image: row.image, usedBy: row.usedBy, run: { run(row.image.reference) })
-                    .inspectorColumnWidth(min: 320, ideal: 420, max: 640)
+                ImageDetailView(image: row.image, usedBy: row.usedBy, run: { run(row.image.reference) }) {
+                    contextMenu([row.id])
+                }
+                .inspectorColumnWidth(min: 320, ideal: 420, max: 640)
             }
         }
         .toolbar { toolbar }
