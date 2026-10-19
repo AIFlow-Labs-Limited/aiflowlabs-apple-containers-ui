@@ -49,5 +49,7 @@ release: ## Bump version, update CHANGELOG, tag vX.Y.Z (no push). Usage: make re
 	@test -n "$(filter command line,$(origin VERSION))" || { echo "usage: make release VERSION=x.y.z"; exit 64; }
 	scripts/release.sh "$(VERSION)"
 
-clean: ## Remove build products
+clean: ## Remove build products (refuses an empty, root, home or parent BUILD_DIR)
+	@case "$(strip $(BUILD_DIR))" in ""|/|.|..|./|../|~|~/|"$(HOME)"|"$(HOME)/") \
+		echo "error: refusing to rm -rf BUILD_DIR='$(BUILD_DIR)'" >&2; exit 1;; esac
 	rm -rf .build "$(BUILD_DIR)"

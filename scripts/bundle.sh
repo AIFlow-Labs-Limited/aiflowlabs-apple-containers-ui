@@ -74,13 +74,29 @@ for b in "${bundles[@]}"; do
     cp -R "$b" "$CONTENTS/Resources/"
 done
 
+# Sign inside-out without --deep (deprecated, and it would apply the app's entitlements to nested code):
+# nested code first (deepest paths first), then the app. SwiftPM resource bundles in Contents/Resources hold
+# no code; the app's signature seals them as resources.
 echo "==> codesign (identity: $SIGN_IDENTITY)"
-codesign_args=(--force --deep --sign "$SIGN_IDENTITY" --options runtime --entitlements "$ENTITLEMENTS")
+sign_args=(--force --sign "$SIGN_IDENTITY" --options runtime)
 if [[ "$SIGN_IDENTITY" != "-" ]]; then
-    codesign_args+=(--timestamp)
+    sign_args+=(--timestamp)
 fi
-codesign "${codesign_args[@]}" "$APP"
-codesign --verify --strict --verbose=1 "$APP"
+nested=()
+while IFS= read -r item; do nested+=("$item"); done < <(
+    find "$CONTENTS" -mindepth 2 \( -name '*.framework' -o -name '*.dylib' -o -name '*.xpc' -o -name '*.appex' \
+        -o -name '*.app' -o -name '*.plugin' \) -print | awk -F/ '{ print NF "\t" $0 }' | sort -rn | cut -f2-
+)
+for item in ${nested[@]+"${nested[@]}"}; do
+    echo "    sign $(basename "$item")"
+    codesign "${sign_args[@]}" "$item"
+done
+codesign "${sign_args[@]}" --entitlements "$ENTITLEMENTS" "$APP"
+codesign --verify --strict --deep --verbose=1 "$APP"
 
-echo "==> built $ROOT/$APP ($VERSION build $BUILD_NUMBER)"
+case "$APP" in
+    /*) APP_PATH="$APP" ;;
+    *) APP_PATH="$ROOT/$APP" ;;
+esac
+echo "==> built $APP_PATH ($VERSION build $BUILD_NUMBER)"
 echo "$APP"
