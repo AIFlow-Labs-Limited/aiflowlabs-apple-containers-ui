@@ -21,7 +21,7 @@ extension CLIBackend {
     /// argv for `createVolume`.
     static func volumeCreateArguments(name: String, size: MemorySize?, journal: String?, labels: [String: String]) -> [String] {
         var arguments = ["volume", "create"]
-        if let size { arguments += ["-s", size.cliArgument] }
+        if let size { arguments += ["-s", size.cliArgumentBytes] }
         if let journal { arguments += ["--opt", "journal=\(journal)"] }
         arguments += labelArguments(labels)
         arguments.append(name)

@@ -159,7 +159,7 @@ struct CLIBackendArgumentTests {
             ["build", "-t", "app:dev", "--progress", "plain", "-f", "Dockerfile.dev", "/src"],
             ["builder", "status", "--format", "json"],
             ["builder", "start"],
-            ["builder", "start", "-c", "4", "-m", "8g"],
+            ["builder", "start", "-c", "4", "-m", "8G"],
             ["builder", "stop"],
             ["builder", "delete"],
         ])
@@ -183,7 +183,7 @@ struct CLIBackendArgumentTests {
             ["volume", "ls", "--format", "json"],
             ["volume", "inspect", "v1"],
             ["volume", "create", "v1"],
-            ["volume", "create", "-s", "10g", "--opt", "journal=writeback:64m", "--label", "a=1", "--label", "b=2", "v2"],
+            ["volume", "create", "-s", "10737418240", "--opt", "journal=writeback:64m", "--label", "a=1", "--label", "b=2", "v2"],
             ["volume", "rm", "v1"],
             ["volume", "prune"],
             ["network", "ls", "--format", "json"],
@@ -251,7 +251,7 @@ struct CLIBackendArgumentTests {
         #expect(runner.commands == [
             ["k8s", "--help"],
             ["k8s", "ls"],
-            ["k8s", "create", "--name", "dev", "-c", "4", "-m", "4g", "--rm"],
+            ["k8s", "create", "--name", "dev", "-c", "4", "-m", "4G", "--rm"],
             ["k8s", "delete", "--name", "dev"],
             ["k8s", "load-image", "app:1"],
             ["k8s", "load-image", "--name", "dev", "--platform", "linux/arm64", "app:1"],
