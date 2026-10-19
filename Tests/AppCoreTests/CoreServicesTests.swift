@@ -185,10 +185,11 @@ import ContainerKitMock
     }
 
     @Test func saveConfigRejectsInvalid() async throws {
-        let s = SettingsStore(defaults: TestSupport.defaults())
-        let backend = MockBackend()
-        await #expect(throws: BackendError.self) { try await s.saveConfigTOML("[oops", using: backend) }
-        try? await s.saveConfigTOML("[container]\ncpus = 2\n", using: backend)
-        #expect(try await s.loadConfigTOML(using: backend).contains("cpus = 2"))
+        // config.toml goes through SystemStore (SettingsStore's duplicate helpers were removed).
+        let model = TestSupport.model()
+        #expect(await model.system.saveConfigTOML("[oops") == false)
+        #expect(await model.system.saveConfigTOML("[container]\ncpus = 2\n"))
+        await model.system.loadConfigTOML()
+        #expect(model.system.configTOML.contains("cpus = 2"))
     }
 }

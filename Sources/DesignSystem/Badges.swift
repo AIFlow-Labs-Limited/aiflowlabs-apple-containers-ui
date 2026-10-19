@@ -17,7 +17,7 @@ public struct StatusDot: View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            .overlay(Circle().strokeBorder(.black.opacity(0.08), lineWidth: 0.5))
+            .overlay(Circle().strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))   // visible in dark mode
             .accessibilityElement()
             .accessibilityLabel(label ?? "")
             .accessibilityHidden(label == nil)

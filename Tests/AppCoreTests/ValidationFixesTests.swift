@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import ContainerKit
 @testable import AppCore
+@testable import DesignSystem
 
 @Suite struct ValidationFixesTests {
     @Test func buildSecretsMatchTheCLI() {
@@ -148,5 +149,54 @@ import ContainerKit
         #expect(spec.network == "front")
         #expect(spec.dnsDomain == "test")
         #expect(spec.extraArguments == ["--network", "back,mac=02:00:00:00:00:01,alias=db"])
+    }
+}
+
+@MainActor
+@Suite struct MiscFixesTests {
+    @Test func relativeDateHonoursNow() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let text = RelativeDate.format(now.addingTimeInterval(-7_200), relativeTo: now)
+        #expect(text.contains("2") && text.contains("hour"))
+        #expect(RelativeDate.format(now, relativeTo: now) == "just now")
+    }
+
+    @Test func percentIsLocalized() {
+        #expect(Percent.format(12.34, locale: Locale(identifier: "en_US")) == "12.3%")
+        #expect(Percent.format(12.34, locale: Locale(identifier: "fr_FR")).contains("12,3"))
+    }
+
+    @Test func jsonKeyPathsAreUnambiguous() {
+        #expect(JSONKeyPath.component(forKey: "labels") == ".labels")
+        #expect(JSONKeyPath.component(forKey: "com.example.role") == #"["com.example.role"]"#)
+        #expect(JSONKeyPath.component(forKey: "[0]") == #"["[0]"]"#)
+        let value: JSONValue = .object(["a.b": .object(["c": .array([.number(1)])])])
+        let root = JSONTreeIndex().root(for: value, name: "root")
+        #expect(root.children?.first?.path == #"$["a.b"]"#)
+        #expect(root.children?.first?.children?.first?.children?.first?.path == #"$["a.b"].c[0]"#)
+    }
+
+    @Test func statsHistoryEvictsAndDropsStaleBaseline() {
+        let h = ContainerStatsHistory(window: 60, maxSampleGap: 30)
+        let t0 = Date(timeIntervalSince1970: 0)
+        func sample(_ id: String, cpu: Int64) -> ContainerStats {
+            ContainerStats(id: id, cpuUsageUsec: cpu, memoryUsageBytes: 1, memoryLimitBytes: 2)
+        }
+        h.append(sample("a", cpu: 0), at: t0)
+        h.append(sample("b", cpu: 0), at: t0)
+        let late = h.append(sample("a", cpu: 50_000_000), at: t0.addingTimeInterval(120))   // gap > 30 s
+        #expect(late.cpuPercent == 0)                                                      // re-primed, no bogus rate
+        h.retain(only: ["a"], now: t0.addingTimeInterval(120))
+        #expect(h.points(for: "b").isEmpty)
+        #expect(h.points(for: "a").count == 1)                                             // t0 point aged out
+    }
+
+    @Test func launchAtLoginMirrorsSystemStatus() {
+        let s = SettingsStore(defaults: TestSupport.defaults(), loginItemStatus: { .requiresApproval })
+        #expect(s.launchAtLogin)
+        #expect(s.launchAtLoginRequiresApproval)
+        #expect(s.launchAtLoginError?.contains("Login Items") == true)
+        let off = SettingsStore(defaults: TestSupport.defaults(), loginItemStatus: { .notRegistered })
+        #expect(!off.launchAtLogin)
     }
 }

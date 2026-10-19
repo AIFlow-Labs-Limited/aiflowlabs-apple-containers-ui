@@ -17,8 +17,10 @@ public enum RelativeDate {
     /// "2 hours ago", "yesterday".
     public static func format(_ date: Date, relativeTo now: Date = .now) -> String {
         if abs(now.timeIntervalSince(date)) < 5 { return "just now" }
-        let style = Date.RelativeFormatStyle(presentation: .named, unitsStyle: .wide)
-        return style.format(date)
+        let formatter = RelativeDateTimeFormatter()
+        formatter.dateTimeStyle = .named
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
     }
 
     /// Compact duration since `date`: `45s`, `12m`, `2h 5m`, `3d 4h`.
@@ -45,9 +47,9 @@ public enum RelativeDate {
     }
 }
 
-/// Percent formatting (`12.3%`).
+/// Percent formatting (`12.3%`, localized: `12,3 %` in French). `value` is in percent (100 = 100 %).
 public enum Percent {
-    public static func format(_ value: Double, fractionDigits: Int = 1) -> String {
-        String(format: "%.\(fractionDigits)f%%", value)
+    public static func format(_ value: Double, fractionDigits: Int = 1, locale: Locale = .current) -> String {
+        (value / 100).formatted(.percent.precision(.fractionLength(fractionDigits)).locale(locale))
     }
 }

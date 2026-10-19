@@ -39,7 +39,14 @@ public final class ContainerStatsHistory {
     public private(set) var series: [String: [StatsPoint]] = [:]
     @ObservationIgnored private var lastRaw: [String: (date: Date, stats: ContainerStats)] = [:]
 
-    public init(window: TimeInterval = 300) { self.window = window }
+    /// A previous raw sample older than this is not used for rates (the gap would average them away, and a
+    /// restarted container's counters may have reset); the new sample primes the counters again.
+    public let maxSampleGap: TimeInterval
+
+    public init(window: TimeInterval = 300, maxSampleGap: TimeInterval = 30) {
+        self.window = window
+        self.maxSampleGap = maxSampleGap
+    }
 
     /// Points for `id`, oldest first.
     public func points(for id: String) -> [StatsPoint] { series[id] ?? [] }
@@ -50,7 +57,9 @@ public final class ContainerStatsHistory {
     /// Adds a raw sample taken at `date`, derives rates from the previous one, and evicts points older than `window`.
     @discardableResult
     public func append(_ stats: ContainerStats, at date: Date = .now) -> StatsPoint {
-        let point = Self.derive(previous: lastRaw[stats.id], current: stats, at: date)
+        var previous = lastRaw[stats.id]
+        if let p = previous, date.timeIntervalSince(p.date) > maxSampleGap { previous = nil }
+        let point = Self.derive(previous: previous, current: stats, at: date)
         lastRaw[stats.id] = (date, stats)
         var points = series[stats.id] ?? []
         points.append(point)
@@ -62,10 +71,21 @@ public final class ContainerStatsHistory {
         return point
     }
 
-    /// Forgets a container (deleted, or restarted so counters reset).
+    /// Forgets a container (deleted, or restarted so counters reset). Call from the stats view's `onDisappear`.
     public func reset(_ id: String) {
         series[id] = nil
         lastRaw[id] = nil
+    }
+
+    /// Drops every container not in `ids` (e.g. the currently listed containers) and points older than `window`.
+    public func retain(only ids: Set<String>, now: Date = .now) {
+        for id in series.keys where !ids.contains(id) { series[id] = nil }
+        for id in lastRaw.keys where !ids.contains(id) { lastRaw[id] = nil }
+        let cutoff = now.addingTimeInterval(-window)
+        for (id, points) in series {
+            let kept = points.filter { $0.date >= cutoff }
+            series[id] = kept.isEmpty ? nil : kept
+        }
     }
 
     /// Rate math between two raw samples. Counter resets (current < previous) yield 0, never negative rates.

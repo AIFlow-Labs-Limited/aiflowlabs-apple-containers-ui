@@ -40,12 +40,62 @@ public extension JSONValue {
         }
     }
 
-    fileprivate var children: [(key: String, value: JSONValue)]? {
+    /// Children with their display key and key-path component (`.name`, `["odd.key"]`, `[3]`); objects sorted.
+    fileprivate var children: [(key: String, component: String, value: JSONValue)]? {
         switch self {
-        case .object(let o): return o.keys.sorted().map { ($0, o[$0]!) }
-        case .array(let a): return a.enumerated().map { ("[\($0.offset)]", $0.element) }
+        case .object(let o): return o.keys.sorted().map { ($0, JSONKeyPath.component(forKey: $0), o[$0]!) }
+        case .array(let a): return a.enumerated().map { ("[\($0.offset)]", "[\($0.offset)]", $0.element) }
         default: return nil
         }
+    }
+
+    fileprivate var isContainer: Bool {
+        switch self {
+        case .object, .array: return true
+        default: return false
+        }
+    }
+}
+
+/// Unambiguous key paths: `$.config.labels["com.example.role"][0]`.
+enum JSONKeyPath {
+    static func component(forKey key: String) -> String {
+        if key.wholeMatch(of: /[A-Za-z_$][A-Za-z0-9_$]*/) != nil { return "." + key }
+        let escaped = key.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        return "[\"\(escaped)\"]"
+    }
+}
+
+/// The tree with children sorted once (instead of on every access) — rebuilt only when the value changes.
+@MainActor
+final class JSONTreeIndex {
+    final class Node {
+        let key: String
+        let path: String
+        let value: JSONValue
+        let summary: String
+        let children: [Node]?
+        init(key: String, path: String, value: JSONValue) {
+            self.key = key
+            self.path = path
+            self.value = value
+            summary = value.inlineSummary
+            children = value.children?.map { Node(key: $0.key, path: path + $0.component, value: $0.value) }
+        }
+        var hasChildren: Bool { !(children?.isEmpty ?? true) }
+    }
+
+    private var source: JSONValue?
+    private var rootName = ""
+    private var cached: Node?
+
+    func root(for value: JSONValue, name: String) -> Node {
+        if let cached, source == value, rootName == name { return cached }
+        let node = Node(key: name, path: "$", value: value)
+        source = value
+        rootName = name
+        cached = node
+        return node
     }
 }
 
@@ -56,6 +106,7 @@ public struct JSONTreeView: View {
     let rootName: String
     @State private var expanded: Set<String>
     @State private var query = ""
+    @State private var index = JSONTreeIndex()
 
     /// - Parameter initiallyExpandedDepth: levels expanded on first appearance (1 = root's children visible).
     public init(_ value: JSONValue, rootName: String = "root", initiallyExpandedDepth: Int = 1) {
@@ -65,14 +116,17 @@ public struct JSONTreeView: View {
     }
 
     struct Row: Identifiable {
-        let id: String          // key path, e.g. `$.configuration.mounts[0]`
+        let id: String          // key path, e.g. `$.configuration.mounts[0]` or `$.labels["a.b"]`
         let key: String
         let value: JSONValue
+        let summary: String
+        let hasChildren: Bool
         let depth: Int
         let isMatch: Bool
     }
 
     public var body: some View {
+        let rows = self.rows
         VStack(spacing: 0) {
             HStack(spacing: Spacing.s) {
                 SearchField(text: $query, prompt: "Search keys and values")
@@ -104,45 +158,40 @@ public struct JSONTreeView: View {
 
     private var rows: [Row] {
         var out: [Row] = []
-        let q = trimmedQuery
-        flatten(key: rootName, value: value, path: "$", depth: 0, query: q, into: &out)
+        flatten(index.root(for: value, name: rootName), depth: 0, query: trimmedQuery, into: &out)
         return out
     }
 
     /// Appends visible rows. While searching, only subtrees that contain a match are shown (auto-expanded).
     @discardableResult
-    private func flatten(key: String, value: JSONValue, path: String, depth: Int, query: String, into out: inout [Row]) -> Bool {
-        let selfMatch = !query.isEmpty && (key.localizedCaseInsensitiveContains(query)
-            || (value.children == nil && value.inlineSummary.localizedCaseInsensitiveContains(query)))
+    private func flatten(_ node: JSONTreeIndex.Node, depth: Int, query: String, into out: inout [Row]) -> Bool {
+        func row(_ match: Bool) -> Row {
+            Row(id: node.path, key: node.key, value: node.value, summary: node.summary, hasChildren: node.hasChildren,
+                depth: depth, isMatch: match)
+        }
         if query.isEmpty {
-            out.append(Row(id: path, key: key, value: value, depth: depth, isMatch: false))
-            guard expanded.contains(path), let children = value.children else { return false }
-            for child in children {
-                flatten(key: child.key, value: child.value, path: childPath(path, child.key), depth: depth + 1, query: query, into: &out)
-            }
+            out.append(row(false))
+            guard expanded.contains(node.path), let children = node.children else { return false }
+            for child in children { flatten(child, depth: depth + 1, query: query, into: &out) }
             return false
         }
+        let selfMatch = node.key.localizedCaseInsensitiveContains(query)
+            || (node.children == nil && node.summary.localizedCaseInsensitiveContains(query))
         // Search mode: render into a scratch buffer and keep it only when something below matched.
         var sub: [Row] = []
         var childMatched = false
-        for child in value.children ?? [] {
-            if flatten(key: child.key, value: child.value, path: childPath(path, child.key), depth: depth + 1, query: query, into: &sub) {
-                childMatched = true
-            }
+        for child in node.children ?? [] where flatten(child, depth: depth + 1, query: query, into: &sub) {
+            childMatched = true
         }
         guard selfMatch || childMatched || depth == 0 else { return false }
-        out.append(Row(id: path, key: key, value: value, depth: depth, isMatch: selfMatch))
+        out.append(row(selfMatch))
         if childMatched { out.append(contentsOf: sub) }
         return selfMatch || childMatched
     }
 
-    private func childPath(_ parent: String, _ key: String) -> String {
-        key.hasPrefix("[") ? parent + key : parent + "." + key
-    }
-
     @ViewBuilder
     private func rowView(_ row: Row) -> some View {
-        let isContainer = row.value.children != nil && !(row.value.children?.isEmpty ?? true)
+        let isContainer = row.hasChildren
         let isOpen = !trimmedQuery.isEmpty || expanded.contains(row.id)
         HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
             SwiftUI.Image(systemName: "chevron.right")
@@ -156,7 +205,7 @@ public struct JSONTreeView: View {
                 .foregroundStyle(row.isMatch ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 .fontWeight(row.isMatch ? .semibold : .regular)
             Text(":").foregroundStyle(.tertiary)
-            Text(row.value.inlineSummary)
+            Text(row.summary)
                 .foregroundStyle(color(for: row.value))
                 .lineLimit(isContainer ? 1 : 4)
                 .textSelection(.enabled)
@@ -177,7 +226,7 @@ public struct JSONTreeView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(row.key): \(row.value.inlineSummary)")
+        .accessibilityLabel("\(row.key): \(row.summary)")
         .accessibilityAddTraits(isContainer ? .isButton : [])
         .accessibilityHint(isContainer ? (isOpen ? "Collapses" : "Expands") : "")
     }
@@ -199,9 +248,8 @@ public struct JSONTreeView: View {
     static func paths(in value: JSONValue, path: String, maxDepth: Int, depth: Int = 0) -> Set<String> {
         guard depth < maxDepth, let children = value.children else { return [] }
         var result: Set<String> = [path]
-        for child in children {
-            let p = child.key.hasPrefix("[") ? path + child.key : path + "." + child.key
-            result.formUnion(paths(in: child.value, path: p, maxDepth: maxDepth, depth: depth + 1))
+        for child in children where child.value.isContainer {
+            result.formUnion(paths(in: child.value, path: path + child.component, maxDepth: maxDepth, depth: depth + 1))
         }
         return result
     }

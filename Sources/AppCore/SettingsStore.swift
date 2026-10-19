@@ -33,12 +33,22 @@ public final class SettingsStore {
     @ObservationIgnored public var onPollingIntervalChange: (@MainActor (Double) -> Void)?
     /// Menu bar / notifications toggled (AppModel starts or stops its background polling client).
     @ObservationIgnored public var onBackgroundNeedsChange: (@MainActor () -> Void)?
-    /// Error from the last SMAppService (un)registration, if any.
+    /// Error from the last SMAppService (un)registration, or the "approve in System Settings" note, if any.
     public private(set) var launchAtLoginError: String?
+    /// True when macOS registered the login item but the user still has to allow it
+    /// (System Settings → General → Login Items).
+    public private(set) var launchAtLoginRequiresApproval = false
 
+    /// Mirrors `SMAppService.mainApp.status` (refreshed by `refreshLaunchAtLogin()`); setting it (un)registers.
     public var launchAtLogin: Bool {
-        didSet { defaults.set(launchAtLogin, forKey: Key.launchAtLogin); applyLaunchAtLogin() }
+        didSet {
+            guard !isSyncingLaunchAtLogin else { return }
+            applyLaunchAtLogin()
+        }
     }
+    @ObservationIgnored private var isSyncingLaunchAtLogin = false
+    /// Status source; injectable for tests.
+    @ObservationIgnored let loginItemStatus: @MainActor () -> SMAppService.Status
     public var startEngineOnLaunch: Bool { didSet { defaults.set(startEngineOnLaunch, forKey: Key.startEngineOnLaunch) } }
     public var showStoppedContainers: Bool { didSet { defaults.set(showStoppedContainers, forKey: Key.showStoppedContainers) } }
     public var hideSystemContainers: Bool { didSet { defaults.set(hideSystemContainers, forKey: Key.hideSystemContainers) } }
@@ -59,8 +69,10 @@ public final class SettingsStore {
     }
     public var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
 
-    public init(defaults: UserDefaults = .standard) {
+    public init(defaults: UserDefaults = .standard,
+                loginItemStatus: @escaping @MainActor () -> SMAppService.Status = { SMAppService.mainApp.status }) {
         self.defaults = defaults
+        self.loginItemStatus = loginItemStatus
         defaults.register(defaults: [
             Key.launchAtLogin: false,
             Key.startEngineOnLaunch: false,
@@ -71,7 +83,7 @@ public final class SettingsStore {
             Key.notifications: true,
             Key.appearance: Appearance.system.rawValue,
         ])
-        launchAtLogin = defaults.bool(forKey: Key.launchAtLogin)
+        launchAtLogin = false
         startEngineOnLaunch = defaults.bool(forKey: Key.startEngineOnLaunch)
         showStoppedContainers = defaults.bool(forKey: Key.showStoppedContainers)
         hideSystemContainers = defaults.bool(forKey: Key.hideSystemContainers)
@@ -79,32 +91,38 @@ public final class SettingsStore {
         pollingInterval = min(max(defaults.double(forKey: Key.pollingInterval), 1), 10)
         notificationsEnabled = defaults.bool(forKey: Key.notifications)
         appearance = Appearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
+        refreshLaunchAtLogin()
+    }
+
+    /// Re-reads the login item state from the system (the user may change it in System Settings at any time).
+    /// Call when the Settings window appears.
+    public func refreshLaunchAtLogin() {
+        let status = loginItemStatus()
+        isSyncingLaunchAtLogin = true
+        launchAtLogin = status == .enabled || status == .requiresApproval
+        isSyncingLaunchAtLogin = false
+        launchAtLoginRequiresApproval = status == .requiresApproval
+        if launchAtLoginRequiresApproval {
+            launchAtLoginError = "Allow Container Desktop in System Settings → General → Login Items."
+        } else if launchAtLoginError?.hasPrefix("Allow ") == true {
+            launchAtLoginError = nil
+        }
+        defaults.set(launchAtLogin, forKey: Key.launchAtLogin)
     }
 
     private func applyLaunchAtLogin() {
         // SMAppService only works from a bundled, signed app; `swift run` reports an error we surface in Settings.
+        var failure: String?
         do {
             if launchAtLogin { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-            launchAtLoginError = nil
         } catch {
-            launchAtLoginError = error.localizedDescription
+            failure = error.localizedDescription
         }
+        refreshLaunchAtLogin()                       // the system is the source of truth
+        if let failure { launchAtLoginError = failure }
     }
 
-    // MARK: config.toml
-
-    /// Reads `~/.config/container/config.toml` through the backend.
-    public func loadConfigTOML(using backend: any ContainerBackend) async throws -> String {
-        try await backend.readConfigTOML()
-    }
-
-    /// Validates and writes config.toml. Throws `BackendError.other` describing the first issue when invalid.
-    public func saveConfigTOML(_ text: String, using backend: any ContainerBackend) async throws {
-        if let issue = TOMLValidator.validate(text).first {
-            throw BackendError.other("config.toml line \(issue.line): \(issue.message)")
-        }
-        try await backend.writeConfigTOML(text)
-    }
+    // config.toml load/save lives in `SystemStore` (loadConfigTOML / saveConfigTOML).
 
     /// Settings summary for diagnostics.
     public var summary: [(String, String)] {
@@ -112,5 +130,6 @@ public final class SettingsStore {
          ("Show stopped", "\(showStoppedContainers)"), ("Hide system containers", "\(hideSystemContainers)"),
          ("Menu bar", "\(menuBarEnabled)"), ("Polling interval", "\(pollingInterval)s"),
          ("Notifications", "\(notificationsEnabled)"), ("Appearance", appearance.rawValue)]
+            + (launchAtLoginRequiresApproval ? [("Login item", "requires approval")] : [])
     }
 }

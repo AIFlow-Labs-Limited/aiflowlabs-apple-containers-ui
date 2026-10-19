@@ -8,6 +8,8 @@ public struct StringRowsEditor: View {
     let placeholder: String
     let addTitle: String
     let validate: (String) -> String?
+    /// Stable identity per row so focus does not jump to a neighbour when a row above is removed.
+    @State private var rowIDs: [UUID] = []
 
     public init(_ title: String, rows: Binding<[String]>, placeholder: String, addTitle: String = "Add",
                 validate: @escaping (String) -> String? = { _ in nil }) {
@@ -20,7 +22,7 @@ public struct StringRowsEditor: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            ForEach(rows.indices, id: \.self) { index in
+            ForEach(Array(zip(rows.indices, ids)), id: \.1) { index, _ in
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     HStack(spacing: Spacing.xs) {
                         TextField("\(title) \(index + 1)", text: binding(index), prompt: Text(placeholder))
@@ -39,10 +41,12 @@ public struct StringRowsEditor: View {
                     }
                 }
             }
-            Button { rows.append("") } label: { Label(addTitle, systemImage: "plus.circle") }
+            Button { rowIDs = ids + [UUID()]; rows.append("") } label: { Label(addTitle, systemImage: "plus.circle") }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("\(addTitle) \(title.lowercased())")
         }
+        .onAppear { rowIDs = ids }
+        .onChange(of: rows.count) { rowIDs = ids }
     }
 
     /// Whether every non-empty row passes validation.
@@ -55,8 +59,17 @@ public struct StringRowsEditor: View {
                 set: { if index < rows.count { rows[index] = $0 } })
     }
 
+    /// `rowIDs` padded/trimmed to the current row count (rows can also change from outside).
+    private var ids: [UUID] {
+        if rowIDs.count == rows.count { return rowIDs }
+        return Array(rowIDs.prefix(rows.count)) + (0..<max(0, rows.count - rowIDs.count)).map { _ in UUID() }
+    }
+
     private func remove(_ index: Int) {
         guard index < rows.count else { return }
+        var current = ids
+        current.remove(at: index)
+        rowIDs = current
         rows.remove(at: index)
     }
 }

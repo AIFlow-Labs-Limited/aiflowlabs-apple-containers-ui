@@ -49,6 +49,7 @@ public final class AppModel {
     /// What every store talks to; forwards to `backend` and is re-pointed by `replaceBackend`.
     @ObservationIgnored private let switchable: SwitchableBackend
     @ObservationIgnored private var backgroundPolling = false
+    @ObservationIgnored private var notificationsWereEnabled = false
     @ObservationIgnored private let notifier = SystemNotifier()
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
     @ObservationIgnored public private(set) lazy var enginePoller = Poller(gate: gate, requiresEngine: false) { [weak self] in
@@ -106,7 +107,14 @@ public final class AppModel {
         enginePoller.start(interval: .seconds(5))
         containers.poller.backgroundInterval = Self.backgroundPollInterval
         updateBackgroundPolling()
+        notificationsWereEnabled = settings.notificationsEnabled
+        if settings.notificationsEnabled { Task { await requestNotificationPermission() } }
     }
+
+    /// Asks macOS for notification permission (Settings toggle turned on, or first launch with it on).
+    /// Returns whether notifications can be shown.
+    @discardableResult
+    public func requestNotificationPermission() async -> Bool { await notifier.requestAuthorization() }
 
     /// Keeps an AppModel-owned background client on the containers poller while the menu bar or notifications
     /// need fresh data (window closed / app inactive). Called on bootstrap and when those settings change.
@@ -283,6 +291,10 @@ public final class AppModel {
         settings.onBackgroundNeedsChange = { [weak self] in
             guard let self, self.didBootstrap else { return }
             self.updateBackgroundPolling()
+            if self.settings.notificationsEnabled && !self.notificationsWereEnabled {
+                Task { await self.requestNotificationPermission() }
+            }
+            self.notificationsWereEnabled = self.settings.notificationsEnabled
         }
         taskCenter.onFinish = { [weak self] task in
             guard let self else { return }
