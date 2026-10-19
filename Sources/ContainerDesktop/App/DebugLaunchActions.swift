@@ -4,7 +4,9 @@ import AppCore
 
 /// DEBUG-only launch hooks for screenshots and UI smoke tests, e.g.
 /// `CONTAINER_DESKTOP_DEBUG_OPEN=palette,section=images swift run ContainerDesktop`.
-/// Tokens: `palette`, `settings`, `activity`, `terminal`, `cleanup`, `stopped`, `toasts`, `pull`, `section=<name>`.
+/// Tokens: `palette`, `settings`, `activity`, `terminal`, `cleanup`, `stopped`, `toasts`, `pull`, `section=<name>`,
+/// `select=<id>` (deep-link selection in the current section), `build-sheet` (opens the Build sheet),
+/// `resources-selftest` (pull/tag/delete + volume/network create/delete through the stores; prints results).
 @MainActor
 enum DebugLaunchActions {
     static func run(model: AppModel, openWindow: OpenWindowAction, openSettings: OpenSettingsAction) async {
@@ -25,9 +27,24 @@ enum DebugLaunchActions {
             case "stopped":
                 try? await model.backend.systemStop()
                 await model.refreshEngine()
+            case "resources-selftest":
+                await ResourcesSelfTest.run(model: model)
+            case "build-sheet":
+                var draft = BuildDraft()
+                draft.contextDirectory = "~/src/acdemo"
+                draft.tag = "acdemo-api:dev"
+                draft.amd64 = true
+                draft.buildArgs = ["PYTHON_VERSION=3.11"]
+                draft.secrets = ["id=pip,env=PIP_INDEX_TOKEN"]
+                draft.noCache = true
+                BuildsListView.debugPrefill = draft
+                model.navigation.open(.builds, select: BuildsListView.newBuildToken)
             default:
                 if token.hasPrefix("section="), let s = SidebarSection(rawValue: String(token.dropFirst(8))) {
                     model.navigation.open(s)
+                } else if token.hasPrefix("select="), let s = model.navigation.section {
+                    try? await Task.sleep(for: .milliseconds(400))
+                    model.navigation.open(s, select: String(token.dropFirst(7)))
                 }
             }
         }

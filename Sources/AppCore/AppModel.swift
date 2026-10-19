@@ -26,6 +26,8 @@ public final class AppModel {
     public let toasts = ToastCenter()
     public let navigation = NavigationModel()
     public let palette = CommandPalette()
+    /// "Run" hand-off from Images/Builds to the Containers run sheet.
+    public let runRequests = RunRequests()
 
     public private(set) var containers: ContainersStore
     public private(set) var images: ImagesStore
