@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-19
+
 ### Added
 - **Containers.** Table with status, CPU, memory, ports and IP; compose-style grouping by project label; start,
   stop, restart, kill and delete, singly or in bulk, with confirmations that name what they touch. Detail tabs:
