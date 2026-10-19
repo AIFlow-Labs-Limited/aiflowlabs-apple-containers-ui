@@ -69,27 +69,47 @@ struct CleanupSheet: View {
         }
     }
 
+    /// Stopped containers the user owns, by id — exactly what the toggle counts and what gets deleted
+    /// (builder and Kubernetes node containers are never touched).
+    private var containerIDs: [String] { model.containers.prunable.map(\.id) }
+
     private var summary: String {
         var parts: [String] = []
-        if containers { parts.append("all stopped containers") }
+        if containers {
+            let ids = containerIDs
+            let names = ids.prefix(8).joined(separator: ", ") + (ids.count > 8 ? " and \(ids.count - 8) more" : "")
+            parts.append(ids.isEmpty ? "no containers (none are stopped)" : "\(ids.count) stopped container\(ids.count == 1 ? "" : "s") (\(names))")
+        }
         if images { parts.append(allImages ? "all images not used by a container" : "dangling images") }
         if volumes { parts.append("volumes not mounted by any container (their data is deleted)") }
         if networks { parts.append("networks with no containers") }
-        return "This removes " + parts.joined(separator: ", ") + ". It cannot be undone."
+        return "This removes " + parts.joined(separator: ", ") + ". Builder and Kubernetes node containers are kept. It cannot be undone."
     }
 
     private func run() async {
         working = true
         let before = model.system.diskUsage?.totalBytes ?? 0
-        if containers { await model.containers.prune() }
-        if images { await model.images.prune(all: allImages) }
-        if volumes { await model.volumes.prune() }
-        if networks { await model.networks.prune() }
+        let backend = model.backend
+        var failures: [String] = []
+        if containers {
+            let result = await model.containers.delete(containerIDs, force: false)
+            if !result.isSuccess { failures.append(result.summary(verb: "Deleted")) }
+        }
+        // Each prune's own outcome (`perform` returns success), never a possibly stale `lastError` from elsewhere.
+        // TODO(merge): call the stores' prune methods once they return their result.
+        if images, !(await model.images.perform({ try await backend.pruneImages(all: allImages) })) {
+            failures.append("Images: " + (model.images.lastError?.errorDescription ?? "failed"))
+        }
+        if volumes, !(await model.volumes.perform({ try await backend.pruneVolumes() })) {
+            failures.append("Volumes: " + (model.volumes.lastError?.errorDescription ?? "failed"))
+        }
+        if networks, !(await model.networks.perform({ try await backend.pruneNetworks() })) {
+            failures.append("Networks: " + (model.networks.lastError?.errorDescription ?? "failed"))
+        }
         await model.system.refreshDiskUsage()
         working = false
-        let errors = [model.containers.lastError, model.images.lastError, model.volumes.lastError, model.networks.lastError].compactMap { $0 }
-        if let first = errors.first {
-            model.toasts.error("Clean up finished with errors", message: first.errorDescription)
+        if !failures.isEmpty {
+            model.toasts.error("Clean up finished with errors", message: failures.joined(separator: "\n"))
         } else {
             let freed = max(0, before - (model.system.diskUsage?.totalBytes ?? before))
             model.toasts.success("Clean up complete", message: freed > 0 ? "Reclaimed \(ByteCount.format(freed))" : nil)
@@ -106,7 +126,7 @@ private struct DiskUsageSnapshot {
     var volumeBytes: Int64?
 
     @MainActor init(model: AppModel) {
-        stoppedContainers = model.containers.items.count { !$0.isRunning && !$0.isSystemManaged }
+        stoppedContainers = model.containers.prunable.count
         containerBytes = model.system.diskUsage?.containers.reclaimable
         imageBytes = model.system.diskUsage?.images.reclaimable
         volumeBytes = model.system.diskUsage?.volumes.reclaimable

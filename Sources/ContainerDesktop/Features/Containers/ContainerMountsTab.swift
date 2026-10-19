@@ -38,6 +38,7 @@ struct ContainerMountsTab: View {
                 TableColumn("") { row in actionButton(row.mount) }
                     .width(130)
             }
+            .alternatingRowBackgrounds(.disabled)
             .accessibilityLabel("Mounts")
         }
     }

@@ -9,19 +9,32 @@ struct ContainerEnvironmentTab: View {
     let container: Container
     @State private var query = ""
     @State private var revealAll = false
-    @State private var revealed = Set<String>()
-    @State private var selection = Set<EnvironmentVariable.ID>()
+    @State private var revealed = Set<Int>()
+    @State private var selection = Set<Int>()
 
-    private var variables: [EnvironmentVariable] {
-        let all = EnvironmentVariable.parse(container.configuration.initProcess.environment)
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return all }
-        return all.filter { $0.key.localizedCaseInsensitiveContains(q) || (!$0.isSensitive && ($0.value ?? "").localizedCaseInsensitiveContains(q)) }
+    /// One table row per environment entry, keyed by its position: keys can repeat (`-e A=1 -e A=2`), so
+    /// `EnvironmentVariable.id` (the key) is not unique.
+    private struct Row: Identifiable {
+        let id: Int
+        let variable: EnvironmentVariable
     }
 
-    private func isRevealed(_ v: EnvironmentVariable) -> Bool { revealAll || revealed.contains(v.key) }
+    private var rows: [Row] {
+        let all = EnvironmentVariable.parse(container.configuration.initProcess.environment)
+            .enumerated().map { Row(id: $0.offset, variable: $0.element) }
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return all }
+        return all.filter { r in
+            r.variable.key.localizedCaseInsensitiveContains(q)
+                || (!r.variable.isSensitive && (r.variable.value ?? "").localizedCaseInsensitiveContains(q))
+        }
+    }
+
+    private func isRevealed(_ r: Row) -> Bool { revealAll || revealed.contains(r.id) }
 
     var body: some View {
+        let rows = self.rows
+        let variables = rows.map(\.variable)
         VStack(spacing: 0) {
             HStack(spacing: Spacing.s) {
                 SearchField(text: $query, prompt: "Filter variables")
@@ -37,35 +50,37 @@ struct ContainerEnvironmentTab: View {
             .padding(.horizontal, Spacing.m)
             .padding(.vertical, Spacing.xs + 2)
             Divider()
-            Table(variables, selection: $selection) {
-                TableColumn("Key") { v in Text(v.key).font(.monoCaption.weight(.medium)).textSelection(.enabled) }
+            Table(rows, selection: $selection) {
+                TableColumn("Key") { r in Text(r.variable.key).font(.monoCaption.weight(.medium)).textSelection(.enabled) }
                     .width(min: 120, ideal: 220)
-                TableColumn("Value") { v in
+                TableColumn("Value") { r in
+                    let v = r.variable
                     HStack(spacing: Spacing.xs) {
-                        Text(v.displayValue(reveal: isRevealed(v)))
+                        Text(v.displayValue(reveal: isRevealed(r)))
                             .font(.monoCaption)
-                            .foregroundStyle(v.isSensitive && !isRevealed(v) ? .secondary : .primary)
+                            .foregroundStyle(v.isSensitive && !isRevealed(r) ? .secondary : .primary)
                             .lineLimit(2)
                             .truncationMode(.middle)
                             .textSelection(.enabled)
                         Spacer(minLength: 0)
                         if v.isSensitive {
                             Button {
-                                if revealed.contains(v.key) { revealed.remove(v.key) } else { revealed.insert(v.key) }
+                                if revealed.contains(r.id) { revealed.remove(r.id) } else { revealed.insert(r.id) }
                             } label: {
-                                SwiftUI.Image(systemName: isRevealed(v) ? "eye.slash" : "eye")
+                                SwiftUI.Image(systemName: isRevealed(r) ? "eye.slash" : "eye")
                             }
                             .buttonStyle(.borderless)
-                            .help(isRevealed(v) ? "Hide value" : "Reveal value")
-                            .accessibilityLabel(isRevealed(v) ? "Hide \(v.key)" : "Reveal \(v.key)")
+                            .help(isRevealed(r) ? "Hide value" : "Reveal value")
+                            .accessibilityLabel(isRevealed(r) ? "Hide \(v.key)" : "Reveal \(v.key)")
                         }
                         CopyButton(v.value ?? "", label: "Copy value of \(v.key)")
                     }
                 }
                 .width(min: 200, ideal: 480)
             }
-            .contextMenu(forSelectionType: EnvironmentVariable.ID.self) { keys in
-                let picked = variables.filter { keys.contains($0.key) }
+            .alternatingRowBackgrounds(.disabled)
+            .contextMenu(forSelectionType: Int.self) { ids in
+                let picked = rows.filter { ids.contains($0.id) }.map(\.variable)
                 Button("Copy as KEY=VALUE") { copyToPasteboard(picked.map(\.entry).joined(separator: "\n")) }
                 Button("Copy Keys") { copyToPasteboard(picked.map(\.key).joined(separator: "\n")) }
             }
