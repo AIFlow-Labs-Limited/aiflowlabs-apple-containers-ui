@@ -41,9 +41,12 @@ struct ContainerDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: Spacing.s) {
                     Text(container.id).font(.headline)
-                    StateBadge(container.state, detail: container.status?.startedDate.flatMap {
-                        container.isRunning ? RelativeDate.uptime(since: $0) : nil
-                    })
+                    // Ticks every second so the uptime matches the table instead of freezing between polls.
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        StateBadge(container.state, detail: container.status?.startedDate.flatMap {
+                            container.isRunning ? RelativeDate.uptime(since: $0, now: context.date) : nil
+                        })
+                    }
                 }
                 Text(container.imageReference)
                     .font(.caption)
