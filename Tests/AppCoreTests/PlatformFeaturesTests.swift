@@ -37,7 +37,7 @@ import ContainerKitMock
         form.memoryGB = 2
         form.setDefault = true
         #expect(form.previewCommand() ==
-            "container machine create --name cd-ui-test --cpus 2 --memory 2g --home-mount rw --set-default ghcr.io/linuxcontainers/alpine:3.20")
+            "container machine create --name cd-ui-test --cpus 2 --memory 2G --home-mount rw --set-default ghcr.io/linuxcontainers/alpine:3.20")
         #expect(form.previewCommand() == CommandLine(executable: "container",
                                                      arguments: ["machine", "create"] + form.spec.cliArguments).display)
     }
@@ -101,8 +101,8 @@ import ContainerKitMock
 
     @Test func resizeSettingsAndPreview() {
         let settings = MachineResize.settings(cpus: 8, memoryGB: 16)
-        #expect(settings == ["cpus": "8", "memory": "16g"])
-        #expect(MachineResize.previewCommand(name: "dev", settings: settings) == "container machine set -n dev cpus=8 memory=16g")
+        #expect(settings == ["cpus": "8", "memory": "16G"])
+        #expect(MachineResize.previewCommand(name: "dev", settings: settings) == "container machine set -n dev cpus=8 memory=16G")
     }
 
     // MARK: CLI 1.5.0 golden flags
@@ -184,13 +184,13 @@ import ContainerKitMock
     @Test func clusterPreviewOmitsDefaultsAndWorkers() {
         var form = ClusterForm(host: HostResources(cpus: 12, memoryBytes: 64 << 30))
         form.name = "cd-ui-test"
-        #expect(form.previewCommand() == "container k8s create --name cd-ui-test -c 3 -m 16g")
+        #expect(form.previewCommand() == "container k8s create --name cd-ui-test -c 3 -m 16G")
         #expect(form.spec.workers == nil)
         form.nodeImage = "docker.io/kindest/node:v1.34.0"
         form.cniManifestPath = "/tmp/cilium.yaml"
         form.removeOnStop = true
         #expect(form.previewCommand() ==
-            "container k8s create --name cd-ui-test -c 3 -m 16g --node-image docker.io/kindest/node:v1.34.0 --cni /tmp/cilium.yaml --rm")
+            "container k8s create --name cd-ui-test -c 3 -m 16G --node-image docker.io/kindest/node:v1.34.0 --cni /tmp/cilium.yaml --rm")
     }
 
     @Test func kubectlCommands() {

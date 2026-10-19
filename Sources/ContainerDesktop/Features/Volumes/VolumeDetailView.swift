@@ -95,7 +95,9 @@ struct CreateVolumeSheet: View {
     private var journalArgument: String? {
         guard journal != .default else { return nil }
         guard let js = MemorySize(parsing: journalSize), !journalSize.isEmpty else { return journal.rawValue }
-        return "\(journal.rawValue):\(js.cliArgument)"
+        // `--opt journal=` is parsed by the volume driver, not the CLI's size parser; its help doesn't say whether
+        // uppercase suffixes are accepted, so keep the lowercase form it has always been sent (`ordered:64m`).
+        return "\(journal.rawValue):\(js.cliArgument.lowercased())"
     }
     private var canSubmit: Bool {
         nameProblem == nil && sizeProblem == nil && journalSizeProblem == nil
