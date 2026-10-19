@@ -54,9 +54,8 @@ jobs:
       - name: Test
         run: swift test
 
-      # Non-fatal until the codebase is formatted once (`make format`); then drop continue-on-error and add --strict.
+      # Enforced: `make lint` runs `swift format lint --strict`; run `make format` locally to fix violations.
       - name: Lint
-        continue-on-error: true
         run: make lint
 
       - name: Bundle app

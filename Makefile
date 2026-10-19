@@ -37,8 +37,8 @@ notarize: ## Notarize + staple the DMG (no-op without NOTARY_PROFILE)
 icon: ## Regenerate Resources/AppIcon.icns from scripts/make-icon.swift
 	scripts/make-icon.sh
 
-lint: ## swift format lint (warnings only; style violations print but do not fail)
-	swift format lint -r Sources Tests
+lint: ## swift format lint --strict (any style violation fails; fix with `make format`)
+	swift format lint -r Sources Tests --strict
 
 format: ## swift-format in place
 	swift format -i -r Sources Tests
