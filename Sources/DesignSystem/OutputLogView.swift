@@ -1,7 +1,7 @@
 import ContainerKit
 import SwiftUI
 
-/// Fast monospaced log viewer: lazy rows, stderr tinted, auto-scroll while following, built-in search.
+/// Fast monospaced log viewer: lazy rows, error lines tinted, auto-scroll while following, built-in search.
 ///
 /// Prefer `init(lines:firstLineNumber:totalAppended:…)` fed from a ring buffer (e.g. `LongRunningTask.buffer`):
 /// row ids stay stable while old lines are trimmed and following keys on the total appended count, which keeps
@@ -124,12 +124,27 @@ private struct LogRow: View {
                     .foregroundStyle(.tertiary)
             }
             Text(line.text.isEmpty ? " " : line.text)
-                .foregroundStyle(line.stream == .stderr ? AnyShapeStyle(.statusError) : AnyShapeStyle(.primary))
+                .foregroundStyle(Self.style(for: line))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .font(.monoCaption)
         .textSelection(.enabled)
         .padding(.vertical, 1)
+    }
+
+    /// The CLI writes progress (`[1/2] Fetching image …`) and BuildKit its whole log to stderr, so tinting every
+    /// stderr line red made a healthy pull or build look like a failure. Red is for lines that read as errors;
+    /// other stderr is secondary.
+    static func style(for line: OutputLine) -> AnyShapeStyle {
+        guard line.stream == .stderr else { return AnyShapeStyle(.primary) }
+        return looksLikeError(line.text) ? AnyShapeStyle(.statusError) : AnyShapeStyle(.secondary)
+    }
+
+    static func looksLikeError(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        return ["error", "fatal", "failed", "panic", "denied", "unauthorized", "not found"].contains {
+            lower.contains($0)
+        }
     }
 }
 
