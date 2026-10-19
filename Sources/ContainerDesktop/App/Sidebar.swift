@@ -26,14 +26,21 @@ struct Sidebar: View {
     @ViewBuilder
     private func row(_ section: SidebarSection) -> some View {
         let count = model.engine.isRunning ? model.count(for: section) : 0
-        HStack {
+        HStack(spacing: Spacing.xs) {
+            // The title never gives way to the marker: "Experimental" + the count squeezed it to "Kuberne…".
             Label(section.title, systemImage: section.symbol)
+                .lineLimit(1)
+                .layoutPriority(1)
             if section == .kubernetes {
-                TagBadge("Experimental", tint: .statusWarning)
+                TagBadge("Beta", tint: .statusWarning)
+                    .fixedSize()
+                    .help("Experimental: Kubernetes support relies on the container k8s plugin preview")
             }
         }
         .badge(count)
-        .accessibilityLabel("\(section.title), \(count) items")
+        .accessibilityLabel(
+            section == .kubernetes
+                ? "\(section.title), experimental, \(count) items" : "\(section.title), \(count) items")
     }
 
     private var footer: some View {

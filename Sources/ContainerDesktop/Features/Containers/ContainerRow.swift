@@ -14,6 +14,8 @@ struct ContainerRow: Identifiable, Hashable {
     let imageFull: String
     let state: ContainerState
     let statusText: String
+    /// Set while a start/stop/restart/kill/delete the app asked for is still running.
+    let pending: ContainersStore.PendingAction?
     /// running < created/stopping < exited < unknown, so ascending sort puts running first.
     let statusRank: Int
     /// CPU % (100 = one core); -1 when unknown (stopped / first sample).
@@ -34,13 +36,19 @@ struct ContainerRow: Identifiable, Hashable {
     var projectName: String? { isProject ? String(id.dropFirst(Self.projectPrefix.count)) : nil }
     var memberIDs: [String] { container.map { [$0.id] } ?? members.map(\.id) }
 
-    init(container c: Container, stats: ContainerStats?, cpu: Double?, now: Date = .now) {
+    init(
+        container c: Container, stats: ContainerStats?, cpu: Double?,
+        pending: ContainersStore.PendingAction? = nil, now: Date = .now
+    ) {
         id = c.id
         name = c.id
         imageFull = c.imageReference
         imageShort = Self.shortImage(c.imageReference)
         state = c.state
-        if c.isRunning, let startedDate = c.status?.startedDate {
+        self.pending = pending
+        if let pending {
+            statusText = pending.rawValue
+        } else if c.isRunning, let startedDate = c.status?.startedDate {
             statusText = "Running · \(RelativeDate.uptime(since: startedDate, now: now))"
         } else {
             statusText = c.state.displayName
@@ -67,6 +75,7 @@ struct ContainerRow: Identifiable, Hashable {
         imageFull = rows.map(\.imageFull).joined(separator: "\n")
         state = running > 0 ? .running : .stopped
         statusText = running == rows.count ? "Running (\(running))" : "\(running)/\(rows.count) running"
+        pending = nil
         statusRank = running > 0 ? 0 : 2
         let cpus = rows.map(\.cpu).filter { $0 >= 0 }
         cpu = cpus.isEmpty ? -1 : cpus.reduce(0, +)
@@ -108,7 +117,9 @@ struct ContainerRow: Identifiable, Hashable {
         now: Date = .now
     ) -> [ContainerRow] {
         let rows = store.filtered.map {
-            ContainerRow(container: $0, stats: store.stats[$0.id], cpu: store.cpuPercent[$0.id], now: now)
+            ContainerRow(
+                container: $0, stats: store.stats[$0.id], cpu: store.cpuPercent[$0.id],
+                pending: store.pendingActions[$0.id], now: now)
         }
         guard grouped else { return rows.sorted(using: sortOrder) }
         let byProject = Dictionary(grouping: rows) { $0.container?.labels[AppLabel.project] }

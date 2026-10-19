@@ -1,11 +1,27 @@
 import AppKit
 import ContainerKit
+import DesignSystem
 import SwiftTerm
 import SwiftUI
 
-/// Embedded terminal (SwiftTerm `LocalProcessTerminalView`) running a `ContainerKit.CommandLine` produced by
-/// `backend.terminalCommand(for:)`. Never builds CLI arguments itself.
-struct TerminalView: NSViewRepresentable {
+/// Embedded terminal running a `ContainerKit.CommandLine` produced by `backend.terminalCommand(for:)`. Never builds
+/// CLI arguments itself. Adds an inset in the terminal's own background colour so the prompt does not touch the
+/// pane edge.
+struct TerminalView: View {
+    let command: ContainerKit.CommandLine
+    var fontSize: CGFloat = NSFont.systemFontSize
+    var onExit: ((Int32?) -> Void)?
+
+    var body: some View {
+        TerminalHostView(command: command, fontSize: fontSize, onExit: onExit)
+            .padding(.leading, Spacing.s)
+            .padding(.vertical, Spacing.xs)
+            .background(Color(nsColor: .textBackgroundColor))  // = SwiftTerm's configureNativeColors() background
+    }
+}
+
+/// The SwiftTerm `LocalProcessTerminalView` host behind `TerminalView`.
+struct TerminalHostView: NSViewRepresentable {
     let command: ContainerKit.CommandLine
     var fontSize: CGFloat = NSFont.systemFontSize
     var onExit: ((Int32?) -> Void)?
@@ -15,7 +31,7 @@ struct TerminalView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(onExit: onExit) }
 
     func makeNSView(context: Context) -> LocalProcessTerminalView {
-        let view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 640, height: 240))
+        let view = FocusingTerminalView(frame: NSRect(x: 0, y: 0, width: 640, height: 240))
         view.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         view.configureNativeColors()
         view.processDelegate = context.coordinator
@@ -65,5 +81,15 @@ struct TerminalView: NSViewRepresentable {
         func setTerminalTitle(source: LocalProcessTerminalView, title: String) {}
         func hostCurrentDirectoryUpdate(source: SwiftTerm.TerminalView, directory: String?) {}
         func processTerminated(source: SwiftTerm.TerminalView, exitCode: Int32?) { onExit?(exitCode) }
+    }
+}
+
+/// Takes keyboard focus as soon as it is on screen: after "Open" / ⌘T the user expects to type straight away,
+/// not to click into the terminal first (keys otherwise went to the table behind it).
+final class FocusingTerminalView: LocalProcessTerminalView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { return }
+        window.makeFirstResponder(self)
     }
 }

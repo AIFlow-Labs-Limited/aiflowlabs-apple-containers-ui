@@ -3,8 +3,9 @@ import ContainerKit
 import DesignSystem
 import SwiftUI
 
-/// Image inspector: Overview · Variants · Config · Layers.
-struct ImageDetailView: View {
+/// Image inspector: Overview · Variants · Config · Layers. `actions` fills the header's ⋯ menu (the same items as the
+/// table's context menu, so Push / Tag / Save are reachable from the keyboard and VoiceOver, not only by right-click).
+struct ImageDetailView<Actions: View>: View {
     enum Tab: String, CaseIterable, Identifiable {
         case overview = "Overview", variants = "Variants", config = "Config", layers = "Layers"
         var id: String { rawValue }
@@ -14,6 +15,7 @@ struct ImageDetailView: View {
     let image: ContainerKit.Image
     let usedBy: [Container]
     let run: () -> Void
+    @ViewBuilder var actions: () -> Actions
     @State private var tab = Tab.overview
     @State private var variantIndex = 0
 
@@ -61,12 +63,17 @@ struct ImageDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text(image.reference).font(.title3.bold()).textSelection(.enabled).lineLimit(2)
             HStack {
-                PlatformBadges(image: image)
+                PlatformBadges(image: image, limit: 4)
                 Spacer()
                 Button("Run…", systemImage: "play.fill", action: run)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .help("Open the run sheet in Containers")
+                Menu("More", systemImage: "ellipsis.circle") { actions() }
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("More actions")
+                    .accessibilityLabel("More actions for \(image.reference)")
             }
         }
     }
@@ -144,7 +151,7 @@ struct ContainerLinks: View {
 #Preview("Image detail") {
     let model = ResourcePreview.model()
     let backend = MockPreviewImage.first
-    ImageDetailView(image: backend, usedBy: [], run: {})
+    ImageDetailView(image: backend, usedBy: [], run: {}) { Button("Tag…") {} }
         .appModelEnvironment(model)
         .frame(width: 420, height: 600)
 }

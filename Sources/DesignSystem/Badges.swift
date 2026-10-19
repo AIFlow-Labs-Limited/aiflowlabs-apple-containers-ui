@@ -59,6 +59,8 @@ public struct PlatformBadge: View {
     public var body: some View {
         Text(platform.variant.map { "\(platform.architecture)/\($0)" } ?? platform.architecture)
             .font(.caption2.monospaced().weight(.medium))
+            .lineLimit(1)
+            .fixedSize()  // never wrap "arm64/v8" one letter per line in a narrow column
             .padding(.horizontal, Spacing.xs + 1)
             .padding(.vertical, 1)
             .foregroundStyle(tint)

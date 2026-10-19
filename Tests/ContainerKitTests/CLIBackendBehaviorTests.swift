@@ -9,6 +9,19 @@ struct CLIBackendBehaviorTests {
     static let down = "Error: apiserver is not running and not registered with launchd\n"
     static let plugins = "Error: Plugins are unavailable. Start the container system services and retry\n"
 
+    @Test func containerCLIOverrideIsAuthoritative() {
+        let installed: (String) -> Bool = { $0 == "/usr/local/bin/container" || $0 == "/opt/x/container" }
+        #expect(CLIBackend.locateExecutable(environment: [:], isExecutable: installed) == "/usr/local/bin/container")
+        #expect(
+            CLIBackend.locateExecutable(environment: ["CONTAINER_CLI": "/opt/x/container"], isExecutable: installed)
+                == "/opt/x/container")
+        // A wrong override must surface as "not installed", not silently run /usr/local/bin/container.
+        #expect(
+            CLIBackend.locateExecutable(environment: ["CONTAINER_CLI": "/nonexistent"], isExecutable: installed) == nil)
+        #expect(CLIBackend.searchPaths(environment: ["CONTAINER_CLI": "/nonexistent"]) == ["/nonexistent"])
+        #expect(CLIBackend.locateExecutable(environment: ["CONTAINER_CLI": ""], isExecutable: installed) != nil)
+    }
+
     @Test func configRoundTripCreatesDirectory() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("cd-config-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }

@@ -19,6 +19,9 @@ struct ContainerDesktopApp: App {
                 .preferredColorScheme(model.settings.appearance.colorScheme)
         }
         .defaultSize(width: 1280, height: 820)
+        // Always open the dashboard on launch, even if the last session ended with it closed (state restoration
+        // would otherwise bring the app back with only the menu bar extra, which reads as "the app didn't open").
+        .defaultLaunchBehavior(.presented)
         .commands { AppCommands(model: model) }
 
         Settings {

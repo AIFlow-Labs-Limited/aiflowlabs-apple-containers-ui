@@ -29,7 +29,11 @@ struct ContainersTable: View {
             .width(min: 100, ideal: 160)
             .customizationID("image")
             TableColumn("Status", value: \.statusRank) { row in
-                Text(row.statusText).lineLimit(1).foregroundStyle(row.state == .running ? .primary : .secondary)
+                HStack(spacing: Spacing.xs) {
+                    if row.pending != nil { ProgressView().controlSize(.mini).accessibilityHidden(true) }
+                    Text(row.statusText).lineLimit(1)
+                        .foregroundStyle(row.state == .running && row.pending == nil ? .primary : .secondary)
+                }
             }
             .width(min: 80, ideal: 115)
             .customizationID("status")

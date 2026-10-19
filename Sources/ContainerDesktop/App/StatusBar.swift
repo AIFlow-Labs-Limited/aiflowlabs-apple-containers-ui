@@ -6,6 +6,13 @@ import SwiftUI
 struct StatusBar: View {
     @Environment(AppModel.self) private var model
 
+    private var memoryHelp: String {
+        let system = model.containers.systemMemoryBytes
+        let base = "Memory used by your running containers"
+        guard system > 0 else { return base }
+        return base + " (system containers such as the builder use \(ByteCount.format(system)) more)"
+    }
+
     var body: some View {
         HStack(spacing: Spacing.l) {
             HStack(spacing: Spacing.xs) {
@@ -22,10 +29,10 @@ struct StatusBar: View {
                 Label("\(model.containers.runningCount) running", systemImage: "shippingbox")
                 Label("CPU \(Percent.format(model.containers.totalCPUPercent))", systemImage: "cpu")
                     .monospacedDigit()
-                    .help("Total CPU of all running containers (100% = one core)")
+                    .help("Total CPU of your running containers (100% = one core)")
                 Label("RAM \(ByteCount.format(model.containers.totalMemoryBytes))", systemImage: "memorychip")
                     .monospacedDigit()
-                    .help("Memory used by all running containers")
+                    .help(memoryHelp)
             }
 
             Spacer(minLength: Spacing.s)

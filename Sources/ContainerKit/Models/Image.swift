@@ -44,8 +44,10 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
         let tag = ref[ref.index(after: colon)...]
         return tag.isEmpty ? nil : String(tag)
     }
-    public var platforms: [Platform] { variants.map(\.platform) }
-    public var isMultiArch: Bool { variants.count > 1 }
+    /// Runnable platforms. Attestation manifests (BuildKit provenance/SBOM, reported as `unknown/unknown`) are
+    /// variants of the index too, but they are not platforms anyone can run or pull.
+    public var platforms: [Platform] { variants.filter { !$0.isAttestation }.map(\.platform) }
+    public var isMultiArch: Bool { platforms.count > 1 }
     /// Sum of all variant sizes (compressed).
     public var totalSize: Int64 { variants.reduce(0) { $0 + $1.size } }
     public var created: Date { variants.compactMap(\.config?.created).max() ?? configuration.creationDate }
@@ -76,6 +78,9 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
         public var digest: String
         public var size: Int64
         public var config: OCIConfig?
+
+        /// An attestation manifest (`unknown/unknown`), not a runnable image.
+        public var isAttestation: Bool { platform.os == "unknown" && platform.architecture == "unknown" }
 
         public init(platform: Platform, digest: String, size: Int64, config: OCIConfig? = nil) {
             self.platform = platform

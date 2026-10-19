@@ -72,8 +72,10 @@ struct ImagesListView: View {
         }
         .inspector(isPresented: .constant(selectedRows.count == 1)) {
             if let row = selectedRows.first {
-                ImageDetailView(image: row.image, usedBy: row.usedBy, run: { run(row.image.reference) })
-                    .inspectorColumnWidth(min: 320, ideal: 420, max: 640)
+                ImageDetailView(image: row.image, usedBy: row.usedBy, run: { run(row.image.reference) }) {
+                    contextMenu([row.id])
+                }
+                .inspectorColumnWidth(min: 320, ideal: 420, max: 640)
             }
         }
         .toolbar { toolbar }
@@ -225,10 +227,19 @@ struct ImageRow: Identifiable {
 /// Platform badges; multi-arch images get a highlighted "multi-arch" marker.
 struct PlatformBadges: View {
     let image: ContainerKit.Image
+    /// Badges shown before collapsing the rest into "+N" (an official image index lists 8+ platforms).
+    var limit = 2
 
     var body: some View {
+        let platforms = image.platforms
         HStack(spacing: Spacing.xs) {
-            ForEach(image.platforms, id: \.self) { PlatformBadge($0) }
+            ForEach(platforms.prefix(limit), id: \.self) { PlatformBadge($0) }
+            if platforms.count > limit {
+                Text("+\(platforms.count - limit)")
+                    .font(.caption2.monospaced()).foregroundStyle(.secondary)
+                    .fixedSize()
+                    .help(platforms.dropFirst(limit).map(\.slug).joined(separator: "\n"))
+            }
             if image.isMultiArch {
                 Image(systemName: "square.stack.3d.down.forward.fill").font(.caption2).foregroundStyle(.tint)
                     .help("Multi-arch image (\(image.platforms.count) platforms)")
