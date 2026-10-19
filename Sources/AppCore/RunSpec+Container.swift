@@ -80,8 +80,27 @@ public extension RunSpec {
         capDrop = cfg.capDrop
     }
 
-    /// `container run …` as a shell-quoted one-liner.
-    var commandLineString: String { ShellWords.join(["container", "run"] + cliArguments) }
+    /// `container run …` as a shell-quoted one-liner, with secret `-e` values masked (`-e DB_PASSWORD=…`).
+    /// Use `commandLineString(maskSecrets: false)` for an explicit "Copy with secrets" action.
+    var commandLineString: String { commandLineString(maskSecrets: true) }
+
+    /// `container run …` as a shell-quoted one-liner. `maskSecrets` replaces sensitive environment values
+    /// (`EnvironmentVariable.isSensitive`) for display.
+    func commandLineString(maskSecrets: Bool) -> String {
+        var args = cliArguments
+        if maskSecrets {
+            var i = 0
+            while i < args.count - 1 {
+                if args[i] == "-e" || args[i] == "--env" {
+                    args[i + 1] = EnvironmentVariable(parsing: args[i + 1]).maskedEntry
+                    i += 2
+                } else {
+                    i += 1
+                }
+            }
+        }
+        return ShellWords.join(["container", "run"] + args)
+    }
 }
 
 /// Problems the Run sheet shows inline before enabling Run.

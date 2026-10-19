@@ -61,7 +61,7 @@ let package = Package(
         ),
         .testTarget(
             name: "AppCoreTests",
-            dependencies: ["AppCore", "ContainerKitMock"],
+            dependencies: ["AppCore", "ContainerKitMock", "DesignSystem"],
             swiftSettings: swiftSettings
         ),
     ],

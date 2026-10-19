@@ -26,7 +26,7 @@ public struct ErrorBanner: View {
                     .font(.callout)
                     .textSelection(.enabled)
                     .lineLimit(6)
-                if let command = error.failedCommand {
+                if let command = error.maskedFailedCommand {
                     HStack(spacing: Spacing.xs) {
                         Text(command)
                             .font(.monoCaption)

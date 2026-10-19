@@ -70,12 +70,30 @@ public extension ContainerState {
 }
 
 public extension BackendError {
-    /// The exact CLI command that failed, when known (shown copyable in `ErrorBanner`).
+    /// The exact CLI command that failed, when known. Contains secrets verbatim — display `maskedFailedCommand`.
     var failedCommand: String? {
         switch self {
         case .commandFailed(let command, _, _), .decoding(let command, _): return command
         default: return nil
         }
+    }
+
+    /// `failedCommand` safe to show and copy: every `-e`/`--env` value becomes `KEY=…` and passwords in
+    /// `scheme://user:pass@` URLs become `••••`. (Masks all env values: DesignSystem cannot see AppCore's
+    /// key-based detector, and the failing command is never meant to be re-run verbatim.)
+    var maskedFailedCommand: String? { failedCommand.map(Self.maskSecrets(inCommand:)) }
+
+    static func maskSecrets(inCommand command: String) -> String {
+        let flag = #"(\s(?:-e|--env)(?:\s+|=))"#
+        var masked = command
+        // -e 'KEY=…'
+        masked = masked.replacing(try! Regex(flag + #"'([^'=\s]+)=[^']*'"#)) { m in "\(m[1].substring ?? "")'\(m[2].substring ?? "")=…'" }
+        // -e "KEY=…"
+        masked = masked.replacing(try! Regex(flag + #""([^"=\s]+)=(?:[^"\\]|\\.)*""#)) { m in "\(m[1].substring ?? "")\"\(m[2].substring ?? "")=…\"" }
+        // -e KEY=value / -e KEY='quoted value'
+        masked = masked.replacing(try! Regex(flag + #"([^\s'"=]+)=(?:'[^']*'|"[^"]*"|[^\s'"])+"#)) { m in "\(m[1].substring ?? "")\(m[2].substring ?? "")=…" }
+        masked = masked.replacing(/([A-Za-z][A-Za-z0-9+.\-]*:\/\/[^\/\s:@]*:)[^\/\s@]+@/) { m in "\(m.output.1)••••@" }
+        return masked
     }
 
     /// Short title for banners and alerts.
