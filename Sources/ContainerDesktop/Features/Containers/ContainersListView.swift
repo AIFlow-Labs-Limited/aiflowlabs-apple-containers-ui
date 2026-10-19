@@ -100,7 +100,8 @@ struct ContainersListView: View {
 
     private func consumeRunRequest() {
         guard model.runRequests.pending != nil, let spec = model.runRequests.consume() else { return }
-        ui.runRequest = RunSheetRequest(spec: spec)
+        // `RunSpec(image: "")` is the "blank sheet" request (File › Run Container… / ⌘N).
+        ui.runRequest = RunSheetRequest(spec: spec == RunSpec(image: "") ? nil : spec)
     }
 
     private var deleteTitle: String {
@@ -110,7 +111,9 @@ struct ContainersListView: View {
     private var deleteMessage: String {
         let names = ui.pendingDelete.prefix(12).joined(separator: ", ")
         let more = ui.pendingDelete.count > 12 ? " and \(ui.pendingDelete.count - 12) more" : ""
-        return "Deletes \(names)\(more). Running containers are stopped first. Named volumes are kept."
+        let running = ui.pendingDelete.filter { store.container(id: $0)?.isRunning == true }
+        let runningNote = running.isEmpty ? "" : " Running containers (\(running.count)) are killed and removed."
+        return "Deletes \(names)\(more).\(runningNote) Named volumes are kept."
     }
 }
 
@@ -125,7 +128,7 @@ private struct SplitHandle: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 3)
             .contentShape(Rectangle())
-            .onHover { inside in if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() } }
+            .pointerStyle(.rowResize)   // balanced by SwiftUI, unlike NSCursor.push/pop on hover
             .gesture(DragGesture(minimumDistance: 1)
                 .onChanged { value in
                     let base = start ?? height
