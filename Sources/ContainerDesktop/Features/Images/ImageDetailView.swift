@@ -61,7 +61,7 @@ struct ImageDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text(image.reference).font(.title3.bold()).textSelection(.enabled).lineLimit(2)
             HStack {
-                PlatformBadges(image: image)
+                PlatformBadges(image: image, limit: 4)
                 Spacer()
                 Button("Run…", systemImage: "play.fill", action: run)
                     .buttonStyle(.borderedProminent)

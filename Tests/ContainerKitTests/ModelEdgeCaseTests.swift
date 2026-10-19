@@ -33,6 +33,19 @@ struct ModelEdgeCaseTests {
         #expect(image.tag == tag)
     }
 
+    @Test func attestationManifestsAreNotPlatforms() {
+        var image = Self.image("alpine:3.22")
+        let unknown = Platform(architecture: "unknown", os: "unknown")
+        image.variants = [
+            .init(platform: .arm64, digest: "a", size: 1), .init(platform: unknown, digest: "b", size: 1),
+        ]
+        #expect(image.platforms == [.arm64])
+        #expect(!image.isMultiArch)
+        image.variants.append(.init(platform: .amd64, digest: "c", size: 1))
+        #expect(image.platforms == [.arm64, .amd64])
+        #expect(image.isMultiArch)
+    }
+
     @Test func publishedPortURLsBracketIPv6() {
         typealias Port = Container.PublishedPort
         #expect(
