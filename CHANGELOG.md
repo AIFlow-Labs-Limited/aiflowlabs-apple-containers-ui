@@ -7,24 +7,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [Unreleased]
 
 ### Added
-- Swift package scaffold: `ContainerKit` (models + `ContainerBackend` contract + CLI backend), fixture-backed
-  `ContainerKitMock`, `AppCore`, `DesignSystem`, and the `ContainerDesktop` app target.
-- Packaging: `make app` (signed `.app` bundle with icon and SwiftPM resources), `make dmg`, `make notarize`,
-  `make icon`, `make lint`, `make check`, `make release`.
-- App icon rendered from code (`scripts/make-icon.swift`).
-- GitHub Actions CI (build, test, lint, bundle) and tag-driven release workflow that publishes the DMG.
-- Homebrew cask draft (`packaging/homebrew/container-desktop.rb`; the tap is not published yet).
-
-### Fixed
-- Builds: the chosen Dockerfile and `--secret src=` paths are passed as absolute paths, so builds work when the
-  app is opened from Finder; `Dockerfile.dockerignore` is no longer offered as a Dockerfile; Reset builder is
-  disabled while a build runs.
-- Volume, network and image prune confirmations count every unused resource, including ones hidden by the search,
-  and the result toast reports what was actually removed.
-- Machines: removed the User/UID/GID fields (`container machine create` 1.5 has no `--user`); Docker Hub's
-  `alpine` is blocked with a one-click switch to the verified image; duplicate names are caught before creating;
-  the terminal session survives switching to Overview or Logs.
-- Push warns before re-pointing an existing local tag; pulling both architectures runs the pulls one after the
-  other; "Sign in…" opens the login sheet for that registry.
-- Release tooling: `release.sh` checks branch, sync, remote tags and runs `make check`; `notarize.sh` rejects
-  unsigned artifacts; `bundle.sh` signs without `--deep`; README/RELEASING give current Gatekeeper steps.
+- **Containers.** Table with status, CPU, memory, ports and IP; compose-style grouping by project label; start,
+  stop, restart, kill and delete, singly or in bulk, with confirmations that name what they touch. Detail tabs:
+  Logs (follow, search, timestamps, boot log), Inspect (secrets masked), Terminal (embedded `container exec -it`
+  via SwiftTerm, or Terminal.app), Stats (live CPU, memory, network, block I/O, PIDs charts), Mounts, Ports,
+  Environment.
+- **Run sheet** with image, name, command, ports (suggested from `EXPOSE`), volumes and binds, env and `.env`
+  files, CPU and memory, platform, network, and a live preview of the exact `container run` command.
+- **Images.** Pull with platform, tag, push, save and load tar files, prune with the reclaimable size shown first,
+  platform badges, "used by", variants, config and layers.
+- **Volumes and networks.** Create, inspect, prune, see which containers use them, reveal a volume's disk image in
+  Finder, copy the `-v` / `--network` flag.
+- **Builds.** Builder status and sizing; build sheet with context, Dockerfile, tags, platforms (arm64 and amd64
+  through Rosetta), build args, target, secrets and SSH; streaming build log; local build history.
+- **Container machines.** Create from images known to boot, open a terminal, resize, set the default.
+- **Local Kubernetes** (experimental) through the `container` k8s plugin: create, delete, load images, copy the
+  `kubectl --context` command. Shown only when the plugin is installed.
+- **Registries.** Logins for Docker Hub, GHCR and custom registries; passwords go to the CLI over stdin only.
+- **Settings.** DNS domains (`<name>.test`) through the standard admin prompt, default CPU and memory for
+  containers, builder and machines, a validated `config.toml` editor, engine start and stop.
+- **Shell.** Menu bar extra, status bar with engine state and resource usage, Clean up sheet, Activity window for
+  long-running tasks, `⌘K` command palette, `⌘1`–`⌘8` sections, light and dark appearance, notifications.
+- **Architecture.** `ContainerKit` (models mirroring the CLI's JSON, `ContainerBackend` protocol, CLI backend),
+  fixture-backed `ContainerKitMock` recorded from CLI 1.5.0, `AppCore` stores, `DesignSystem`. Unknown CLI values
+  decode to `.unknown` instead of failing.
+- **Tooling.** `make check` (build, tests, `swift format lint --strict`) as the local gate with a pre-push hook;
+  `make app`, `make dmg`, `make notarize`, `make release`, `make publish`. GitHub Actions workflows are manual
+  only. App icon rendered from code.
