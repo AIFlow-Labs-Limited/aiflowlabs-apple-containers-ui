@@ -239,7 +239,7 @@ struct CLIBackendArgumentTests {
     @Test func kubernetesCommands() async throws {
         let (backend, runner) = try makeBackend()
         #expect(await backend.kubernetesAvailable())
-        #expect(try await backend.listClusters().isEmpty)
+        #expect(try await backend.listClusters().map(\.name) == ["k8s-dev", "staging", "cd-ui-test"])
         var spec = ClusterSpec(name: "dev")
         spec.cpus = 4
         spec.memory = MemorySize(parsing: "4g")

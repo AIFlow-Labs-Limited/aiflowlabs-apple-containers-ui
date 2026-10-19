@@ -315,7 +315,6 @@ public struct KubernetesCluster: Codable, Identifiable, Hashable, Sendable {
 
     public init(name: String, nodes: [Node]) { self.name = name; self.nodes = nodes }
     public var isRunning: Bool { nodes.contains { $0.state == .running } }
-    public var kubeContext: String { name }
 }
 
 // MARK: - Progress / output events
