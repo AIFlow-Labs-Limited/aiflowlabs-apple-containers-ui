@@ -40,19 +40,24 @@ public actor CLIBackend: ContainerBackend {
         self.configPath = configPath
         if let executable { self.executable = executable; return }
         guard let found = CLIBackend.locateExecutable() else {
-            throw BackendError.cliNotInstalled(searchedPaths: CLIBackend.defaultSearchPaths)
+            throw BackendError.cliNotInstalled(searchedPaths: CLIBackend.searchPaths())
         }
         self.executable = found
     }
 
-    /// `$CONTAINER_CLI` if executable, else the first executable entry of `defaultSearchPaths`.
-    public static func locateExecutable() -> String? {
-        if let env = ProcessInfo.processInfo.environment["CONTAINER_CLI"],
-            FileManager.default.isExecutableFile(atPath: env)
-        {
-            return env
-        }
-        return defaultSearchPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
+    /// Where `locateExecutable` looks: only `$CONTAINER_CLI` when it is set, else `defaultSearchPaths`.
+    public static func searchPaths(environment: [String: String] = ProcessInfo.processInfo.environment) -> [String] {
+        if let env = environment["CONTAINER_CLI"], !env.isEmpty { return [env] }
+        return defaultSearchPaths
+    }
+
+    /// `$CONTAINER_CLI` when set (and only it: a wrong override reports "not installed" instead of silently
+    /// running a different binary), else the first executable entry of `defaultSearchPaths`.
+    public static func locateExecutable(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }
+    ) -> String? {
+        searchPaths(environment: environment).first(where: isExecutable)
     }
 
     /// Command line an embedded terminal should spawn for an interactive session.
