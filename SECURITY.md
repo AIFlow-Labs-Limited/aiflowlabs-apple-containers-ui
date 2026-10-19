@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please **do not** open a public issue for security problems. Email **security@aiflowlabs.io** with:
+Please **do not** open a public issue for security problems. Email **ilessio@aiflowlabs.io** with:
 
 - a description of the issue and its impact,
 - steps to reproduce (a proof of concept if you have one),

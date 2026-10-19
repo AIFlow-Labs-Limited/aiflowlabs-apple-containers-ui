@@ -30,7 +30,7 @@ Maintainers are responsible for clarifying and enforcing these standards and may
 comments, commits, issues and pull requests that do not align with this Code of Conduct, and may temporarily or
 permanently ban any contributor for behaviour they deem inappropriate.
 
-Report incidents to **security@aiflowlabs.io**. All reports are reviewed promptly and handled confidentially.
+Report incidents to **ilessio@aiflowlabs.io**. All reports are reviewed promptly and handled confidentially.
 
 ## Attribution
 
