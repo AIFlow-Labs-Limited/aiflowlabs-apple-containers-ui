@@ -4,7 +4,18 @@ import Foundation
 /// In-memory backend seeded from recorded fixtures. State mutates realistically (start/stop/delete
 /// change the list) so the UI can be developed and tested without the container system.
 public actor MockBackend: ContainerBackend {
-    public nonisolated let backendDescription = "Mock (fixtures 1.5.0)"
+    public nonisolated let backendDescription = MockBackend.description()
+
+    /// "Mock (fixtures 1.5.0)". DEBUG builds may override it with `CONTAINER_DESKTOP_MOCK_DESCRIPTION` so marketing
+    /// screenshots of the mock show the label a real install shows (e.g. "CLI (/usr/local/bin/container)").
+    private static func description() -> String {
+        #if DEBUG
+            if let custom = ProcessInfo.processInfo.environment["CONTAINER_DESKTOP_MOCK_DESCRIPTION"], !custom.isEmpty {
+                return custom
+            }
+        #endif
+        return "Mock (fixtures 1.5.0)"
+    }
 
     public var containers: [Container]
     public var images: [Image]
@@ -12,66 +23,47 @@ public actor MockBackend: ContainerBackend {
     public var networks: [Network]
     public var machines: [Machine]
     public var clusters: [KubernetesCluster] = []
-    public var registries: [RegistryLogin] = [RegistryLogin(server: "docker.io", username: "ilessio")]
+    public var registries: [RegistryLogin] = [
+        RegistryLogin(server: "docker.io", username: "you"), RegistryLogin(server: "ghcr.io", username: "you"),
+    ]
     public var dnsDomains: [DNSDomain] = [DNSDomain(domain: "test")]
     public var properties: SystemProperties
     public var status: SystemStatus
-    public var configTOML = "[dns]\ndomain = \"test\"\n"
+    public var configTOML = """
+        [container]
+        cpus = 4
+        memory = "2G"
+
+        [build]
+        cpus = 4
+        memory = "4G"
+
+        [machine]
+        cpus = 6
+        memory = "8G"
+
+        [dns]
+        domain = "test"
+
+        """
     /// Simulated latency so loading states are visible in previews.
     public var latency: Duration = .milliseconds(60)
     public var systemRunning = true
-    /// Fake stats generation: each call advances cpu usage so percent calculations show movement.
-    private var tick: Int64 = 0
+    /// Origin of the fake stats counters (see `containerStats`).
+    private let statsEpoch = Date.now
 
     public init() {
-        containers = (try? Fixtures.containers()) ?? []
+        containers = (try? MockBackend.scrubbed([Container].self, "containers.json")) ?? []
         images = (try? Fixtures.images()) ?? []
-        volumes = (try? Fixtures.volumes()) ?? []
+        volumes = (try? MockBackend.scrubbed([Volume].self, "volumes.json")) ?? []
         networks = (try? Fixtures.networks()) ?? []
-        machines = (try? Fixtures.machines()) ?? []
-        properties = (try? Fixtures.systemProperties()) ?? SystemProperties()
-        status = (try? Fixtures.systemStatus()) ?? SystemStatus(status: "running")
+        machines = (try? MockBackend.scrubbed([Machine].self, "machines.json")) ?? []
+        properties = (try? MockBackend.scrubbed(SystemProperties.self, "system-properties.json")) ?? SystemProperties()
+        status = (try? MockBackend.scrubbed(SystemStatus.self, "system-status.json")) ?? SystemStatus(status: "running")
         containers += MockBackend.extraContainers()
-    }
-
-    /// Richer sample data than the single recorded container: a stopped one, a DB, a web app with ports.
-    private static func extraContainers() -> [Container] {
-        func make(
-            _ id: String, image: String, state: ContainerState, ip: String, ports: [Container.PublishedPort] = [],
-            cmd: [String], labels: [String: String] = [:], memory: Int64 = 1 << 30
-        ) -> Container {
-            let desc = Descriptor(
-                digest: "sha256:" + String(repeating: "ab", count: 32),
-                mediaType: "application/vnd.oci.image.index.v1+json", size: 1000)
-            let config = Container.Configuration(
-                id: id, image: ImageReference(reference: image, descriptor: desc),
-                creationDate: Date(timeIntervalSinceNow: -3600 * Double(id.count)),
-                resources: .init(cpus: 4, memoryInBytes: memory),
-                initProcess: .init(
-                    executable: cmd[0], arguments: Array(cmd.dropFirst()), environment: ["PATH=/usr/bin"]),
-                labels: labels,
-                networks: [.init(network: "default", options: .init(hostname: "\(id).test.", mtu: 1280))],
-                publishedPorts: ports)
-            let st =
-                state == .running
-                ? Container.Status(
-                    state: .running, startedDate: Date(timeIntervalSinceNow: -1800),
-                    networks: [.init(hostname: "\(id).test.", ipv4Address: "\(ip)/24")])
-                : Container.Status(state: .stopped)
-            return Container(id: id, configuration: config, status: st)
-        }
-        return [
-            make(
-                "db", image: "docker.io/library/postgres:16-alpine", state: .running, ip: "192.168.64.40",
-                cmd: ["postgres"], labels: [AppLabel.project: "acdemo"], memory: 2 << 30),
-            make(
-                "api", image: "docker.io/library/acdemo-api:latest", state: .running, ip: "192.168.64.41",
-                ports: [.init(hostPort: 18081, containerPort: 8080)], cmd: ["uvicorn", "app:app", "--port", "8080"],
-                labels: [AppLabel.project: "acdemo"]),
-            make(
-                "old-job", image: "docker.io/library/alpine:latest", state: .stopped, ip: "",
-                cmd: ["sh", "-c", "echo done"]),
-        ]
+        images += MockBackend.extraImages()
+        volumes += MockBackend.extraVolumes()
+        networks += MockBackend.extraNetworks()
     }
 
     private func wait() async { try? await Task.sleep(for: latency) }
@@ -167,7 +159,7 @@ public actor MockBackend: ContainerBackend {
                 command: "container run", exitCode: 1, message: "container with id \(id) already exists")
         }
         let desc = Descriptor(
-            digest: "sha256:" + String(repeating: "cd", count: 32),
+            digest: "sha256:" + MockBackend.fakeDigest(spec.image),
             mediaType: "application/vnd.oci.image.index.v1+json", size: 1000)
         let config = Container.Configuration(
             id: id, image: ImageReference(reference: spec.image, descriptor: desc), creationDate: .now,
@@ -229,21 +221,31 @@ public actor MockBackend: ContainerBackend {
         let lines: [String] =
             boot
             ? (0..<30).map { "[    0.\(String(format: "%06d", $0 * 4321))] virtio_blk virtio2: [vda] boot step \($0)" }
-            : (0..<(tail ?? 200)).map {
-                "192.168.64.1 - - [17/Oct/2026 19:\(String(format: "%02d", $0 % 60)):00] \"GET /item/\($0) HTTP/1.1\" \($0 % 7 == 0 ? 404 : 200) -"
-            }
+            : MockBackend.sampleLogs(for: id, count: tail ?? 200)
         return stream(lines, delay: follow ? .milliseconds(300) : .zero)
     }
     public func containerStats(ids: [String]) async throws -> [ContainerStats] {
         try requireRunning(); await wait()
-        tick += 1
-        return containers.filter(\.isRunning).filter { ids.isEmpty || ids.contains($0.id) }.enumerated().map { i, c in
-            ContainerStats(
-                id: c.id, cpuUsageUsec: tick * Int64(120_000 + i * 40_000),
-                memoryUsageBytes: Int64(38_000_000 + i * 90_000_000 + Int(tick % 20) * 1_000_000),
-                memoryLimitBytes: c.configuration.resources.memoryInBytes, networkRxBytes: tick * 4321,
-                networkTxBytes: tick * 1234,
-                blockReadBytes: 21_660_672, blockWriteBytes: tick * 8192, numProcesses: 1 + i * 5)
+        let t = Date.now.timeIntervalSince(statsEpoch)
+        let running = containers.filter(\.isRunning)
+        return running.enumerated().filter { ids.isEmpty || ids.contains($0.element.id) }.map { i, c in
+            // Counters are a closed-form integral of a smooth rate curve over wall-clock time, so every poller
+            // (list, detail, menu bar) sees the same consistent rates no matter how often it samples.
+            let phase = Double(i) * 1.7
+            func integral(_ rate: Double, _ phase: Double) -> Int64 {
+                let p1 = 9.0, p2 = 3.7  // seconds; rate(t) = rate * (1 + 0.7 sin(t/p1) + 0.25 sin(t/p2)) > 0
+                return Int64(
+                    rate * (t + 0.7 * p1 * (1 - cos(t / p1 + phase)) + 0.25 * p2 * (1 - cos(t / p2 + phase * 2))))
+            }
+            let wave = 0.5 + 0.3 * sin(t / 9 + phase) + 0.2 * sin(t / 3.7 + phase * 2)  // 0…1
+            return ContainerStats(
+                id: c.id, cpuUsageUsec: integral(Double(30_000 + i * 15_000), phase),
+                memoryUsageBytes: Int64(38_000_000 + i * 90_000_000) + Int64(wave * 14_000_000),
+                memoryLimitBytes: c.configuration.resources.memoryInBytes,
+                networkRxBytes: integral(Double(1_200 + i * 450), phase),
+                networkTxBytes: integral(Double(450 + i * 200), phase + 2.2),
+                blockReadBytes: 21_660_672, blockWriteBytes: integral(Double(6_000 + i * 1_000), phase + 4.1),
+                numProcesses: 1 + i * 5)
         }
     }
     public func execCapture(
@@ -289,11 +291,11 @@ public actor MockBackend: ContainerBackend {
     private func addImage(_ reference: String) {
         guard !images.contains(where: { $0.reference == reference }) else { return }
         let desc = Descriptor(
-            digest: "sha256:" + String(repeating: "ef", count: 32),
+            digest: "sha256:" + MockBackend.fakeDigest(reference),
             mediaType: "application/vnd.oci.image.index.v1+json", size: 500)
         images.append(
             Image(
-                id: String(repeating: "ef", count: 32),
+                id: MockBackend.fakeDigest(reference),
                 configuration: .init(name: reference, creationDate: .now, descriptor: desc),
                 variants: [.init(platform: .arm64, digest: desc.digest, size: 55_000_000)]))
     }
@@ -338,7 +340,7 @@ public actor MockBackend: ContainerBackend {
         ) { [self] in await self.addImage(spec.tag) }
     }
     public func builderStatus() async throws -> Container? {
-        try requireRunning(); await wait(); return try? Fixtures.builder().first
+        try requireRunning(); await wait(); return try? MockBackend.scrubbed([Container].self, "builder.json").first
     }
     public func builderStart(cpus: Int?, memory: MemorySize?) async throws { await wait() }
     public func builderStop() async throws { await wait() }

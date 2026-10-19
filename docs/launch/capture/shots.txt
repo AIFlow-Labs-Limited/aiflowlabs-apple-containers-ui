@@ -1,0 +1,21 @@
+containers|section=containers,select=db,tab=stats|70||
+container-stats|section=containers,select=api,tab=stats|70||
+container-logs|section=containers,select=db,tab=logs|14||
+container-terminal|section=containers,select=db,tab=terminal|4||
+container-inspect|section=containers,select=db,tab=inspect|5||
+run-container|section=containers,open=run:docker.io/library/nginx:1.27-alpine|5||
+images|section=images|4||
+image-detail|section=images,select=docker.io/library/postgres:16-alpine|5||
+volumes|section=volumes,select=pgdata|4||
+networks|section=networks,select=default|4||
+builds|section=builds|4||
+build-sheet|build-sheet|5||
+machines|machine-demo,section=machines,machine-select|6||
+machine-create|section=machines,machine-create|5||
+kubernetes|k8s-demo,section=kubernetes,cluster-select|6||
+registries|section=registries|4||
+settings-resources|settings|4|Resources|-settings.selectedTab resources
+settings-network|settings|4|Network|-settings.selectedTab network
+command-palette|palette|4||
+activity|pull,activity|6|Activity|
+cleanup|cleanup|4||
