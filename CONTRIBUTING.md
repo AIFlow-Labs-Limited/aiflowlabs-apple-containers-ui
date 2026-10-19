@@ -24,6 +24,21 @@ Read [`docs/PRD.md`](docs/PRD.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE
 and [`CLAUDE.md`](CLAUDE.md) for the hard rules (the UI never shells out; everything goes through
 `ContainerBackend`; destructive actions confirm; long actions stream output).
 
+## Your first contribution
+
+1. Pick an issue labelled [good first issue](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/labels/good%20first%20issue)
+   or [help wanted](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/labels/help%20wanted),
+   or open one. For anything larger than a bug fix, start a thread in
+   [Discussions](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/discussions) first so the
+   design is agreed before the code.
+2. Fork the repository, create a branch (naming below), and commit on it.
+3. Run `make check`, then open a pull request against `main`. `main` is protected: every change lands through a
+   pull request, and review comments must be resolved before merge.
+4. A maintainer reviews within a few days. Small, focused PRs get merged fastest.
+
+By contributing you agree that your contributions are licensed under the [MIT License](LICENSE), and that you
+follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Branches
 
 `main` is always releasable. Work on a branch named `<area>/<short-description>`, for example
