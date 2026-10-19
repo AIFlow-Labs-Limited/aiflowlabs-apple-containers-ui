@@ -74,8 +74,16 @@ public final class ContainersStore: PollingStore {
     public var running: [Container] { items.filter { $0.isRunning && !$0.isSystemManaged } }
     /// Stopped containers the user owns (what "Prune" / "Clean up" remove; builder and k8s nodes excluded).
     public var prunable: [Container] { items.filter { !$0.isRunning && !$0.isSystemManaged } }
-    public var totalCPUPercent: Double { cpuPercent.values.reduce(0, +) }
-    public var totalMemoryBytes: Int64 { stats.values.reduce(0) { $0 + $1.memoryUsageBytes } }
+    /// CPU / memory of the user's running containers — the same set `runningCount` counts, so the status bar never
+    /// reads "0 running · RAM 538 MB" because of the builder. System containers are reported separately.
+    public var totalCPUPercent: Double { cpuPercent.filter { !systemIDs.contains($0.key) }.values.reduce(0, +) }
+    public var totalMemoryBytes: Int64 { memory { !systemIDs.contains($0) } }
+    /// Memory of running system-managed containers (builder, Kubernetes nodes).
+    public var systemMemoryBytes: Int64 { memory { systemIDs.contains($0) } }
+    private var systemIDs: Set<String> { Set(items.filter(\.isSystemManaged).map(\.id)) }
+    private func memory(where include: (String) -> Bool) -> Int64 {
+        stats.reduce(0) { include($1.key) ? $0 + $1.value.memoryUsageBytes : $0 }
+    }
 
     public func container(id: String) -> Container? { items.first { $0.id == id } }
 
