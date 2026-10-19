@@ -83,6 +83,15 @@ struct ContainersListView: View {
                            message: "Containers you run appear here with live CPU, memory and ports.",
                            actionTitle: "Run a container…") { actions.run() }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if store.filtered.isEmpty, store.searchText.trimmingCharacters(in: .whitespaces).isEmpty, !store.showStopped {
+            let hidden = store.items.count { !$0.isRunning && (!store.hideSystemManaged || !$0.isSystemManaged) }
+            EmptyStateView(symbol: "stop.circle", title: "No running containers",
+                           message: "\(hidden) stopped container\(hidden == 1 ? " is" : "s are") hidden.",
+                           actionTitle: "Show stopped containers") {
+                store.showStopped = true
+                model.settings.showStoppedContainers = true
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if store.filtered.isEmpty {
             EmptyStateView(symbol: "line.3.horizontal.decrease.circle", title: "No matches",
                            message: "No container matches the current search or filters.",
