@@ -25,6 +25,7 @@ public struct StringRowsEditor: View {
                     HStack(spacing: Spacing.xs) {
                         TextField("\(title) \(index + 1)", text: binding(index), prompt: Text(placeholder))
                             .labelsHidden()
+                            .multilineTextAlignment(.leading)
                             .font(.monoCaption)
                             .textFieldStyle(.roundedBorder)
                         Button { remove(index) } label: { Image(systemName: "minus.circle.fill") }

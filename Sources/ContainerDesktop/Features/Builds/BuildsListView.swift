@@ -7,6 +7,10 @@ import DesignSystem
 struct BuildsListView: View {
     /// Deep-link token: `navigation.open(.builds, select: newBuildToken)` opens the Build sheet.
     static let newBuildToken = "__new-build__"
+    #if DEBUG
+    /// DEBUG launch hook: prefill for the next deep-linked Build sheet (screenshots).
+    static var debugPrefill: BuildDraft?
+    #endif
 
     @Environment(AppModel.self) private var model
     @State private var selection = Set<BuildRecord.ID>()
@@ -102,7 +106,11 @@ struct BuildsListView: View {
     private func openDeepLink() {
         guard deepLinkTarget.contains(Self.newBuildToken) else { return }
         deepLinkTarget = []
-        buildDraft = BuildSheetRequest(draft: BuildDraft())
+        var draft = BuildDraft()
+        #if DEBUG
+        if let prefill = Self.debugPrefill { draft = prefill; Self.debugPrefill = nil }
+        #endif
+        buildDraft = BuildSheetRequest(draft: draft)
     }
 
     private func historyNames(_ ids: Set<BuildRecord.ID>) -> String {

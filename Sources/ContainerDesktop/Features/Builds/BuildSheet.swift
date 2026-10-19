@@ -36,7 +36,6 @@ struct BuildSheet: View {
         }
         .padding(Spacing.xl)
         .frame(width: 620)
-        .frame(minHeight: 520)
         .onAppear(perform: inspectContext)
         .onChange(of: draft.contextDirectory) { inspectContext() }
         .onChange(of: draft.dockerfile) { loadStages() }
@@ -113,7 +112,7 @@ struct BuildSheet: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minHeight: 380)
+        .frame(minHeight: 300, idealHeight: 440, maxHeight: 440)
     }
 
     private var commandPreview: some View {

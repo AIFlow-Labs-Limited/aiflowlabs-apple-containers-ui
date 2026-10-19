@@ -47,8 +47,9 @@ struct BuildDraft: Codable, Hashable {
     }
 
     var spec: BuildSpec {
-        var spec = BuildSpec(contextDirectory: contextDirectory.isEmpty ? "." : contextDirectory,
-                             tag: tag.trimmingCharacters(in: .whitespaces))
+        let trimmedTag = tag.trimmingCharacters(in: .whitespaces)
+        var spec = BuildSpec(contextDirectory: contextDirectory.isEmpty ? "<context>" : (contextDirectory as NSString).expandingTildeInPath,
+                             tag: trimmedTag.isEmpty ? "<tag>" : trimmedTag)
         spec.dockerfile = dockerfile
         spec.platforms = platforms
         spec.buildArgs = Self.clean(buildArgs)

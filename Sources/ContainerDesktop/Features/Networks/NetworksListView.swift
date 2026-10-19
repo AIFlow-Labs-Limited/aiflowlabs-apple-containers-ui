@@ -29,11 +29,11 @@ struct NetworksListView: View {
             TableColumn("Name", value: \.sortKey) { r in
                 HStack(spacing: Spacing.xs) {
                     Text(r.name).fontWeight(.medium)
-                    if r.network.isBuiltin { TagBadge("built-in", tint: .accentColor) }
+                    if r.network.isBuiltin { TagBadge("built-in", tint: .accentColor).fixedSize() }
                 }
                 .accessibilityElement(children: .combine)
             }
-            .width(min: 140, ideal: 200)
+            .width(min: 170, ideal: 220)
             TableColumn("Subnet", value: \.subnet) { r in Text(r.subnet.isEmpty ? emDash : r.subnet).font(.monoCaption) }
                 .width(min: 110, ideal: 140)
             TableColumn("Gateway", value: \.gateway) { r in Text(r.gateway.isEmpty ? emDash : r.gateway).font(.monoCaption) }
