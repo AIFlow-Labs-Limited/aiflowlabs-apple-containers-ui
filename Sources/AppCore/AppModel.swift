@@ -29,17 +29,26 @@ public final class AppModel {
     /// "Run" hand-off from Images/Builds to the Containers run sheet.
     public let runRequests = RunRequests()
 
-    public private(set) var containers: ContainersStore
-    public private(set) var images: ImagesStore
-    public private(set) var volumes: VolumesStore
-    public private(set) var networks: NetworksStore
-    public private(set) var builds: BuildsStore
-    public private(set) var machines: MachinesStore
-    public private(set) var clusters: ClustersStore
-    public private(set) var registries: RegistriesStore
-    public private(set) var system: SystemStore
+    // Stores are created once and survive backend swaps (they talk to `switchable`), so views' `.task`
+    // polling clients stay attached. `storesGeneration` therefore never changes; it exists so views may key
+    // `.task(id:)` on it should stores ever be rebuilt again.
+    public let containers: ContainersStore
+    public let images: ImagesStore
+    public let volumes: VolumesStore
+    public let networks: NetworksStore
+    public let builds: BuildsStore
+    public let machines: MachinesStore
+    public let clusters: ClustersStore
+    public let registries: RegistriesStore
+    public let system: SystemStore
+    public private(set) var storesGeneration = 0
 
-    @ObservationIgnored private let buildsHistoryURL: URL
+    /// Slow lane for the menu bar and crash notifications while no window shows containers or the app is inactive.
+    public static let backgroundPollInterval: Duration = .seconds(30)
+
+    /// What every store talks to; forwards to `backend` and is re-pointed by `replaceBackend`.
+    @ObservationIgnored private let switchable: SwitchableBackend
+    @ObservationIgnored private var backgroundPolling = false
     @ObservationIgnored private let notifier = SystemNotifier()
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
     @ObservationIgnored public private(set) lazy var enginePoller = Poller(gate: gate, requiresEngine: false) { [weak self] in
@@ -55,9 +64,10 @@ public final class AppModel {
         self.settings = settings
         self.gate = gate
         self.taskCenter = tasks
-        self.buildsHistoryURL = buildsHistoryURL
+        let switchable = SwitchableBackend(backend)
+        self.switchable = switchable
         (containers, images, volumes, networks, builds, machines, clusters, registries, system) =
-            Self.makeStores(backend: backend, gate: gate, tasks: tasks, historyURL: buildsHistoryURL)
+            Self.makeStores(backend: switchable, gate: gate, tasks: tasks, historyURL: buildsHistoryURL)
         configureStores()
         wireCallbacks()
         if observeAppActivation { observeActivation() }
@@ -92,7 +102,19 @@ public final class AppModel {
         didBootstrap = true
         await refreshEngine()
         if case .stopped = engine, settings.startEngineOnLaunch { await startEngine() }
+        enginePoller.backgroundInterval = Self.backgroundPollInterval
         enginePoller.start(interval: .seconds(5))
+        containers.poller.backgroundInterval = Self.backgroundPollInterval
+        updateBackgroundPolling()
+    }
+
+    /// Keeps an AppModel-owned background client on the containers poller while the menu bar or notifications
+    /// need fresh data (window closed / app inactive). Called on bootstrap and when those settings change.
+    public func updateBackgroundPolling() {
+        let wanted = settings.menuBarEnabled || settings.notificationsEnabled
+        guard wanted != backgroundPolling else { return }
+        backgroundPolling = wanted
+        if wanted { containers.poller.startBackground() } else { containers.poller.stopBackground() }
     }
 
     /// Probes `system status` and maps the result to `EngineState`.
@@ -128,13 +150,19 @@ public final class AppModel {
         setEngine(.starting)
         do {
             try await backend.systemStart()
+            var cameUp = false
             for _ in 0..<60 {
-                if let s = try? await backend.systemStatus(), s.isRunning { break }
+                if let s = try? await backend.systemStatus(), s.isRunning { cameUp = true; break }
                 try await Task.sleep(for: .seconds(1))
             }
             engineBusy = false
             await refreshEngine()
-            if engine.isRunning { toasts.success("Container system started") }
+            if engine.isRunning {
+                toasts.success("Container system started")
+            } else if !cameUp {
+                toasts.error("The container system did not start",
+                             message: "It was still not running after 60 seconds. Check `container system logs`.")
+            }
         } catch {
             engineBusy = false
             let wrapped = BackendError(wrapping: error)
@@ -189,6 +217,7 @@ public final class AppModel {
         await images.refresh()
         await volumes.refresh()
         await networks.refresh()
+        await builds.refresh()
         await machines.refresh()
         await clusters.refresh()
         await registries.refresh()
@@ -230,15 +259,11 @@ public final class AppModel {
 
     // MARK: Wiring
 
+    /// Points every store at `newBackend` without recreating them (pollers and view clients stay attached).
     private func replaceBackend(_ newBackend: any ContainerBackend) {
         backend = newBackend
-        rebuildStores()
-    }
-
-    private func rebuildStores() {
-        (containers, images, volumes, networks, builds, machines, clusters, registries, system) =
-            Self.makeStores(backend: backend, gate: gate, tasks: taskCenter, historyURL: buildsHistoryURL)
-        configureStores()
+        switchable.replace(with: newBackend)
+        clusters.invalidateAvailability()
     }
 
     private func configureStores() {
@@ -255,6 +280,10 @@ public final class AppModel {
 
     private func wireCallbacks() {
         settings.onPollingIntervalChange = { [weak self] seconds in self?.gate.interval = .seconds(seconds) }
+        settings.onBackgroundNeedsChange = { [weak self] in
+            guard let self, self.didBootstrap else { return }
+            self.updateBackgroundPolling()
+        }
         taskCenter.onFinish = { [weak self] task in
             guard let self else { return }
             switch task.state {
@@ -283,7 +312,7 @@ public final class AppModel {
     private typealias Stores = (ContainersStore, ImagesStore, VolumesStore, NetworksStore, BuildsStore,
                                 MachinesStore, ClustersStore, RegistriesStore, SystemStore)
 
-    private static func makeStores(backend: any ContainerBackend, gate: PollingGate, tasks: TaskCenter, historyURL: URL) -> Stores {
+    private static func makeStores(backend: SwitchableBackend, gate: PollingGate, tasks: TaskCenter, historyURL: URL) -> Stores {
         let containers = ContainersStore(backend: backend, gate: gate)
         return (containers,
                 ImagesStore(backend: backend, containers: containers, tasks: tasks, gate: gate),

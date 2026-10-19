@@ -31,6 +31,8 @@ public final class SettingsStore {
     @ObservationIgnored private let defaults: UserDefaults
     /// Hooks for AppModel (polling interval → gate, container filters → store).
     @ObservationIgnored public var onPollingIntervalChange: (@MainActor (Double) -> Void)?
+    /// Menu bar / notifications toggled (AppModel starts or stops its background polling client).
+    @ObservationIgnored public var onBackgroundNeedsChange: (@MainActor () -> Void)?
     /// Error from the last SMAppService (un)registration, if any.
     public private(set) var launchAtLoginError: String?
 
@@ -40,7 +42,9 @@ public final class SettingsStore {
     public var startEngineOnLaunch: Bool { didSet { defaults.set(startEngineOnLaunch, forKey: Key.startEngineOnLaunch) } }
     public var showStoppedContainers: Bool { didSet { defaults.set(showStoppedContainers, forKey: Key.showStoppedContainers) } }
     public var hideSystemContainers: Bool { didSet { defaults.set(hideSystemContainers, forKey: Key.hideSystemContainers) } }
-    public var menuBarEnabled: Bool { didSet { defaults.set(menuBarEnabled, forKey: Key.menuBarEnabled) } }
+    public var menuBarEnabled: Bool {
+        didSet { defaults.set(menuBarEnabled, forKey: Key.menuBarEnabled); onBackgroundNeedsChange?() }
+    }
     /// Seconds, clamped to 1…10.
     public var pollingInterval: Double {
         didSet {
@@ -50,7 +54,9 @@ public final class SettingsStore {
             onPollingIntervalChange?(pollingInterval)
         }
     }
-    public var notificationsEnabled: Bool { didSet { defaults.set(notificationsEnabled, forKey: Key.notifications) } }
+    public var notificationsEnabled: Bool {
+        didSet { defaults.set(notificationsEnabled, forKey: Key.notifications); onBackgroundNeedsChange?() }
+    }
     public var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
 
     public init(defaults: UserDefaults = .standard) {

@@ -9,7 +9,13 @@ public final class ClustersStore: PollingStore {
     public private(set) var items: [KubernetesCluster] = []
     public private(set) var available = false
     public var isLoading = false
-    public var lastError: BackendError?
+    public var loadError: BackendError?
+    public var actionError: BackendError?
+    /// Banner error: `actionError ?? loadError`. Setting `nil` clears both; a value becomes the `actionError`.
+    public var lastError: BackendError? {
+        get { actionError ?? loadError }
+        set { actionError = newValue; if newValue == nil { loadError = nil } }
+    }
     public var searchText = ""
 
     @ObservationIgnored private let backend: any ContainerBackend
@@ -17,9 +23,10 @@ public final class ClustersStore: PollingStore {
     @ObservationIgnored public private(set) lazy var poller = Poller(gate: gate) { [weak self] in
         guard let self else { return }
         await self.refresh()
-        if let error = self.lastError { throw error }
+        if let error = self.loadError { throw error }
     }
     @ObservationIgnored private let gate: PollingGate
+    @ObservationIgnored private var availabilityChecked = false
 
     public init(backend: any ContainerBackend, tasks: TaskCenter, gate: PollingGate) {
         self.backend = backend
@@ -33,13 +40,30 @@ public final class ClustersStore: PollingStore {
         return items.filter { $0.name.localizedCaseInsensitiveContains(q) }
     }
 
-    /// Probes plugin availability (cheap) and lists clusters when available.
+    /// Lists clusters when the plugin is available. Availability (`container k8s --help`) is probed once and
+    /// cached; call `recheckAvailability()` to probe again (e.g. after the CLI was upgraded).
     public func refresh() async {
-        available = await backend.kubernetesAvailable()
-        guard available else { items = []; return }
+        if !availabilityChecked {
+            available = await backend.kubernetesAvailable()
+            availabilityChecked = true
+        }
+        guard available else {
+            items = []
+            loadError = nil
+            return
+        }
         guard let list = await load({ try await backend.listClusters() }) else { return }
         items = list.sorted { $0.name < $1.name }
     }
+
+    /// Forgets the cached plugin availability and refreshes.
+    public func recheckAvailability() async {
+        invalidateAvailability()
+        await refresh()
+    }
+
+    /// Forgets the cached plugin availability; the next `refresh()` probes again.
+    public func invalidateAvailability() { availabilityChecked = false }
 
     @discardableResult
     public func create(_ spec: ClusterSpec) -> LongRunningTask {
