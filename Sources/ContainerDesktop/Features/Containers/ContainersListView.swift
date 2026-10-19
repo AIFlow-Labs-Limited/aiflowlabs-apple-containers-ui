@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ContainerKit
 import ContainerKitMock
 import AppCore
@@ -7,11 +8,12 @@ import DesignSystem
 /// Containers section: table (top) + tabbed detail pane (bottom, resizable) for a single selection.
 ///
 /// Deep links: `navigation.open(.containers, select: "<id>")` selects a container;
-/// `select: "run:<image reference>"` opens the Run sheet prefilled with that image.
+/// `select: "run:<image reference>"` or `model.runRequests.request(_:)` opens the Run sheet prefilled.
 struct ContainersListView: View {
     @Environment(AppModel.self) private var model
     @State private var ui = ContainersUIState()
     @AppStorage("containers.groupByProject") private var groupByProject = true
+    @AppStorage("containers.listHeight") private var listHeight: Double = 300
 
     private var store: ContainersStore { model.containers }
     private var actions: ContainerActions { ContainerActions(model: model, ui: ui) }
@@ -22,12 +24,19 @@ struct ContainersListView: View {
     }
 
     var body: some View {
-        VSplitView {
-            listArea
-                .frame(minHeight: 160, idealHeight: 300, maxHeight: .infinity)
-            if let c = detailContainer {
-                ContainerDetailView(container: c, ui: ui, actions: actions)
-                    .frame(minHeight: 260, idealHeight: 420, maxHeight: .infinity)
+        // A VStack + drag handle instead of `VSplitView`: VSplitView mis-applies the toolbar safe area to its
+        // first pane and leaves a dead band above the second one.
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                if let c = detailContainer {
+                    let height = min(max(160, listHeight), max(160, geo.size.height - 260))
+                    listArea.frame(height: height)
+                    SplitHandle(height: $listHeight, range: 160...max(160, geo.size.height - 260))
+                    ContainerDetailView(container: c, ui: ui, actions: actions)
+                        .frame(maxHeight: .infinity)
+                } else {
+                    listArea.frame(maxHeight: .infinity)
+                }
             }
         }
         .toolbar { ContainersToolbar(model: model, ui: ui, actions: actions, groupByProject: $groupByProject) }
@@ -40,6 +49,9 @@ struct ContainersListView: View {
             ui.showDetail = true
             return raw
         }
+        // "Run…" from Images (and other sections) hands off through `model.runRequests`.
+        .onAppear(perform: consumeRunRequest)
+        .onChange(of: model.runRequests.pending) { consumeRunRequest() }
         .sheet(item: $ui.runRequest) { request in
             RunContainerSheet(prefill: request.spec) { newID in
                 ui.open(newID, tab: .logs)
@@ -86,6 +98,11 @@ struct ContainersListView: View {
         }
     }
 
+    private func consumeRunRequest() {
+        guard model.runRequests.pending != nil, let spec = model.runRequests.consume() else { return }
+        ui.runRequest = RunSheetRequest(spec: spec)
+    }
+
     private var deleteTitle: String {
         ui.pendingDelete.count == 1 ? "Delete container “\(ui.pendingDelete[0])”?" : "Delete \(ui.pendingDelete.count) containers?"
     }
@@ -94,6 +111,32 @@ struct ContainersListView: View {
         let names = ui.pendingDelete.prefix(12).joined(separator: ", ")
         let more = ui.pendingDelete.count > 12 ? " and \(ui.pendingDelete.count - 12) more" : ""
         return "Deletes \(names)\(more). Running containers are stopped first. Named volumes are kept."
+    }
+}
+
+/// Horizontal divider that resizes the pane above it by dragging.
+private struct SplitHandle: View {
+    @Binding var height: Double
+    let range: ClosedRange<Double>
+    @State private var start: Double?
+
+    var body: some View {
+        Divider()
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+            .onHover { inside in if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() } }
+            .gesture(DragGesture(minimumDistance: 1)
+                .onChanged { value in
+                    let base = start ?? height
+                    start = base
+                    height = min(max(base + value.translation.height, range.lowerBound), range.upperBound)
+                }
+                .onEnded { _ in start = nil })
+            .accessibilityLabel("Resize list and details")
+            .accessibilityAdjustableAction { direction in
+                height = min(max(height + (direction == .increment ? 40 : -40), range.lowerBound), range.upperBound)
+            }
     }
 }
 

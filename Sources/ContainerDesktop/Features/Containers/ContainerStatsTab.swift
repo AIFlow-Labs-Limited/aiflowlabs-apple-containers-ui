@@ -32,7 +32,7 @@ struct ContainerStatsTab: View {
                     tiles
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: Spacing.l)], spacing: Spacing.l) {
                         chartCard("CPU", subtitle: "% of one core") { cpuChart }
-                        chartCard("Memory", subtitle: "used vs limit") { memoryChart }
+                        chartCard("Memory", subtitle: "used of \(ByteCount.format(points.last?.memoryLimitBytes ?? container.configuration.resources.memoryInBytes)) limit") { memoryChart }
                         chartCard("Network", subtitle: "bytes/s") {
                             rateChart([("Received", \.networkRxPerSecond), ("Sent", \.networkTxPerSecond)])
                         }
@@ -79,11 +79,19 @@ struct ContainerStatsTab: View {
                        subtitle: p.map { "↑ \(Self.rate($0.networkTxPerSecond))" })
             MetricTile(title: "Block I/O", value: p.map { "R \(Self.rate($0.blockReadPerSecond))" } ?? emDash,
                        subtitle: p.map { "W \(Self.rate($0.blockWritePerSecond))" })
-            MetricTile(title: "PIDs", value: p.map { String($0.processes) } ?? emDash)
+            MetricTile(title: "PIDs", value: p.map { String($0.processes) } ?? emDash, subtitle: "processes")
         }
     }
 
-    static func rate(_ bytesPerSecond: Double) -> String { ByteCount.format(Int64(bytesPerSecond)) + "/s" }
+    static func rate(_ bytesPerSecond: Double) -> String { bytes(bytesPerSecond) + "/s" }
+
+    /// Like `ByteCount.format` but always numeric ("0 KB", never "Zero KB").
+    static func bytes(_ value: Double) -> String {
+        let f = ByteCountFormatter()
+        f.countStyle = .binary
+        f.allowsNonnumericFormatting = false
+        return f.string(fromByteCount: Int64(max(0, value)))
+    }
 
     // MARK: Charts
 
@@ -125,7 +133,9 @@ struct ContainerStatsTab: View {
                     .foregroundStyle(by: .value("Series", "Used"))
                     .interpolationMethod(.monotone)
             }
-            if let limit = points.last?.memoryLimitBytes, limit > 0 {
+            // Only draw the limit when usage is close enough for it to fit without flattening the area.
+            if let limit = points.last?.memoryLimitBytes, limit > 0, let peak = points.map(\.memoryBytes).max(),
+               Double(peak) > Double(limit) * 0.4 {
                 RuleMark(y: .value("Limit", limit))
                     .foregroundStyle(Color.statusWarning)
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
@@ -136,7 +146,7 @@ struct ContainerStatsTab: View {
         }
         .chartForegroundStyleScale(["Used": Color.accentColor.opacity(0.6)])
         .chartLegend(.hidden)
-        .chartYAxis { AxisMarks { v in AxisGridLine(); AxisValueLabel { Text(ByteCount.format(Int64(v.as(Double.self) ?? 0))) } } }
+        .chartYAxis { AxisMarks { v in AxisGridLine(); AxisValueLabel { Text(Self.bytes(v.as(Double.self) ?? 0)) } } }
         .chartXAxis { timeAxis }
         .accessibilityLabel("Memory usage chart")
     }
