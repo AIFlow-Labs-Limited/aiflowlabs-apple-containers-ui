@@ -221,13 +221,8 @@ public struct CommandLine: Hashable, Sendable {
         self.executable = executable; self.arguments = arguments; self.environment = environment; self.workingDirectory = workingDirectory
     }
 
-    /// Shell-quoted one-liner for display / copy.
-    public var display: String {
-        ([executable] + arguments).map { arg in
-            arg.rangeOfCharacter(from: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "'\"$`\\"))) == nil
-                ? arg : "'" + arg.replacingOccurrences(of: "'", with: "'\\''") + "'"
-        }.joined(separator: " ")
-    }
+    /// Shell-quoted one-liner for display / copy (`ShellQuote.join`).
+    public var display: String { ShellQuote.join([executable] + arguments) }
 }
 
 /// What an embedded terminal should attach to.
