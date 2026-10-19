@@ -203,6 +203,9 @@ public final class SwitchableBackend: ContainerBackend, Sendable {
     public func machineLogs(_ name: String) async throws -> [OutputLine] {
         try await current.machineLogs(name)
     }
+    public func checkKubernetesAvailable() async throws -> Bool {
+        try await current.checkKubernetesAvailable()
+    }
     public func kubernetesAvailable() async -> Bool {
         await current.kubernetesAvailable()
     }

@@ -1,4 +1,5 @@
 import Foundation
+import ContainerKit
 
 /// A `KEY=VALUE` entry from a container's process environment, with secret masking for display.
 ///
@@ -194,19 +195,9 @@ public enum ShellWords {
         return (words, quote)
     }
 
-    /// Characters that make a word need quoting for `sh` (whitespace, quotes, expansions, globs, operators,
-    /// comments, history, tilde, braces).
-    static let needsQuoting = CharacterSet.whitespacesAndNewlines
-        .union(CharacterSet(charactersIn: "'\"$`\\|&;<>()*?[]{}!#~^"))
-
-    /// Quotes one word for `sh` (single quotes; embedded `'` becomes `'\''`). Empty → `''`.
-    // TODO(merge): delegate to ContainerKit.ShellQuote once the kit fixer's quoter lands.
-    public static func quote(_ word: String) -> String {
-        guard !word.isEmpty else { return "''" }
-        guard word.rangeOfCharacter(from: needsQuoting) != nil else { return word }
-        return "'" + word.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
+    /// Quotes one word for `sh` (delegates to `ContainerKit.ShellQuote`, the app's single quoter).
+    public static func quote(_ word: String) -> String { ShellQuote.quote(word) }
 
     /// Inverse of `split` for display and copy: quotes words that need it.
-    public static func join(_ words: [String]) -> String { words.map(quote).joined(separator: " ") }
+    public static func join(_ words: [String]) -> String { ShellQuote.join(words) }
 }

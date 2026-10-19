@@ -40,12 +40,15 @@ public final class ClustersStore: PollingStore {
         return items.filter { $0.name.localizedCaseInsensitiveContains(q) }
     }
 
-    /// Lists clusters when the plugin is available. Availability (`container k8s --help`) is probed once and
-    /// cached; call `recheckAvailability()` to probe again (e.g. after the CLI was upgraded).
+    /// Lists clusters when the plugin is available. Availability (`checkKubernetesAvailable`) is cached once
+    /// known (errors leave it unknown and re-probe); call `recheckAvailability()` to probe again (e.g. after the CLI was upgraded).
     public func refresh() async {
         if !availabilityChecked {
-            available = await backend.kubernetesAvailable()
-            availabilityChecked = true
+            // A thrown error (e.g. services down) means "unknown": keep the previous value and probe again next time.
+            if let result = try? await backend.checkKubernetesAvailable() {
+                available = result
+                availabilityChecked = true
+            }
         }
         guard available else {
             items = []
