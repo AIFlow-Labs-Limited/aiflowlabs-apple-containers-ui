@@ -21,6 +21,9 @@ public final class ContainersStore: PollingStore {
     public var showStopped = true
     public var hideSystemManaged = true
     public var searchText = ""
+    /// Lifecycle actions the app has asked for and that have not returned yet, per container id. A graceful stop
+    /// can take the full timeout (10 s for a PID 1 that ignores SIGTERM), so the list shows "Stopping…" meanwhile.
+    public private(set) var pendingActions: [String: PendingAction] = [:]
     /// Latest stats sample per container id.
     public private(set) var stats: [String: ContainerStats] = [:]
     /// CPU % per container (100 = one core), from the last two samples.
@@ -75,6 +78,25 @@ public final class ContainersStore: PollingStore {
     public var totalMemoryBytes: Int64 { stats.values.reduce(0) { $0 + $1.memoryUsageBytes } }
 
     public func container(id: String) -> Container? { items.first { $0.id == id } }
+
+    /// An in-flight lifecycle action, shown in place of the state while the CLI call runs.
+    public enum PendingAction: String, Sendable {
+        case starting = "Starting…"
+        case stopping = "Stopping…"
+        case restarting = "Restarting…"
+        case killing = "Killing…"
+        case deleting = "Deleting…"
+    }
+
+    /// Marks `ids` as `action` for the duration of `body`.
+    private func tracking(
+        _ ids: [String], _ action: PendingAction, _ body: () async -> BulkResult
+    ) async -> BulkResult {
+        for id in ids { pendingActions[id] = action }
+        let result = await body()
+        for id in ids where pendingActions[id] == action { pendingActions[id] = nil }
+        return result
+    }
 
     /// Whether `id` is currently in the expected-stop set (for tests/diagnostics).
     public func isExpectingStop(_ id: String) -> Bool { expectedStops[id] != nil }
@@ -142,21 +164,27 @@ public final class ContainersStore: PollingStore {
 
     @discardableResult
     public func start(_ ids: [String]) async -> BulkResult {
-        await performEach(ids: ids) { try await backend.startContainer($0) }
+        await tracking(ids, .starting) {
+            await performEach(ids: ids) { try await backend.startContainer($0) }
+        }
     }
 
     @discardableResult
     public func stop(_ ids: [String], timeoutSeconds: Int? = nil) async -> BulkResult {
         expectStops(ids)
-        return await performEach(ids: ids) {
-            try await backend.stopContainer($0, timeoutSeconds: timeoutSeconds, signal: nil)
+        return await tracking(ids, .stopping) {
+            await performEach(ids: ids) {
+                try await backend.stopContainer($0, timeoutSeconds: timeoutSeconds, signal: nil)
+            }
         }
     }
 
     @discardableResult
     public func kill(_ ids: [String], signal: String? = nil) async -> BulkResult {
         expectStops(ids)
-        return await performEach(ids: ids) { try await backend.killContainer($0, signal: signal) }
+        return await tracking(ids, .killing) {
+            await performEach(ids: ids) { try await backend.killContainer($0, signal: signal) }
+        }
     }
 
     /// Stop + start per id; a failure on one container does not skip the others.
@@ -164,12 +192,14 @@ public final class ContainersStore: PollingStore {
     public func restart(_ ids: [String]) async -> BulkResult {
         expectStops(ids)
         let running = Set(items.filter(\.isRunning).map(\.id))
-        return await performEach(ids: ids) { id in
-            if running.contains(id) || container(id: id) == nil {
-                try await backend.stopContainer(id, timeoutSeconds: nil, signal: nil)
+        return await tracking(ids, .restarting) {
+            await performEach(ids: ids) { id in
+                if running.contains(id) || container(id: id) == nil {
+                    try await backend.stopContainer(id, timeoutSeconds: nil, signal: nil)
+                }
+                statsHistory.reset(id)  // counters restart with the process
+                try await backend.startContainer(id)
             }
-            statsHistory.reset(id)  // counters restart with the process
-            try await backend.startContainer(id)
         }
     }
 
@@ -180,8 +210,10 @@ public final class ContainersStore: PollingStore {
         let running = Set(items.filter(\.isRunning).map(\.id))
         expectStops(ids.filter(running.contains))
         // `performEach` refreshes afterwards, and `refresh` evicts the deleted ids from `statsHistory`.
-        return await performEach(ids: ids) { id in
-            try await backend.deleteContainer(id, force: force && running.contains(id))
+        return await tracking(ids, .deleting) {
+            await performEach(ids: ids) { id in
+                try await backend.deleteContainer(id, force: force && running.contains(id))
+            }
         }
     }
 

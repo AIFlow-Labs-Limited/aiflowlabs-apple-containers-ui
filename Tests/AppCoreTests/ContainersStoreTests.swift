@@ -83,6 +83,19 @@ import Testing
 
     /// A poll that lands while a slow stop is still in flight must not clear the expectation (regression: the
     /// old `defer { expectedStops.removeAll() }` turned every slow stop into an "exited unexpectedly" alert).
+    @Test func slowStopShowsPendingActionUntilItReturns() async throws {
+        let backend = MockBackend()
+        let store = ContainersStore(backend: backend, gate: gate)
+        await store.refresh()
+        await backend.setLatency(.milliseconds(300))
+        let stopping = Task { await store.stop(["db"]) }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(store.pendingActions["db"] == .stopping)
+        _ = await stopping.value
+        #expect(store.pendingActions["db"] == nil)
+        #expect(store.container(id: "db")?.isRunning == false)
+    }
+
     @Test func interleavedSlowStopIsNotReportedAsUnexpected() async throws {
         let backend = MockBackend()
         let store = ContainersStore(backend: backend, gate: gate)
