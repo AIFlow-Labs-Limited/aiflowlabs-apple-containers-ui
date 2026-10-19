@@ -137,6 +137,23 @@ import ContainerKitMock
         #expect(RegistryServerRule.normalize(" Docker.IO/ ") == "docker.io")
     }
 
+    /// Recorded from the real engine (CLI 1.5.0, 2026-10-19): the CLUSTER cell is blank.
+    @Test func parsesRealK8sListWithBlankClusterColumn() {
+        let text = """
+        CLUSTER  NODE        ROLE                  STATE    CPUS  MEMORY    ADDR           PORTS
+                 cd-ui-test  control-plane,worker  running  4     32768 MB  192.168.64.36
+        """
+        let clusters = CLIOutputParsing.clusters(text)
+        #expect(clusters.map(\.name) == ["cd-ui-test"])
+        let node = clusters.first?.nodes.first
+        #expect(node?.role == "control-plane,worker")
+        #expect(node?.state == .running)
+        #expect(node?.cpus == 4)
+        #expect(node?.memoryMB == 32768)
+        #expect(node?.address == "192.168.64.36")
+        #expect(clusters.first?.isRunning == true)
+    }
+
     // MARK: Stores
 
     @MainActor @Test func machineCreateResizeAndInspect() async {

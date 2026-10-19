@@ -60,7 +60,7 @@ struct ClusterDetailView: View {
                     Text(node.role).font(.callout).lineLimit(1).fixedSize()
                     HStack(spacing: Spacing.xxs) {
                         StatusDot(node.state == .running ? .statusRunning : .statusStopped, size: 6)
-                        Text(node.state.displayName).font(.callout)
+                        Text(node.state.displayName).font(.callout).lineLimit(1).fixedSize()
                     }
                     Text(node.address ?? emDash).font(.callout.monospaced()).lineLimit(1).fixedSize().textSelection(.enabled)
                     Text(node.ports ?? emDash).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(2)
