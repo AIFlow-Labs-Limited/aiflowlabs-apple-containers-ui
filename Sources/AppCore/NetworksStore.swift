@@ -40,9 +40,7 @@ public final class NetworksStore: PollingStore {
 
     /// Container ids attached to `network`.
     public func attachedContainers(_ network: Network) -> [String] {
-        containers.items.filter { c in
-            c.configuration.networks.contains { $0.network == network.name } || (c.status?.networks.contains { $0.network == network.name } ?? false)
-        }.map(\.id)
+        ResourceUsage.containers(attachedTo: network, in: containers.items).map(\.id)
     }
 
     public func refresh() async {

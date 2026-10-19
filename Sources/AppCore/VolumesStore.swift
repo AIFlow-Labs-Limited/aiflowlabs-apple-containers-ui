@@ -40,7 +40,7 @@ public final class VolumesStore: PollingStore {
 
     /// Container ids mounting `volume`.
     public func usedBy(_ volume: Volume) -> [String] {
-        containers.items.filter { $0.configuration.mounts.contains { $0.type.volumeName == volume.name } }.map(\.id)
+        ResourceUsage.containers(mounting: volume, in: containers.items).map(\.id)
     }
 
     public func refresh() async {

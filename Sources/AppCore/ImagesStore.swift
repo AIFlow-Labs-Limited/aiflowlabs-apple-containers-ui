@@ -34,14 +34,14 @@ public final class ImagesStore: PollingStore {
         self.gate = gate
     }
 
-    /// Image references used by any container (running or not).
-    public var inUseReferences: Set<String> { Set(containers.items.map(\.imageReference)) }
+    /// References of local images used by any container (running or not). Forwards to `ResourceUsage`.
+    public var inUseReferences: Set<String> { Set(items.filter(isInUse).map(\.reference)) }
 
-    public func isInUse(_ image: Image) -> Bool { inUseReferences.contains(image.reference) }
+    public func isInUse(_ image: Image) -> Bool { !containers(using: image).isEmpty }
 
-    /// Containers that use `image`.
+    /// Containers that use `image` (canonical name or pinned digest; see `ResourceUsage`).
     public func containers(using image: Image) -> [Container] {
-        containers.items.filter { $0.imageReference == image.reference }
+        ResourceUsage.containers(using: image, in: containers.items)
     }
 
     public var filtered: [Image] {

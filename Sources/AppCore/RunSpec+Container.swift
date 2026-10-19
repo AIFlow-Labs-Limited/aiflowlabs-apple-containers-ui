@@ -132,7 +132,7 @@ public extension RunSpec {
 
     /// `^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`
     static func isValidName(_ name: String) -> Bool {
-        name.wholeMatch(of: /[a-zA-Z0-9][a-zA-Z0-9_.\-]*/) != nil
+        name == name.trimmingCharacters(in: .whitespaces) && ResourceValidator.resourceName(name, maxLength: nil) == nil
     }
 
     /// Validation used by the Run sheet. Empty means the spec can be submitted.

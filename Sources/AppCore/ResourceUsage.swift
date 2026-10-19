@@ -1,10 +1,17 @@
 import Foundation
 import ContainerKit
 
-/// Image reference normalization. The CLI reports local builds as `name:tag` in `image ls` but containers created
-/// from them as `docker.io/library/name:tag`, so "in use" matching compares canonical forms.
+/// Image reference parsing/normalization (the one parser; `ResourceValidator.imageReference` uses its host rule).
+/// The CLI reports local builds as `name:tag` in `image ls` but containers created from them as
+/// `docker.io/library/name:tag`, so "in use" matching compares canonical forms.
 public enum ImageReferenceName {
-    /// `alpine` → `docker.io/library/alpine:latest`, `ghcr.io/x/y` → `ghcr.io/x/y:latest`. Digest refs keep the digest.
+    /// Whether the first path component of a reference is a registry host (`ghcr.io`, `localhost:5000`, `[::1]:5000`).
+    public static func isRegistryHost<S: StringProtocol>(_ component: S) -> Bool {
+        component.contains(".") || component.contains(":") || component == "localhost" || component.hasPrefix("[")
+    }
+
+    /// `alpine` → `docker.io/library/alpine:latest`, `docker.io/nginx` → `docker.io/library/nginx:latest`,
+    /// `ghcr.io/x/y` → `ghcr.io/x/y:latest`. Digest refs keep the digest.
     public static func canonical(_ reference: String) -> String {
         var ref = reference.trimmingCharacters(in: .whitespaces)
         var digest = ""
@@ -13,11 +20,14 @@ public enum ImageReferenceName {
             ref = String(ref[..<at])
         }
         let parts = ref.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
-        let hasRegistry = parts.count == 2 && (parts[0].contains(".") || parts[0].contains(":") || parts[0] == "localhost")
+        let hasRegistry = parts.count == 2 && isRegistryHost(parts[0])
         if !hasRegistry {
             ref = ref.contains("/") ? "docker.io/\(ref)" : "docker.io/library/\(ref)"
+        } else if parts[0] == "docker.io" || parts[0] == "index.docker.io" || parts[0] == "registry-1.docker.io" {
+            let path = parts[1]
+            ref = path.contains("/") ? "docker.io/\(path)" : "docker.io/library/\(path)"
         }
-        let hasTag = ref.lastIndex(of: ":").map { !ref[$0...].contains("/") } ?? false
+        let hasTag = ref.lastIndex(of: ":").map { !ref[$0...].contains("/") && !ref[$0...].contains("]") } ?? false
         if !hasTag && digest.isEmpty { ref += ":latest" }
         return ref + digest
     }
@@ -34,10 +44,17 @@ public enum ImageReferenceName {
 
 /// Container ↔ resource relationships for the Images / Volumes / Networks tables. Pure, so tests can feed fixtures.
 public enum ResourceUsage {
-    /// Containers whose image reference matches `image` (canonical comparison).
+    /// Containers using `image`: canonical reference match, or — for containers created from a digest-pinned
+    /// reference (`name@sha256:…`) — a match on the image's index or per-platform manifest digest.
     public static func containers(using image: Image, in containers: [Container]) -> [Container] {
         let target = ImageReferenceName.canonical(image.reference)
-        return containers.filter { ImageReferenceName.canonical($0.imageReference) == target }
+        let digests = Set([image.configuration.descriptor.digest] + image.variants.map(\.digest))
+        return containers.filter { c in
+            if ImageReferenceName.canonical(c.imageReference) == target { return true }
+            guard c.imageReference.contains("@") else { return false }
+            let pinned = String(c.imageReference[c.imageReference.index(after: c.imageReference.firstIndex(of: "@")!)...])
+            return digests.contains(pinned) || digests.contains(c.configuration.image.descriptor.digest)
+        }
     }
 
     /// Containers mounting `volume` (mounts whose type is `.volume(name:)`).

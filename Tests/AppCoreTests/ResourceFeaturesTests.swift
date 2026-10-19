@@ -107,7 +107,7 @@ import ContainerKitMock
         #expect(ResourceValidator.buildSecret("id=key,src=/tmp/k") == nil)
         #expect(ResourceValidator.buildSecret("env=X") != nil)
         #expect(ResourceValidator.buildSecret("id=a,env=X,src=y") != nil)
-        #expect(ResourceValidator.labels(from: ["a=1", "b=", "bad", " c = 3"]) == ["a": "1", "b": "", "c ": " 3"])
+        #expect(ResourceValidator.labels(from: ["a=1", "b=", "bad", " c = 3"]) == ["a": "1", "b": "", "c": "3"])
     }
 
     @Test func environmentMasking() {
