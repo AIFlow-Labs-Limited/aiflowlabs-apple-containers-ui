@@ -23,11 +23,6 @@ struct KubernetesListView: View {
 
     var body: some View {
         content
-            .safeAreaInset(edge: .top, spacing: 0) {
-                SectionHeaderBar(subtitle: "Local clusters — each node is a container (kind).", badge: "Experimental") {
-                    Link("Docs", destination: Self.docsURL).font(.callout)
-                }
-            }
             .toolbar { toolbar }
             .storeChrome(store)
             .deepLinkSelection(.kubernetes, navigation: model.navigation, selection: $selection) { $0 }
@@ -64,8 +59,14 @@ struct KubernetesListView: View {
                 Link("Read the container docs", destination: Self.docsURL)
             }
         } else {
-            table
-                .overlay { emptyState }
+            VStack(spacing: 0) {
+                SectionHeaderBar(subtitle: "Local clusters — each node is a container (kind).", badge: "Experimental") {
+                    Link("Docs", destination: Self.docsURL).font(.callout)
+                }
+                Divider()
+                table
+                    .overlay { emptyState }
+            }
                 .inspector(isPresented: .constant(selectedCluster != nil)) {
                     if let c = selectedCluster {
                         ClusterDetailView(cluster: c, onLoadImage: { loadInto = c.name }, onDelete: { pendingDelete = [c.name] })

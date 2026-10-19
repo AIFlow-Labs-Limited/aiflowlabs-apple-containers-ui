@@ -57,12 +57,12 @@ struct ClusterDetailView: View {
             ForEach(cluster.nodes) { node in
                 GridRow {
                     Text(node.name).font(.callout.monospaced()).lineLimit(1).truncationMode(.middle)
-                    Text(node.role).font(.callout)
+                    Text(node.role).font(.callout).lineLimit(1).fixedSize()
                     HStack(spacing: Spacing.xxs) {
                         StatusDot(node.state == .running ? .statusRunning : .statusStopped, size: 6)
                         Text(node.state.displayName).font(.callout)
                     }
-                    Text(node.address ?? emDash).font(.callout.monospaced()).textSelection(.enabled)
+                    Text(node.address ?? emDash).font(.callout.monospaced()).lineLimit(1).fixedSize().textSelection(.enabled)
                     Text(node.ports ?? emDash).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(2)
                 }
                 .accessibilityElement(children: .combine)

@@ -44,6 +44,7 @@ struct CreateMachineSheet: View {
                         ForEach(HomeMountMode.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
                     Text(form.homeMount.explanation).font(.caption).foregroundStyle(.secondary)
                 }
                 Section {
@@ -53,11 +54,9 @@ struct CreateMachineSheet: View {
                 Section {
                     DisclosureGroup("Advanced", isExpanded: $showAdvanced) { advanced }
                 }
-                Section("Command") {
-                    CommandPreview(command: form.previewCommand())
-                }
             }
             .formStyle(.grouped)
+            CommandPreview(command: form.previewCommand())
             InfoCard(title: "A machine can read and change your home folder", symbol: "exclamationmark.shield",
                      tint: .statusWarning) {
                 Text("It also gets your SSH agent, all Linux capabilities and passwordless sudo. Only use images you trust.")

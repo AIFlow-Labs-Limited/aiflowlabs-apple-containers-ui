@@ -28,7 +28,7 @@ struct MachinesListView: View {
                 if let m = selected.first {
                     MachineDetailView(machine: m, tab: $detailTab,
                                       onResize: { resizing = m }, onStop: { pendingStop = [m.name] })
-                        .inspectorColumnWidth(min: 360, ideal: 460, max: 900)
+                        .inspectorColumnWidth(min: 340, ideal: 400, max: 900)
                 }
             }
             .toolbar { toolbar }
