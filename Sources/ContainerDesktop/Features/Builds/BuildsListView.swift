@@ -5,6 +5,7 @@ import DesignSystem
 
 /// Phase-1 builds view: builder card + local build history (features-resources replaces this in phase 2).
 struct BuildsListView: View {
+    static let newBuildToken = "__new-build__"
     @Environment(AppModel.self) private var model
     @State private var selection = Set<BuildRecord.ID>()
     @State private var confirmReset = false
