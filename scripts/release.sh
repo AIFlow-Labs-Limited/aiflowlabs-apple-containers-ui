@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cut a release locally: bump the Makefile default VERSION, promote CHANGELOG [Unreleased], commit, tag vX.Y.Z.
-# Does NOT push — run `git push origin main vX.Y.Z` yourself; the tag triggers .github/workflows/release.yml.
+# Does NOT push — run `git push origin main vX.Y.Z`, then `scripts/publish-release.sh vX.Y.Z` builds + publishes the DMG locally.
 # Refuses unless: clean tree, on main, in sync with origin/main, tag absent locally and on origin, `make check` green.
 #
 # Usage: scripts/release.sh X.Y.Z

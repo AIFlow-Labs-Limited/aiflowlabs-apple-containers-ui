@@ -1,10 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  # Manual only: all checks run locally (`make check`, pre-push hook). Trigger from the Actions tab if ever needed.
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -1,8 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  # Manual only: releases are built locally with `scripts/publish-release.sh`. Keep for an on-demand runner build.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build (e.g. v0.1.0)"
+        required: true
 
 permissions:
   contents: write # create the GitHub release
@@ -16,6 +20,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag }}
 
       - name: Select Xcode
         run: |
@@ -30,7 +35,9 @@ jobs:
 
       - name: Derive version from tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ inputs.tag }}
 
       - name: Test
         run: swift test
@@ -57,7 +64,8 @@ jobs:
             > the message about Container Desktop and click **Open Anyway**, or run once in Terminal:
             > `xattr -dr com.apple.quarantine "/Applications/Container Desktop.app"`
             > Verify the download first: `shasum -a 256 -c Container-Desktop-<version>-arm64.dmg.sha256`.
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(inputs.tag, '-') }}
+          tag_name: ${{ inputs.tag }}
           files: |
             build/Container-Desktop-${{ steps.version.outputs.version }}-arm64.dmg
             build/Container-Desktop-${{ steps.version.outputs.version }}-arm64.dmg.sha256

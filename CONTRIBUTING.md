@@ -13,7 +13,8 @@ Thanks for helping. This is a native SwiftUI app for macOS 26 on Apple silicon, 
 ```bash
 git clone https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui.git
 cd aiflowlabs-apple-containers-ui
-make check        # swift build + swift test + swift format lint
+make check        # swift build + swift test + swift format lint (CI is manual-only: this IS the gate)
+make hooks        # pre-push hook that runs make check automatically
 make run-mock     # launch the app against recorded CLI fixtures — no runtime needed
 ```
 

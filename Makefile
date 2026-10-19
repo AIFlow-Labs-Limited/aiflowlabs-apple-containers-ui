@@ -45,6 +45,13 @@ format: ## swift-format in place
 
 check: build test lint ## Build + test + lint (run before every PR)
 
+hooks: ## Install the pre-push hook that runs `make check` (CI is manual-only)
+	scripts/install-hooks.sh
+
+publish: ## Build the DMG for an existing tag and publish a GitHub release locally. Usage: make publish TAG=vX.Y.Z
+	@test -n "$(TAG)" || { echo "usage: make publish TAG=vX.Y.Z"; exit 64; }
+	scripts/publish-release.sh "$(TAG)"
+
 release: ## Bump version, update CHANGELOG, tag vX.Y.Z (no push). Usage: make release VERSION=x.y.z
 	@test -n "$(filter command line,$(origin VERSION))" || { echo "usage: make release VERSION=x.y.z"; exit 64; }
 	scripts/release.sh "$(VERSION)"
