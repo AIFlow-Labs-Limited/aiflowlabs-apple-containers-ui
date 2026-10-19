@@ -1,6 +1,4 @@
 import SwiftUI
-import AppKit
-import UniformTypeIdentifiers
 import ContainerKit
 import AppCore
 import DesignSystem
@@ -41,7 +39,7 @@ struct CreateClusterSheet: View {
                     LabeledContent("Worker nodes") {
                         Stepper("0", value: .constant(0), in: 0...0).disabled(true)
                     }
-                    Text("Extra workers require container ≥ next release (no --workers in this CLI).")
+                    Text("Single node only: container 1.5.0's k8s plugin has no --workers option. Extra workers will be enabled when a CLI release adds it.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Node") {
@@ -80,13 +78,9 @@ struct CreateClusterSheet: View {
     }
 
     private func chooseCNI() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.yaml, .json, .plainText]
-        panel.message = "Choose a CNI manifest (YAML)"
-        if panel.runModal() == .OK, let url = panel.url { form.cniManifestPath = url.path }
+        if let url = FilePanels.openFile(title: "Choose a CNI manifest (YAML)", types: ["yaml", "yml", "json"]) {
+            form.cniManifestPath = url.path(percentEncoded: false)
+        }
     }
 }
 

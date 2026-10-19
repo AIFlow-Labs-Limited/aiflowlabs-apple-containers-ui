@@ -9,14 +9,24 @@ struct RegistryLoginSheet: View {
     /// Returns `nil` on success, otherwise the error to show.
     let login: (_ server: String, _ username: String, _ password: String, _ scheme: String?) async -> BackendError?
 
-    @State private var preset = RegistryPreset.dockerHub
-    @State private var server = RegistryPreset.dockerHub.server ?? ""
+    @State private var preset: RegistryPreset
+    @State private var server: String
     @State private var username = ""
     @State private var password = ""
     @State private var useHTTP = false
     @State private var busy = false
     @State private var error: BackendError?
     @Environment(\.dismiss) private var dismiss
+
+    /// `server` prefills the sheet (e.g. from Push → "Sign in…"); `nil` starts on Docker Hub.
+    init(server: String? = nil,
+         login: @escaping (_ server: String, _ username: String, _ password: String, _ scheme: String?) async -> BackendError?) {
+        self.login = login
+        let initial = server.map(RegistryServerRule.normalize) ?? (RegistryPreset.dockerHub.server ?? "")
+        let preset = RegistryPreset.matching(server: initial)
+        _preset = State(initialValue: preset)
+        _server = State(initialValue: preset.server ?? initial)
+    }
 
     private var serverError: String? { RegistryServerRule.validate(server) }
     private var canSubmit: Bool { serverError == nil && !username.isEmpty && !password.isEmpty && !busy }
@@ -30,7 +40,7 @@ struct RegistryLoginSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: preset) { _, p in
-                    server = p.server ?? ""
+                    if let fixed = p.server { server = fixed } else if RegistryPreset.matching(server: server) != .custom { server = "" }
                     if !p.allowsHTTP { useHTTP = false }
                     error = nil
                 }

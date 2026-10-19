@@ -33,10 +33,9 @@ struct TagImageSheet: View {
     }
 
     private func submit() {
-        let target = trimmed
+        let target = trimmed, source = source, backend = model.backend
         Task {
-            await model.images.tag(source, as: target)
-            if model.images.lastError == nil {
+            if await model.images.perform({ try await backend.tagImage(source, newReference: target) }) {
                 model.toasts.success("Tagged \(target)")
                 if let ref = model.images.items.first(where: { ImageReferenceName.same($0.reference, target) })?.reference { didTag(ref) }
             }
@@ -96,9 +95,10 @@ struct SaveImageSheet: View {
         guard let image, let destination else { return }
         working = true
         let chosen = image.platforms.first { $0.slug == platform }
-        await model.images.save([image.reference], to: destination.path(percentEncoded: false), platform: chosen)
+        let backend = model.backend, refs = [image.reference], path = destination.path(percentEncoded: false)
+        let saved = await model.images.perform { try await backend.saveImages(refs, to: path, platform: chosen) }
         working = false
-        if model.images.lastError == nil {
+        if saved {
             model.toasts.success("Saved \(image.reference)", message: destination.lastPathComponent)
             dismiss()
         }
@@ -112,11 +112,9 @@ struct PruneImagesSheet: View {
     @State private var all = false
     @State private var working = false
 
+    /// The app's estimate; the engine decides what really goes, so the toast reports the before/after diff.
     private var candidates: [ContainerKit.Image] {
-        let containers = model.containers.items
-        return model.images.items.filter { image in
-            ResourceUsage.containers(using: image, in: containers).isEmpty && (all || ResourceUsage.isUntagged(image))
-        }
+        PruneCandidates.images(model.images.items, containers: model.containers.items, all: all)
     }
 
     var body: some View {
@@ -149,17 +147,17 @@ struct PruneImagesSheet: View {
                     .frame(maxHeight: 180)
                 }
             } label: {
-                Text("Will remove \(candidates.count) image\(candidates.count == 1 ? "" : "s") "
+                Text("Expected to remove \(PruneText.plural(candidates.count, "image")) "
                      + "(\(ByteCount.format(candidates.reduce(0) { $0 + $1.totalSize })))")
             }
+            Text("Computed by Container Desktop from the containers it can see; the engine makes the final decision.")
+                .font(.caption).foregroundStyle(.secondary)
             HStack {
                 if working { ProgressView().controlSize(.small) }
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Prune \(candidates.count) image\(candidates.count == 1 ? "" : "s")", role: .destructive) {
-                    Task { await prune() }
-                }
-                .disabled(candidates.isEmpty || working)
+                Button("Prune", role: .destructive) { Task { await prune() } }
+                    .disabled(candidates.isEmpty || working)
             }
         }
         .padding(Spacing.xl)
@@ -169,12 +167,14 @@ struct PruneImagesSheet: View {
 
     private func prune() async {
         working = true
-        let count = candidates.count
-        await model.images.prune(all: all)
+        let before = model.images.items.map(\.reference)
+        let backend = model.backend, all = all
+        let ok = await model.images.perform { try await backend.pruneImages(all: all) }
         working = false
         await model.system.refreshDiskUsage()
-        if model.images.lastError == nil {
-            model.toasts.success("Pruned images", message: "\(count) removed")
+        if ok {
+            PruneText.toast(model.toasts, removed: PruneCandidates.removed(before: before, after: model.images.items.map(\.reference)),
+                            noun: "image")
             dismiss()
         }
     }

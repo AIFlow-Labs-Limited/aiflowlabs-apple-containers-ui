@@ -106,8 +106,13 @@ struct BuildSheet: View {
                     }
                 }
                 LabeledContent("Secrets") {
-                    StringRowsEditor("Secret", rows: $draft.secrets, placeholder: "id=npm,env=NPM_TOKEN or id=key,src=~/key",
-                                     addTitle: "Add secret", validate: ResourceValidator.buildSecret)
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        StringRowsEditor("Secret", rows: $draft.secrets, placeholder: "id=npm,env=NPM_TOKEN",
+                                         addTitle: "Add secret", validate: ResourceValidator.buildSecret)
+                        Text("Start with id=, then env=VAR or src=PATH. src= is relative to the context folder (~ works). "
+                             + "env= reads Container Desktop's own environment, which doesn't include your shell profile when opened from Finder.")
+                            .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }

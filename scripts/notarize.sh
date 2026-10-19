@@ -34,8 +34,19 @@ fi
 
 [[ -f "$TARGET" ]] || { echo "error: $TARGET not found — run 'make dmg' first" >&2; exit 1; }
 
-if codesign -dv "$TARGET" 2>&1 | grep -q "Signature=adhoc"; then
+# Capture first: `codesign -dv | grep -q` under pipefail misreads both an unsigned file and grep's early exit.
+if ! SIGNATURE="$(codesign -dv --verbose=2 "$TARGET" 2>&1)"; then
+    echo "error: $TARGET is not signed; run 'make app dmg' with SIGN_IDENTITY=\"Developer ID Application: …\"" >&2
+    echo "$SIGNATURE" >&2
+    exit 1
+fi
+if grep -q "Signature=adhoc" <<< "$SIGNATURE"; then
     echo "error: $TARGET is ad-hoc signed; notarization needs a Developer ID signature" >&2
+    exit 1
+fi
+if ! grep -q "^Authority=Developer ID Application" <<< "$SIGNATURE"; then
+    echo "error: $TARGET is not signed with a Developer ID Application identity:" >&2
+    grep "^Authority=" <<< "$SIGNATURE" >&2 || true
     exit 1
 fi
 

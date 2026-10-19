@@ -21,7 +21,10 @@ struct VolumesListView: View {
     }
 
     private var selectedRows: [VolumeRow] { rows.filter { selection.contains($0.id) } }
-    private var pruneCandidates: [VolumeRow] { rows.filter(\.usedBy.isEmpty) }
+    /// From `store.items`, not the filtered rows: `container volume prune` ignores the search field.
+    private var pruneCandidates: [String] {
+        PruneCandidates.volumes(store.items, containers: model.containers.items).map(\.name)
+    }
 
     var body: some View {
         let rows = rows
@@ -86,15 +89,15 @@ struct VolumesListView: View {
         .confirmDestructive(title: pendingDelete.count == 1 ? "Delete volume “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) volumes?",
                             message: "Deletes \(pendingDelete.joined(separator: ", ")) and all data stored in it. This cannot be undone.",
                             actionTitle: "Delete",
-                            isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+                            isPresented: $pendingDelete.isPresent) {
             let names = pendingDelete
             Task { await store.delete(names); selection.subtract(names) }
         }
-        .confirmDestructive(title: "Prune \(pruneCandidates.count) unused volume\(pruneCandidates.count == 1 ? "" : "s")?",
-                            message: "Permanently deletes \(pruneCandidates.map(\.name).joined(separator: ", ")) and the data inside. "
-                                + "Data in pruned volumes is unrecoverable.",
+        .confirmDestructive(title: PruneText.title(count: pruneCandidates.count, noun: "volume"),
+                            message: PruneText.message(candidates: pruneCandidates, visible: rows.map(\.name), noun: "volume")
+                                + " Data in pruned volumes is unrecoverable.",
                             actionTitle: "Prune", isPresented: $confirmPrune) {
-            Task { await store.prune() }
+            Task { await prune() }
         }
     }
 
@@ -124,6 +127,13 @@ struct VolumesListView: View {
         let picked = rows.filter { ids.contains($0.id) }
         guard !picked.isEmpty, picked.allSatisfy({ $0.usedBy.isEmpty }) else { return }
         pendingDelete = picked.map(\.name)
+    }
+
+    private func prune() async {
+        let before = store.items.map(\.name)
+        let backend = model.backend
+        guard await store.perform({ try await backend.pruneVolumes() }) else { return }
+        PruneText.toast(model.toasts, removed: PruneCandidates.removed(before: before, after: store.items.map(\.name)), noun: "volume")
     }
 }
 

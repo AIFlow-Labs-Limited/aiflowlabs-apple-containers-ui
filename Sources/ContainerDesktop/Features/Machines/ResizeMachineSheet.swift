@@ -49,7 +49,8 @@ struct ResizeMachineSheet: View {
                         .accessibilityLabel("Memory")
                         .accessibilityValue("\(memoryGB) gigabytes")
                 }
-                CommandPreview(command: "container machine set -n \(machine.name) cpus=\(cpus) memory=\(memoryGB)g")
+                CommandPreview(command: MachineResize.previewCommand(
+                    name: machine.name, settings: MachineResize.settings(cpus: cpus, memoryGB: memoryGB)))
             }
             .formStyle(.grouped)
             Text("The new size applies the next time the machine boots.").font(.caption).foregroundStyle(.secondary)

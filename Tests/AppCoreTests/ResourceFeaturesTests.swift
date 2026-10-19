@@ -39,7 +39,7 @@ import ContainerKitMock
         await model.volumes.refresh()
         let probevol = model.volumes.items.first { $0.name == "probevol" }!
         #expect(ResourceUsage.containers(mounting: probevol, in: model.containers.items).map(\.id) == ["probe"])
-        await model.volumes.create(name: "fresh")
+        _ = await model.volumes.create(name: "fresh")
         let fresh = model.volumes.items.first { $0.name == "fresh" }!
         #expect(ResourceUsage.containers(mounting: fresh, in: model.containers.items).isEmpty)
     }
@@ -142,9 +142,64 @@ import ContainerKitMock
         try "FROM alpine\n".write(to: dir.appending(path: "Dockerfile"), atomically: true, encoding: .utf8)
         try "".write(to: dir.appending(path: "dev.Dockerfile"), atomically: true, encoding: .utf8)
         try "".write(to: dir.appending(path: "README.md"), atomically: true, encoding: .utf8)
+        try "node_modules\n".write(to: dir.appending(path: "Dockerfile.dockerignore"), atomically: true, encoding: .utf8)
         #expect(BuildContextInspector.dockerfiles(in: dir) == ["Dockerfile", "Containerfile", "dev.Dockerfile"])
         #expect(BuildContextInspector.stages(dockerfile: "Containerfile", in: dir) == ["base", "runtime"])
         #expect(BuildContextInspector.stages(dockerfile: "Dockerfile", in: dir).isEmpty)
+    }
+
+    /// A Finder-launched app has cwd `/`, and the CLI resolves `-f` / `src=` against its cwd: both must be absolute.
+    @Test func buildSpecPathsAreAbsolute() throws {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
+        var spec = BuildSpec(contextDirectory: "~/src/app", tag: "app:dev")
+        spec.dockerfile = "Dockerfile.dev"
+        spec.secrets = ["id=key,src=~/.ssh/id_ed25519", "id=cfg,src=config/secret.txt", "id=npm,env=NPM_TOKEN"]
+        let resolved = spec.resolvingPaths()
+        let args = resolved.cliArguments
+        let f = try #require(args.firstIndex(of: "-f"))
+        let context = (home as NSString).appendingPathComponent("src/app")
+        #expect(args[f + 1] == context + "/Dockerfile.dev")
+        #expect(args[f + 1].hasPrefix("/"))
+        #expect(args.last == context)
+        #expect(resolved.secrets == ["id=key,src=" + (home as NSString).appendingPathComponent(".ssh/id_ed25519"),
+                                     "id=cfg,src=\(context)/config/secret.txt", "id=npm,env=NPM_TOKEN"])
+        // Absolute paths are kept (normalized), and an already-resolved spec is unchanged.
+        var abs = BuildSpec(contextDirectory: "/work/app/", tag: "t")
+        abs.dockerfile = "/work/other/../app/ci.Dockerfile"
+        #expect(abs.resolvingPaths().dockerfile == "/work/app/ci.Dockerfile")
+        #expect(resolved.resolvingPaths() == resolved)
+        #expect(BuildContextInspector.stages(dockerfile: "Dockerfile.dev", in: URL(filePath: "/nonexistent")).isEmpty)
+    }
+
+    // MARK: Prune candidates
+
+    /// Prune runs unfiltered on the engine, so the confirmation must list every unused resource, not just the
+    /// rows the search shows.
+    @Test func pruneCandidatesIgnoreSearch() async {
+        let model = TestSupport.model()
+        await model.containers.refresh()
+        await model.volumes.refresh()
+        await model.networks.refresh()
+        _ = await model.volumes.create(name: "zz-unused-a")
+        _ = await model.volumes.create(name: "zz-unused-b")
+        _ = await model.networks.create(name: "zz-net")
+        let containers = model.containers.items
+        let allVolumes = PruneCandidates.volumes(model.volumes.items, containers: containers).map(\.name)
+        let allNetworks = PruneCandidates.networks(model.networks.items, containers: containers).map(\.name)
+        model.volumes.searchText = "zz-unused-a"
+        model.networks.searchText = "nothing-matches"
+        #expect(model.volumes.filtered.count == 1)
+        #expect(model.networks.filtered.isEmpty)
+        #expect(PruneCandidates.volumes(model.volumes.items, containers: containers).map(\.name) == allVolumes)
+        #expect(PruneCandidates.networks(model.networks.items, containers: containers).map(\.name) == allNetworks)
+        #expect(allVolumes.contains("zz-unused-a") && allVolumes.contains("zz-unused-b") && !allVolumes.contains("probevol"))
+        #expect(allNetworks.contains("zz-net") && !allNetworks.contains("default"))
+        #expect(PruneCandidates.hiddenCount(candidates: allVolumes, visible: model.volumes.filtered.map(\.name)) == allVolumes.count - 1)
+    }
+
+    @Test func pruneOutcomeIsADiff() {
+        #expect(PruneCandidates.removed(before: ["a", "b", "c"], after: ["b"]) == ["a", "c"])
+        #expect(PruneCandidates.removed(before: ["a"], after: ["a", "new"]).isEmpty)
     }
 
     // MARK: Run hand-off

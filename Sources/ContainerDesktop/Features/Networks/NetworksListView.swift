@@ -21,7 +21,10 @@ struct NetworksListView: View {
     }
 
     private var selectedRows: [NetworkRow] { rows.filter { selection.contains($0.id) } }
-    private var pruneCandidates: [NetworkRow] { rows.filter { !$0.network.isBuiltin && $0.attached.isEmpty } }
+    /// From `store.items`, not the filtered rows: `container network prune` ignores the search field.
+    private var pruneCandidates: [String] {
+        PruneCandidates.networks(store.items, containers: model.containers.items).map(\.name)
+    }
 
     var body: some View {
         let rows = rows
@@ -85,14 +88,15 @@ struct NetworksListView: View {
         .confirmDestructive(title: pendingDelete.count == 1 ? "Delete network “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) networks?",
                             message: "Deletes \(pendingDelete.joined(separator: ", ")). No containers are attached.",
                             actionTitle: "Delete",
-                            isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+                            isPresented: $pendingDelete.isPresent) {
             let names = pendingDelete
             Task { await store.delete(names); selection.subtract(names) }
         }
-        .confirmDestructive(title: "Prune \(pruneCandidates.count) unused network\(pruneCandidates.count == 1 ? "" : "s")?",
-                            message: "Deletes \(pruneCandidates.map(\.name).joined(separator: ", ")). The default network is kept.",
+        .confirmDestructive(title: PruneText.title(count: pruneCandidates.count, noun: "network"),
+                            message: PruneText.message(candidates: pruneCandidates, visible: rows.map(\.name), noun: "network")
+                                + " The default network is kept.",
                             actionTitle: "Prune", isPresented: $confirmPrune) {
-            Task { await store.prune() }
+            Task { await prune() }
         }
     }
 
@@ -118,6 +122,13 @@ struct NetworksListView: View {
         let picked = rows.filter { ids.contains($0.id) }
         guard !picked.isEmpty, picked.allSatisfy({ $0.blockReason == nil }) else { return }
         pendingDelete = picked.map(\.name)
+    }
+
+    private func prune() async {
+        let before = store.items.map(\.name)
+        let backend = model.backend
+        guard await store.perform({ try await backend.pruneNetworks() }) else { return }
+        PruneText.toast(model.toasts, removed: PruneCandidates.removed(before: before, after: store.items.map(\.name)), noun: "network")
     }
 }
 

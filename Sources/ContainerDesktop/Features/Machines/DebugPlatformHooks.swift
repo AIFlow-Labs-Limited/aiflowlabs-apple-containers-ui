@@ -18,11 +18,20 @@ final class DebugPlatformHooks {
     static func consume(_ token: String) -> Bool { shared.pending.remove(token) != nil }
 }
 
-/// `e2e-machine`: real-engine check through the same store calls the UI makes (create sheet → stop → delete).
+/// Real-engine checks through the same store calls the UI makes. Each run uses a unique `cd-ui-test-<id>` name and
+/// deletes only what it created: if the create failed, or the name was already taken, nothing is deleted.
 @MainActor
 enum PlatformEndToEnd {
-    static func machine(model: AppModel, name: String = "cd-ui-test") async {
-        func log(_ s: String) { FileHandle.standardError.write(Data("[E2E] \(s)\n".utf8)) }
+    static func uniqueName() -> String { "cd-ui-test-\(UUID().uuidString.prefix(6).lowercased())" }
+
+    private static func log(_ s: String) { FileHandle.standardError.write(Data("[E2E] \(s)\n".utf8)) }
+
+    /// `e2e-machine`: create sheet → stop → delete.
+    static func machine(model: AppModel, name: String = uniqueName()) async {
+        await model.machines.refresh()
+        guard !model.machines.items.contains(where: { $0.name == name }) else {
+            log("machine \(name) already exists; not touching it"); log("done"); return
+        }
         var form = MachineForm()
         form.name = name
         form.cpus = 2
@@ -35,23 +44,25 @@ enum PlatformEndToEnd {
         await model.machines.refresh()
         let m = model.machines.items.first { $0.name == name }
         log("listed: \(m.map { "\($0.name) \($0.status.rawValue) cpus=\($0.cpus) mem=\($0.memory >> 30)g" } ?? "MISSING")")
+        // The name was free before this run, so anything listed under it now is ours (even after a failed boot).
+        guard m != nil else { log("nothing created; nothing to delete"); log("done"); return }
         model.navigation.open(.machines, select: name)
         try? await Task.sleep(for: .seconds(8))  // time for a screenshot of the running machine
         await model.machines.stop([name])
-        log("after stop: \(model.machines.items.first { $0.name == name }?.status.rawValue ?? "MISSING") err=\(model.machines.lastError?.localizedDescription ?? "none")")
+        log("after stop: \(model.machines.items.first { $0.name == name }?.status.rawValue ?? "MISSING")")
         await model.machines.delete([name])
-        log("after delete present=\(model.machines.items.contains { $0.name == name }) err=\(model.machines.lastError?.localizedDescription ?? "none")")
+        log("after delete present=\(model.machines.items.contains { $0.name == name })")
         log("done")
     }
-}
 
-extension PlatformEndToEnd {
     /// `e2e-cluster`: one real `k8s create` (cancelled after 10 min), list, then delete.
-    static func cluster(model: AppModel, name: String = "cd-ui-test") async {
-        func log(_ s: String) { FileHandle.standardError.write(Data("[E2E] \(s)\n".utf8)) }
+    static func cluster(model: AppModel, name: String = uniqueName()) async {
         await model.clusters.refresh()
         log("available=\(model.clusters.available)")
         guard model.clusters.available else { log("done"); return }
+        guard !model.clusters.items.contains(where: { $0.name == name }) else {
+            log("cluster \(name) already exists; not touching it"); log("done"); return
+        }
         var form = ClusterForm()
         form.name = name
         log("create: \(form.previewCommand())")
@@ -68,10 +79,12 @@ extension PlatformEndToEnd {
         await model.clusters.refresh()
         let c = model.clusters.items.first { $0.name == name }
         log("listed: \(c.map { "\($0.name) nodes=\($0.nodes.map { "\($0.name)/\($0.role)/\($0.state.displayName)/\($0.address ?? "-")" })" } ?? "MISSING")")
+        // A cancelled/failed `k8s create` can leave a half-made cluster under OUR unique name; that is still ours.
+        guard c != nil else { log("nothing created; nothing to delete"); log("done"); return }
         model.navigation.open(.kubernetes, select: name)
         try? await Task.sleep(for: .seconds(8))
         await model.clusters.delete([name])
-        log("after delete present=\(model.clusters.items.contains { $0.name == name }) err=\(model.clusters.lastError?.localizedDescription ?? "none")")
+        log("after delete present=\(model.clusters.items.contains { $0.name == name })")
         log("done")
     }
 }

@@ -35,7 +35,8 @@ jobs:
       - name: Test
         run: swift test
 
-      # Ad-hoc signed until Developer ID secrets are configured (see docs/release/RELEASING.md).
+      # Ad-hoc signed until Developer ID secrets are configured (see docs/release/RELEASING.md); the release
+      # notes below tell users how to open an unsigned build.
       - name: Build DMG
         run: make dmg VERSION="${{ steps.version.outputs.version }}"
 
@@ -50,6 +51,12 @@ jobs:
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           generate_release_notes: true
+          body: |
+            > **This build is not notarized yet** (ad-hoc signed until a Developer ID is configured).
+            > On first launch macOS blocks it. Either open **System Settings → Privacy & Security**, scroll to
+            > the message about Container Desktop and click **Open Anyway**, or run once in Terminal:
+            > `xattr -dr com.apple.quarantine "/Applications/Container Desktop.app"`
+            > Verify the download first: `shasum -a 256 -c Container-Desktop-<version>-arm64.dmg.sha256`.
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             build/Container-Desktop-${{ steps.version.outputs.version }}-arm64.dmg

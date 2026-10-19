@@ -9,11 +9,8 @@ struct LoadImageSheet: View {
     let localImages: [String]
     let load: (String, Platform?) -> Void
 
-    private enum PlatformChoice: String, CaseIterable, Identifiable {
-        case native = "Native (arm64)", amd64 = "linux/amd64"
-        var id: String { rawValue }
-        var platform: Platform? { self == .amd64 ? .amd64 : nil }
-    }
+    /// `load-image` takes one platform; native or Rosetta are the useful choices.
+    private static let choices: [PlatformChoice] = [.native, .amd64]
 
     @State private var reference = ""
     @State private var platform = PlatformChoice.native
@@ -21,7 +18,7 @@ struct LoadImageSheet: View {
     var body: some View {
         FormSheet(title: "Load an image into “\(cluster)”", actionTitle: "Load",
                   canSubmit: !reference.trimmingCharacters(in: .whitespaces).isEmpty,
-                  submit: { load(reference.trimmingCharacters(in: .whitespaces), platform.platform) }) {
+                  submit: { load(reference.trimmingCharacters(in: .whitespaces), platform.single) }) {
             if localImages.isEmpty {
                 TextField("Image", text: $reference, prompt: Text("my-svc:v1"))
                 Text("No images on this Mac yet — build or pull one first.").font(.caption).foregroundStyle(.secondary)
@@ -32,7 +29,7 @@ struct LoadImageSheet: View {
                 }
             }
             Picker("Platform", selection: $platform) {
-                ForEach(PlatformChoice.allCases) { Text($0.rawValue).tag($0) }
+                ForEach(Self.choices) { Text($0.title).tag($0) }
             }
             CommandPreview(command: command)
             Text("Then use it in a pod with imagePullPolicy: Never.").font(.caption).foregroundStyle(.secondary)
@@ -41,7 +38,7 @@ struct LoadImageSheet: View {
 
     private var command: String {
         var args = ["k8s", "load-image", "--name", cluster]
-        if let p = platform.platform { args += ["--platform", p.slug] }
+        if let p = platform.single { args += ["--platform", p.slug] }
         args.append(reference.isEmpty ? "IMAGE" : reference)
         return ContainerKit.CommandLine(executable: "container", arguments: args).display
     }
