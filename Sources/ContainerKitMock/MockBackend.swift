@@ -49,10 +49,8 @@ public actor MockBackend: ContainerBackend {
     /// Simulated latency so loading states are visible in previews.
     public var latency: Duration = .milliseconds(60)
     public var systemRunning = true
-    /// Fake stats generation: each call advances cpu usage so percent calculations show movement.
-    private var tick: Int64 = 0
-    /// Cumulative fake counters per container, advanced by a smooth-but-uneven curve so the Stats charts move.
-    private var counters: [String: (cpu: Int64, rx: Int64, tx: Int64, write: Int64)] = [:]
+    /// Origin of the fake stats counters (see `containerStats`).
+    private let statsEpoch = Date.now
 
     public init() {
         containers = (try? MockBackend.scrubbed([Container].self, "containers.json")) ?? []
@@ -228,24 +226,26 @@ public actor MockBackend: ContainerBackend {
     }
     public func containerStats(ids: [String]) async throws -> [ContainerStats] {
         try requireRunning(); await wait()
-        tick += 1
-        let t = Double(tick)
-        return containers.filter(\.isRunning).filter { ids.isEmpty || ids.contains($0.id) }.enumerated().map { i, c in
-            // Two incommensurate sines per container: smooth, never periodic-looking, deterministic.
+        let t = Date.now.timeIntervalSince(statsEpoch)
+        let running = containers.filter(\.isRunning)
+        return running.enumerated().filter { ids.isEmpty || ids.contains($0.element.id) }.map { i, c in
+            // Counters are a closed-form integral of a smooth rate curve over wall-clock time, so every poller
+            // (list, detail, menu bar) sees the same consistent rates no matter how often it samples.
             let phase = Double(i) * 1.7
-            let wave = 0.5 + 0.3 * sin(t / 3.1 + phase) + 0.2 * sin(t / 1.3 + phase * 2)  // 0…1
-            var k = counters[c.id] ?? (0, 0, 0, 0)
-            k.cpu += Int64(Double(60_000 + i * 30_000) * (0.4 + 1.2 * wave))
-            k.rx += Int64(Double(2_400 + i * 900) * (0.3 + 1.4 * wave))
-            k.tx += Int64(Double(900 + i * 400) * (0.3 + 1.4 * (1 - wave)))
-            k.write += Int64(4_096 * (1 + Int(wave * 6)))
-            counters[c.id] = k
+            func integral(_ rate: Double, _ phase: Double) -> Int64 {
+                let p1 = 9.0, p2 = 3.7  // seconds; rate(t) = rate * (1 + 0.7 sin(t/p1) + 0.25 sin(t/p2)) > 0
+                return Int64(
+                    rate * (t + 0.7 * p1 * (1 - cos(t / p1 + phase)) + 0.25 * p2 * (1 - cos(t / p2 + phase * 2))))
+            }
+            let wave = 0.5 + 0.3 * sin(t / 9 + phase) + 0.2 * sin(t / 3.7 + phase * 2)  // 0…1
             return ContainerStats(
-                id: c.id, cpuUsageUsec: k.cpu,
+                id: c.id, cpuUsageUsec: integral(Double(30_000 + i * 15_000), phase),
                 memoryUsageBytes: Int64(38_000_000 + i * 90_000_000) + Int64(wave * 14_000_000),
-                memoryLimitBytes: c.configuration.resources.memoryInBytes, networkRxBytes: k.rx,
-                networkTxBytes: k.tx,
-                blockReadBytes: 21_660_672, blockWriteBytes: k.write, numProcesses: 1 + i * 5)
+                memoryLimitBytes: c.configuration.resources.memoryInBytes,
+                networkRxBytes: integral(Double(1_200 + i * 450), phase),
+                networkTxBytes: integral(Double(450 + i * 200), phase + 2.2),
+                blockReadBytes: 21_660_672, blockWriteBytes: integral(Double(6_000 + i * 1_000), phase + 4.1),
+                numProcesses: 1 + i * 5)
         }
     }
     public func execCapture(
