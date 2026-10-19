@@ -3,97 +3,183 @@ import ContainerKit
 import AppCore
 import DesignSystem
 
-/// Phase-1 builds view: builder card + local build history (features-resources replaces this in phase 2).
+/// Builds: builder card, persisted history (rebuild / log / delete) and the Build sheet.
 struct BuildsListView: View {
+    /// Deep-link token: `navigation.open(.builds, select: newBuildToken)` opens the Build sheet.
     static let newBuildToken = "__new-build__"
+
     @Environment(AppModel.self) private var model
     @State private var selection = Set<BuildRecord.ID>()
-    @State private var confirmReset = false
+    @State private var sortOrder = [KeyPathComparator(\BuildRecord.startedAt, order: .reverse)]
+    @State private var buildDraft: BuildSheetRequest?
+    @State private var pendingDelete: Set<BuildRecord.ID> = []
+    @State private var deepLinkTarget = Set<String>()
 
     private var store: BuildsStore { model.builds }
-    private var selected: BuildRecord? { store.history.first { selection.contains($0.id) } }
+    private var rows: [BuildRecord] { store.filteredHistory.sorted(using: sortOrder) }
+    private var selected: BuildRecord? { selection.count == 1 ? store.history.first { selection.contains($0.id) } : nil }
 
     var body: some View {
         VStack(spacing: 0) {
-            builderCard
-                .padding(Spacing.l)
+            BuilderCard().padding(Spacing.l)
             Divider()
-            Table(store.filteredHistory, selection: $selection) {
-                TableColumn("Tag") { r in Text(r.tag).fontWeight(.medium) }
-                    .width(min: 160, ideal: 220)
-                TableColumn("Status") { r in statusLabel(r) }
-                    .width(min: 90, ideal: 110)
-                TableColumn("Duration") { r in Text(r.duration.map { RelativeDate.duration($0) } ?? emDash).monospacedDigit() }
-                    .width(70)
-                TableColumn("Started") { r in Text(RelativeDate.format(r.startedAt)).foregroundStyle(.secondary) }
-                    .width(min: 90, ideal: 120)
-                TableColumn("Context") { r in Text(r.contextDirectory).font(.monoCaption).foregroundStyle(.secondary) }
-            }
-            .contextMenu(forSelectionType: BuildRecord.ID.self) { ids in
-                Button("Remove from history") { store.deleteHistory(ids) }
-            }
-            .overlay {
-                if store.filteredHistory.isEmpty {
-                    EmptyStateView(symbol: "hammer", title: "No builds yet",
-                                   message: "Builds you start from Container Desktop are recorded here with their logs.")
-                }
-            }
+            historyTable
         }
         .inspector(isPresented: .constant(selected != nil)) {
-            if let r = selected {
-                VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: Spacing.s) {
-                        Text(r.tag).font(.title3.bold())
-                        KeyValueGrid([("Status", r.status.rawValue), ("Context", r.contextDirectory),
-                                      ("Platforms", r.platforms.joined(separator: ", ")), ("Error", r.errorMessage ?? "")])
-                    }
-                    .padding(Spacing.l)
-                    Divider()
-                    OutputLogView(lines: r.log.map { OutputLine($0) }, follow: false)
-                }
-                .inspectorColumnWidth(min: 300, ideal: 420, max: 640)
+            if let record = selected {
+                BuildRecordDetail(record: record, rebuild: { rebuild(record) })
+                    .inspectorColumnWidth(min: 320, ideal: 440, max: 680)
             }
         }
         .toolbar {
             ToolbarItemGroup {
-                ToolbarActionButton("Clear history", systemImage: "clear") { store.clearHistory() }
-                    .disabled(store.history.isEmpty)
+                ToolbarActionButton("Build…", systemImage: "hammer") { buildDraft = BuildSheetRequest(draft: BuildDraft()) }
+                ToolbarActionButton("Clear history", systemImage: "clear", role: .destructive) {
+                    pendingDelete = Set(store.history.filter { $0.status != .running }.map(\.id))
+                }
+                .disabled(store.history.isEmpty)
             }
         }
         .storeChrome(store)
-        .confirmDestructive(title: "Reset the builder?", message: "Deletes the BuildKit builder container and its build cache.",
-                            actionTitle: "Reset", isPresented: $confirmReset) {
-            Task { await store.resetBuilder() }
+        .deepLinkSelection(.builds, navigation: model.navigation, selection: $deepLinkTarget) { $0 }
+        .onChange(of: deepLinkTarget) { openDeepLink() }
+        .onAppear(perform: openDeepLink)
+        .sheet(item: $buildDraft) { request in BuildSheet(draft: request.draft) }
+        .confirmDestructive(title: pendingDelete.count == 1 ? "Remove this build from history?" : "Remove \(pendingDelete.count) builds from history?",
+                            message: "Removes \(historyNames(pendingDelete)) and their logs from the local history. Built images are kept.",
+                            actionTitle: "Remove",
+                            isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+            store.deleteHistory(pendingDelete)
+            selection.subtract(pendingDelete)
         }
     }
 
-    private var builderCard: some View {
-        HStack(spacing: Spacing.m) {
-            MetricTile(title: "Builder", value: store.builderRunning ? "Running" : (store.builder == nil ? "Not created" : "Stopped"),
-                       subtitle: store.builder?.imageReference)
-            MetricTile(title: "CPUs", value: store.builder.map { "\($0.configuration.resources.cpus)" } ?? emDash)
-            MetricTile(title: "Memory", value: store.builder.map { ByteCount.format($0.configuration.resources.memoryInBytes) } ?? emDash)
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                if store.builderRunning {
-                    Button("Stop builder") { Task { await store.stopBuilder() } }
-                } else {
-                    Button("Start builder") { Task { await store.startBuilder() } }
-                        .buttonStyle(.borderedProminent)
-                }
-                Button("Reset…", role: .destructive) { confirmReset = true }
-                    .disabled(store.builder == nil)
+    private var historyTable: some View {
+        Table(rows, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Tag", value: \.tag) { r in Text(r.tag).fontWeight(.medium).accessibilityLabel("Build \(r.tag)") }
+                .width(min: 150, ideal: 220)
+            TableColumn("Status", value: \.status.rawValue) { r in BuildStatusLabel(record: r) }
+                .width(min: 90, ideal: 110)
+            TableColumn("Duration", value: \.durationSort) { r in
+                Text(r.duration.map { RelativeDate.duration($0) } ?? (r.status == .running ? "…" : emDash)).monospacedDigit()
             }
-            .frame(width: 130)
+            .width(min: 60, ideal: 70)
+            TableColumn("Started", value: \.startedAt) { r in
+                Text(RelativeDate.format(r.startedAt)).foregroundStyle(.secondary).help(RelativeDate.absolute(r.startedAt))
+            }
+            .width(min: 90, ideal: 120)
+            TableColumn("Context", value: \.contextDirectory) { r in
+                Text(r.contextDirectory).font(.monoCaption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
+                    .help(r.contextDirectory)
+            }
+        }
+        .contextMenu(forSelectionType: BuildRecord.ID.self) { ids in
+            let picked = store.history.filter { ids.contains($0.id) }
+            if let r = picked.first, picked.count == 1 {
+                Button("Rebuild…") { rebuild(r) }
+                Button("Show log") { selection = [r.id] }
+                Button("Show image") { model.navigation.open(.images, select: r.tag) }
+                    .disabled(r.status != .succeeded)
+                Button("Copy tag") { copyToPasteboard(r.tag) }
+                Divider()
+            }
+            Button("Remove from history…", role: .destructive) { pendingDelete = ids }
+                .disabled(picked.contains { $0.status == .running })
+        } primaryAction: { ids in
+            if let id = ids.first, let r = store.history.first(where: { $0.id == id }) { rebuild(r) }
+        }
+        .overlay {
+            if rows.isEmpty {
+                EmptyStateView(symbol: "hammer", title: "No builds yet",
+                               message: "Builds you start from Container Desktop are recorded here with their logs.",
+                               actionTitle: "Build an image…") { buildDraft = BuildSheetRequest(draft: BuildDraft()) }
+            }
         }
     }
 
-    @ViewBuilder
-    private func statusLabel(_ r: BuildRecord) -> some View {
-        switch r.status {
+    private func rebuild(_ record: BuildRecord) { buildDraft = BuildSheetRequest(draft: BuildDraft(record: record)) }
+
+    private func openDeepLink() {
+        guard deepLinkTarget.contains(Self.newBuildToken) else { return }
+        deepLinkTarget = []
+        buildDraft = BuildSheetRequest(draft: BuildDraft())
+    }
+
+    private func historyNames(_ ids: Set<BuildRecord.ID>) -> String {
+        let tags = store.history.filter { ids.contains($0.id) }.map(\.tag)
+        return tags.count <= 5 ? tags.joined(separator: ", ") : tags.prefix(5).joined(separator: ", ") + " and \(tags.count - 5) more"
+    }
+}
+
+/// Identifiable wrapper so `.sheet(item:)` re-creates the sheet for each request.
+struct BuildSheetRequest: Identifiable {
+    let id = UUID()
+    let draft: BuildDraft
+}
+
+extension BuildRecord {
+    /// Sort key: unfinished builds last.
+    var durationSort: Double { duration ?? .greatestFiniteMagnitude }
+}
+
+/// Status label for a history row.
+struct BuildStatusLabel: View {
+    let record: BuildRecord
+
+    var body: some View {
+        switch record.status {
         case .running: Label("Building", systemImage: "hourglass").foregroundStyle(.statusWarning)
         case .succeeded: Label("Succeeded", systemImage: "checkmark.circle.fill").foregroundStyle(.statusRunning)
         case .failed: Label("Failed", systemImage: "xmark.octagon.fill").foregroundStyle(.statusError)
         case .cancelled: Label("Cancelled", systemImage: "minus.circle").foregroundStyle(.statusStopped)
         }
     }
+}
+
+/// History entry inspector: facts + log.
+struct BuildRecordDetail: View {
+    @Environment(AppModel.self) private var model
+    let record: BuildRecord
+    let rebuild: () -> Void
+
+    /// While running, show the live task output; afterwards the persisted log.
+    private var lines: [OutputLine] {
+        if record.status == .running,
+           let task = model.taskCenter.tasks.first(where: { $0.kind == .build && $0.title == "Build \(record.tag)" && $0.state == .running }) {
+            return task.lines
+        }
+        return record.log.map { OutputLine($0) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Text(record.tag).font(.title3.bold()).textSelection(.enabled)
+                HStack {
+                    BuildStatusLabel(record: record)
+                    Spacer()
+                    Button("Rebuild…", systemImage: "arrow.clockwise", action: rebuild)
+                    Button("Show image", systemImage: "square.stack.3d.up") { model.navigation.open(.images, select: record.tag) }
+                        .disabled(record.status != .succeeded)
+                }
+                .controlSize(.small)
+                KeyValueGrid([
+                    ("Context", record.contextDirectory),
+                    ("Platforms", record.platforms.isEmpty ? "native" : record.platforms.joined(separator: ", ")),
+                    ("Started", RelativeDate.absolute(record.startedAt)),
+                    ("Duration", record.duration.map { RelativeDate.duration($0) } ?? ""),
+                    ("Error", record.errorMessage ?? ""),
+                ])
+            }
+            .padding(Spacing.l)
+            Divider()
+            OutputLogView(lines: lines, follow: record.status == .running)
+        }
+    }
+}
+
+#Preview("Builds") {
+    NavigationStack { BuildsListView() }
+        .appModelEnvironment(ResourcePreview.model())
+        .frame(width: 1100, height: 600)
 }

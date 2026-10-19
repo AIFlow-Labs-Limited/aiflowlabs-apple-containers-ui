@@ -45,7 +45,7 @@ public struct StringRowsEditor: View {
     }
 
     /// Whether every non-empty row passes validation.
-    public static func allValid(_ rows: [String], validate: (String) -> String?) -> Bool {
+    nonisolated public static func allValid(_ rows: [String], validate: (String) -> String?) -> Bool {
         rows.allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty || validate($0) == nil }
     }
 
