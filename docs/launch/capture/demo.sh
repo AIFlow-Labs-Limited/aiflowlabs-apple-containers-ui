@@ -32,7 +32,7 @@ ax 'set position of window 1 to {240, 60}'
 ax 'set size of window 1 to {1440, 900}'
 sleep 2
 
-screencapture -x -v -V 26 -R 240,60,1440,900 "$TMP/raw.mov" &
+screencapture -x -v -V 30 -R 240,60,1440,900 "$TMP/raw.mov" &
 REC=$!
 sleep 1.5
 W 853 25; sleep 1.2                       # Images toolbar: Pull…
@@ -46,13 +46,13 @@ key 'keystroke "1" using {command down}'; sleep 1                 # ⌘1 Contain
 key 'keystroke "n" using {command down}'; sleep 1.2               # ⌘N Run sheet
 type "docker.io/library/redis:7"; sleep 0.4
 key "key code 48"; type "redis"; sleep 0.8                        # Tab → name
-key "key code 36"; sleep 2.5                                      # Return = Run; container appears
+W 1011 806; sleep 2.5                                             # click Run; container appears
 W 300 275; sleep 0.4                                              # select the new row (sorted by name)
 W 557 419; sleep 3                                                # Logs tab
 W 740 419; sleep 0.8                                              # Terminal tab
 W 833 738; sleep 2.5; W 800 640                                   # Open shell, focus
 type "redis-cli ping"; key "key code 36"; sleep 1
-type "redis-cli set launch today && redis-cli get launch"; key "key code 36"; sleep 2.5
+type "redis-cli set launch today && redis-cli get launch"; key "key code 36"; sleep 4
 wait $REC || true
 kill $PID || true
 
