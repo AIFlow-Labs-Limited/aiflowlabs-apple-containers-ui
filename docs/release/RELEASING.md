@@ -8,12 +8,27 @@ make release VERSION=0.2.0          # bumps Makefile VERSION, promotes CHANGELOG
 git push origin main v0.2.0         # the tag triggers .github/workflows/release.yml
 ```
 
-The release workflow runs the tests, builds `Container-Desktop-<version>-arm64.dmg` plus a `.sha256`, and
-publishes a GitHub release with auto-generated notes. Tags containing `-` (e.g. `v0.2.0-beta.1`) are marked
-pre-release.
+`scripts/release.sh` refuses to run unless the tree is clean, you are on `main` in sync with `origin/main`
+(it fetches tags first), the tag exists neither locally nor on `origin`, and `make check` passes. It verifies the
+Makefile and CHANGELOG edits actually landed before committing.
 
-Then update the Homebrew cask (`packaging/homebrew/container-desktop.rb` → tap repo) with the new `version` and
-the `sha256` from the release asset.
+The release workflow runs the tests, builds `Container-Desktop-<version>-arm64.dmg` plus a `.sha256`, and
+publishes a GitHub release with auto-generated notes and first-launch instructions for unsigned builds. Tags
+containing `-` (e.g. `v0.2.0-beta.1`) are marked pre-release.
+
+The Homebrew tap is not published yet (README says "Homebrew tap coming — for now use the DMG"). Once it exists,
+update the cask (`packaging/homebrew/container-desktop.rb` → tap repo) with the new `version` and the `sha256`
+from the release asset.
+
+## Opening an unsigned (ad-hoc) build
+
+Until CI signs and notarizes, users see a Gatekeeper block on first launch. Right-click → Open no longer bypasses
+it on recent macOS, and a quarantined ad-hoc app may be reported as "damaged". Give users these two options (the
+release notes and README carry the same text):
+
+1. Open the app once, then **System Settings → Privacy & Security** → **Open Anyway** next to the message about
+   *Container Desktop*.
+2. Or: `xattr -dr com.apple.quarantine "/Applications/Container Desktop.app"`
 
 ## Signed + notarized builds (local)
 
@@ -23,7 +38,9 @@ export NOTARY_PROFILE=container-desktop-notary
 make app dmg notarize
 ```
 
-`make notarize` is a no-op with a message when `NOTARY_PROFILE` is unset, and refuses ad-hoc signed artifacts.
+`make notarize` is a no-op with a message when `NOTARY_PROFILE` is unset, and refuses unsigned, ad-hoc signed or
+non-Developer-ID artifacts. `scripts/bundle.sh` signs nested code (if any) inside-out and then the app, without
+the deprecated `--deep`.
 
 ## One-time setup
 
@@ -39,7 +56,7 @@ make app dmg notarize
 3. **CI signing (optional, later)** — to sign/notarize in GitHub Actions, add repository secrets for the
    exported `.p12` certificate + password and an App Store Connect API key, import them into a temporary keychain
    in `release.yml`, and set `SIGN_IDENTITY` / `NOTARY_PROFILE`. Until then CI releases are ad-hoc signed, and
-   users must right-click → Open on first launch.
+   users need the steps in [Opening an unsigned build](#opening-an-unsigned-ad-hoc-build).
 4. **GitHub settings** — protect `main` (require the `CI / Build, test, bundle` check and one review), allow
    GitHub Actions to create releases (Settings → Actions → Workflow permissions: read and write), and enable
    Dependabot alerts.
