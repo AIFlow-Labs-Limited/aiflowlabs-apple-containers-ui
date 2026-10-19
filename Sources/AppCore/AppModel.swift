@@ -97,7 +97,7 @@ public final class AppModel {
             do { return try CLIBackend() } catch let BackendError.cliNotInstalled(paths) {
                 return UnavailableBackend(searchedPaths: paths)
             } catch {
-                return UnavailableBackend(searchedPaths: CLIBackend.defaultSearchPaths)
+                return UnavailableBackend(searchedPaths: CLIBackend.searchPaths())
             }
         }
     }
@@ -137,7 +137,7 @@ public final class AppModel {
         if backend is UnavailableBackend {
             // "Check again": the CLI may have been installed since launch.
             guard CLIBackend.locateExecutable() != nil, let cli = try? CLIBackend() else {
-                setEngine(.notInstalled(searchedPaths: CLIBackend.defaultSearchPaths))
+                setEngine(.notInstalled(searchedPaths: CLIBackend.searchPaths()))
                 return
             }
             replaceBackend(cli)
