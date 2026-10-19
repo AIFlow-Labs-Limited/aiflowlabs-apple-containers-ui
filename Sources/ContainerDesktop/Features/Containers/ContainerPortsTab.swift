@@ -42,6 +42,7 @@ struct ContainerPortsTab: View {
                         }
                         .width(110)
                     }
+                    .alternatingRowBackgrounds(.disabled)
                     .accessibilityLabel("Published ports")
                 }
                 if !sockets.isEmpty {

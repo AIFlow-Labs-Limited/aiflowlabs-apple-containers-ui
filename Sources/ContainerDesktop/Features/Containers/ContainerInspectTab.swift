@@ -8,6 +8,18 @@ import DesignSystem
 struct ContainerInspectTab: View {
     let container: Container
     @State private var showJSON = true
+    @State private var showSecrets = false
+
+    /// The container as displayed/copied: sensitive environment values masked unless "Show Secrets" is on.
+    private var shown: Container { Self.masking(container, reveal: showSecrets) }
+
+    // TODO(merge): `EnvironmentVariable.isSensitive` is the single masker; ContainerSecrets wraps it.
+    static func masking(_ container: Container, reveal: Bool) -> Container {
+        guard !reveal else { return container }
+        var c = container
+        c.configuration.initProcess.environment = ContainerSecrets.masked(c.configuration.initProcess.environment)
+        return c
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,14 +40,22 @@ struct ContainerInspectTab: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel(showJSON ? "Hide raw JSON" : "Show raw JSON")
                 Spacer()
-                Button("Copy JSON", systemImage: "doc.on.doc") { copyToPasteboard(Self.json(container)) }
+                if ContainerSecrets.containsSecrets(container.configuration.initProcess.environment) {
+                    Toggle(isOn: $showSecrets) {
+                        Label(showSecrets ? "Hide Secrets" : "Show Secrets", systemImage: showSecrets ? "eye.slash" : "eye")
+                    }
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .help("Environment values whose key looks secret are masked in the JSON and in Copy JSON")
+                }
+                Button("Copy JSON", systemImage: "doc.on.doc") { copyToPasteboard(Self.json(shown)) }
                     .controlSize(.small)
             }
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.xs + 2)
             if showJSON {
                 Divider()
-                if let tree = try? JSONValue(encoding: container) {
+                if let tree = try? JSONValue(encoding: shown) {
                     JSONTreeView(tree, rootName: container.id)
                 } else {
                     EmptyStateView(symbol: "curlybraces", title: "Unavailable", message: "Could not encode this container.")
@@ -73,7 +93,6 @@ struct ContainerInspectTab: View {
             ("Command", ShellWords.join([process.executable] + process.arguments)),
             ("Working dir", process.workingDirectory ?? "/"),
             ("User", process.user?.display ?? "root"),
-            ("Restart policy", "none"),
             ("Flags", [cfg.useInit ? "init" : nil, cfg.readOnly ? "read-only" : nil, cfg.ssh ? "ssh agent" : nil,
                        cfg.virtualization ? "nested virtualization" : nil].compactMap { $0 }.joined(separator: ", ")),
         ]
