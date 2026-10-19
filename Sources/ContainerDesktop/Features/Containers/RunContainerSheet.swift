@@ -194,7 +194,7 @@ struct RunContainerSheet: View {
         Task { @MainActor in
             await task.wait()
             guard task.state == .succeeded else { return }
-            let printed = task.lines.last { $0.stream == .stdout && !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }?
+            let printed = task.buffer.lines.last { $0.stream == .stdout && !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }?
                 .text.trimmingCharacters(in: .whitespaces)
             await store.refresh()
             if let id = spec.name ?? printed, store.container(id: id) != nil { launched(id) }

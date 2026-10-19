@@ -8,9 +8,9 @@ import DesignSystem
 struct TaskProgressPanel: View {
     let tasks: [LongRunningTask]
 
-    private var lines: [OutputLine] {
-        if tasks.count == 1 { return tasks[0].lines }
-        return tasks.flatMap { [OutputLine("── \($0.title) ──")] + $0.lines }
+    /// Several tasks are merged into one list with a header per task (each already capped at `maxLines`).
+    private var mergedLines: [OutputLine] {
+        tasks.flatMap { [OutputLine("── \($0.title) ──")] + $0.buffer.lines }
     }
 
     var body: some View {
@@ -32,7 +32,13 @@ struct TaskProgressPanel: View {
                     Text(message).font(.caption).foregroundStyle(.statusError).textSelection(.enabled).lineLimit(4)
                 }
             }
-            OutputLogView(lines: lines, follow: true, showsSearchField: false)
+            Group {
+                if tasks.count == 1 {
+                    OutputLogView(buffer: tasks[0].buffer, follow: true, showsSearchField: false)
+                } else {
+                    OutputLogView(lines: mergedLines, follow: true, showsSearchField: false)
+                }
+            }
                 .frame(minHeight: 160, maxHeight: 260)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                 .overlay(RoundedRectangle(cornerRadius: Radius.medium).strokeBorder(.separator))
@@ -53,5 +59,15 @@ struct TaskStateIcon: View {
         case .failed: Image(systemName: "xmark.octagon.fill").foregroundStyle(.statusError).accessibilityLabel("Failed")
         case .cancelled: Image(systemName: "minus.circle").foregroundStyle(.statusStopped).accessibilityLabel("Cancelled")
         }
+    }
+}
+
+extension OutputLogView {
+    /// Feeds the view from a ring buffer (e.g. `LongRunningTask.buffer`): stable row ids while old lines are
+    /// trimmed, and following keyed on `totalAppended` so it keeps working once the buffer is full.
+    init(buffer: LogRingBuffer, follow: Bool = true, filter: String = "", showsSearchField: Bool = true,
+         showsTimestamps: Bool = false) {
+        self.init(lines: buffer.lines, firstLineNumber: buffer.droppedCount, totalAppended: buffer.totalAppended,
+                  follow: follow, filter: filter, showsSearchField: showsSearchField, showsTimestamps: showsTimestamps)
     }
 }

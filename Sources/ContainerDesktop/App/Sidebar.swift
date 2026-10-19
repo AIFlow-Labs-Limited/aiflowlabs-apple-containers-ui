@@ -29,7 +29,7 @@ struct Sidebar: View {
         HStack {
             Label(section.title, systemImage: section.symbol)
             if section == .kubernetes {
-                TagBadge("Beta", tint: .statusWarning)
+                TagBadge("Experimental", tint: .statusWarning)
             }
         }
         .badge(count)

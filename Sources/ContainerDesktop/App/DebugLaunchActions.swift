@@ -48,7 +48,7 @@ enum DebugLaunchActions {
                 model.toasts.success("Pulled docker.io/library/redis:7", message: "Finished in 4s")
             case "pull":
                 model.images.pull("docker.io/library/redis:7")
-                model.builds.build(.init(contextDirectory: "~/src/acdemo", tag: "acdemo-api:dev"))
+                model.builds.build(BuildSpec(contextDirectory: "~/src/acdemo", tag: "acdemo-api:dev").resolvingPaths())
             case "stopped":
                 try? await model.backend.systemStop()
                 await model.refreshEngine()
@@ -65,7 +65,10 @@ enum DebugLaunchActions {
                 BuildsListView.debugPrefill = draft
                 model.navigation.open(.builds, select: BuildsListView.newBuildToken)
             case "k8s-demo":
-                // Seed a mock cluster so the Kubernetes screenshot isn't empty.
+                // Creates a cluster named "k8s-dev" so the Kubernetes screenshot isn't empty. On the mock backend
+                // that is fixture data; on the CLI backend it provisions a REAL cluster (kind node containers), which
+                // is why this token, like every `*-demo`, only runs with CONTAINER_DESKTOP_ALLOW_REAL_ENGINE_TESTS=1
+                // outside the mock (see `mutatesEngine` / `isAllowed`).
                 await model.clusters.create(ClusterSpec(name: "k8s-dev")).wait()
             case "e2e-machine":
                 await PlatformEndToEnd.machine(model: model)

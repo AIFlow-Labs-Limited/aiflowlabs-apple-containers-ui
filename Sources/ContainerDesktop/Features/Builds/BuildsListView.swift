@@ -150,12 +150,10 @@ struct BuildRecordDetail: View {
     let record: BuildRecord
     let rebuild: () -> Void
 
-    /// While running, show the live task output; afterwards the persisted log.
-    private var lines: [OutputLine] {
-        if record.status == .running, let task = BuildTaskMatch.task(for: record, in: model.taskCenter.tasks) {
-            return task.lines
-        }
-        return record.log.map { OutputLine($0) }
+    /// While running, the live task (its ring buffer feeds the log); afterwards the persisted log.
+    private var liveTask: LongRunningTask? {
+        guard record.status == .running else { return nil }
+        return BuildTaskMatch.task(for: record, in: model.taskCenter.tasks)
     }
 
     var body: some View {
@@ -180,20 +178,24 @@ struct BuildRecordDetail: View {
             }
             .padding(Spacing.l)
             Divider()
-            OutputLogView(lines: lines, follow: record.status == .running)
+            if let task = liveTask {
+                OutputLogView(buffer: task.buffer, follow: true)
+            } else {
+                OutputLogView(lines: record.log.map { OutputLine($0) }, follow: false)
+            }
         }
     }
 }
 
-/// Finds the live task of a running build record. `BuildsStore.build` creates the record and its task in the same
-/// main-actor turn, so the task started closest to the record's `startedAt` is that record's, even when two builds
-/// share a tag (a title match alone would show one build's log for both).
+/// Finds the live task of a running build record: by `taskID` (set by `BuildsStore.build`). Records saved before
+/// `taskID` existed fall back to the tag + closest start time (both are created in the same main-actor turn).
 enum BuildTaskMatch {
     static let tolerance: TimeInterval = 2
 
     @MainActor
     static func task(for record: BuildRecord, in tasks: [LongRunningTask]) -> LongRunningTask? {
-        tasks.filter { $0.kind == .build && $0.title == "Build \(record.tag)" }
+        if let id = record.taskID { return tasks.first { $0.id == id } }
+        return tasks.filter { $0.kind == .build && $0.title == "Build \(record.tag)" }
             .map { (task: $0, gap: abs($0.startedAt.timeIntervalSince(record.startedAt))) }
             .filter { $0.gap <= tolerance }
             .min { $0.gap < $1.gap }?.task

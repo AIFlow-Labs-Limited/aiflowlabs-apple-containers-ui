@@ -84,6 +84,9 @@ public final class ContainersStore: PollingStore {
         guard let list = await load({ try await backend.listContainers(includeStopped: true) }) else { return }
         detectUnexpectedExits(new: list)
         items = list.sorted { $0.configuration.creationDate > $1.configuration.creationDate }
+        // The single eviction point for vanished containers (deleted here or elsewhere) and for points older than
+        // the window; the Stats tab only renders the history, so it never resets it on disappear.
+        statsHistory.retain(only: Set(list.map(\.id)), now: now())
         hasLoadedOnce = true
     }
 
@@ -172,11 +175,10 @@ public final class ContainersStore: PollingStore {
     public func delete(_ ids: [String], force: Bool = false) async -> BulkResult {
         let running = Set(items.filter(\.isRunning).map(\.id))
         expectStops(ids.filter(running.contains))
-        let result = await performEach(ids: ids) { id in
+        // `performEach` refreshes afterwards, and `refresh` evicts the deleted ids from `statsHistory`.
+        return await performEach(ids: ids) { id in
             try await backend.deleteContainer(id, force: force && running.contains(id))
         }
-        for id in result.succeeded { statsHistory.reset(id) }
-        return result
     }
 
     /// Removes stopped containers the user owns — explicitly by id, never `container prune`, so builder and

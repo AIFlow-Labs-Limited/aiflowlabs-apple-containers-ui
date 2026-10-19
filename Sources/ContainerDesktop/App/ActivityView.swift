@@ -53,14 +53,14 @@ struct ActivityView: View {
                     if task.state == .running {
                         Button("Cancel", role: .destructive) { task.cancel() }
                     }
-                    CopyButton(task.lines.map(\.text).joined(separator: "\n"), label: "Copy output")
+                    CopyButton(task.buffer.text(), label: "Copy output")
                 }
                 .padding(Spacing.m)
                 if case .failed(let error) = task.state {
                     ErrorBanner(error).padding(.horizontal, Spacing.m).padding(.bottom, Spacing.s)
                 }
                 Divider()
-                OutputLogView(lines: task.lines, follow: task.state == .running, showsTimestamps: true)
+                OutputLogView(buffer: task.buffer, follow: task.state == .running, showsTimestamps: true)
             }
         } else {
             EmptyStateView(symbol: "text.alignleft", title: "Select a task", message: "Its output appears here.")
@@ -76,7 +76,7 @@ private struct TaskRow: View {
             stateIcon
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title).lineLimit(1)
-                Text(task.lines.last?.text ?? task.state.label)
+                Text(task.buffer.lines.last?.text ?? task.state.label)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }

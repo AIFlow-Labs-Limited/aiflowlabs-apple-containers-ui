@@ -41,8 +41,6 @@ public struct EnvironmentVariable: Hashable, Sendable, Identifiable {
                                              "PRIVATE", "AUTHORIZATION", "CERTIFICATE"]
     /// Whole words (split on `_`, `-`, `.`) that mark a key as secret: `DB_PASS`, `GITHUB_PAT`, `X_AUTH`, `TLS_CERT`.
     public static let sensitiveWords = ["PASS", "PWD", "AUTH", "PAT", "CERT", "CREDS", "APIKEY"]
-    /// Everything above (kept for callers that list the markers).
-    public static var sensitiveMarkers: [String] { sensitiveSubstrings + sensitiveWords }
 
     /// Whether `key` (or a `scheme://user:pass@host` `value`) looks like a secret.
     public static func isSensitive(key: String, value: String? = nil) -> Bool {

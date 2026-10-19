@@ -96,6 +96,12 @@ struct CreateNetworkSheet: View {
         return model.networks.items.contains { $0.name == trimmedName } ? "A network with that name exists." : nil
     }
     private var subnetProblem: String? { subnet.isEmpty ? nil : ResourceValidator.ipv4CIDR(subnet) }
+    /// Non-blocking: overlaps with the default network or another network's subnet.
+    private var subnetWarning: String? {
+        guard !subnet.isEmpty, subnetProblem == nil else { return nil }
+        let existing = model.networks.items.compactMap { $0.status?.ipv4Subnet }.filter { !$0.isEmpty }
+        return ResourceValidator.ipv4CIDRWarning(subnet.trimmingCharacters(in: .whitespaces), existing: existing)
+    }
     private var subnetV6Problem: String? { subnetV6.isEmpty ? nil : ResourceValidator.ipv6CIDR(subnetV6) }
     private var canSubmit: Bool {
         nameProblem == nil && subnetProblem == nil && subnetV6Problem == nil
@@ -108,6 +114,7 @@ struct CreateNetworkSheet: View {
             if !name.isEmpty, let nameProblem { Text(nameProblem).font(.caption).foregroundStyle(.statusError) }
             TextField("IPv4 subnet", text: $subnet, prompt: Text("automatic, e.g. 192.168.70.0/24"))
             if let subnetProblem { Text(subnetProblem).font(.caption).foregroundStyle(.statusError) }
+            if let subnetWarning { Label(subnetWarning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.statusWarning) }
             TextField("IPv6 subnet", text: $subnetV6, prompt: Text("optional, e.g. fd00:70::/64"))
             if let subnetV6Problem { Text(subnetV6Problem).font(.caption).foregroundStyle(.statusError) }
             LabeledContent("Labels") {

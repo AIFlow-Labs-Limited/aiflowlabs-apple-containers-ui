@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 import AppCore
 import DesignSystem
 
@@ -29,7 +30,16 @@ struct GeneralSettingsTab: View {
         Form {
             Section("Startup") {
                 Toggle("Launch Container Desktop at login", isOn: $settings.launchAtLogin)
-                if let error = settings.launchAtLoginError {
+                if settings.launchAtLoginRequiresApproval {
+                    HStack {
+                        Label("Waiting for approval: allow Container Desktop in System Settings → General → Login Items.",
+                              systemImage: "exclamationmark.triangle")
+                            .font(.caption).foregroundStyle(.statusWarning)
+                        Spacer()
+                        Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
+                            .controlSize(.small)
+                    }
+                } else if let error = settings.launchAtLoginError {
                     Text(error).font(.caption).foregroundStyle(.statusWarning)
                 }
                 Toggle("Start the container system when the app launches", isOn: $settings.startEngineOnLaunch)
@@ -57,6 +67,8 @@ struct GeneralSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+        // The user can approve or remove the login item in System Settings at any time.
+        .onAppear { model.settings.refreshLaunchAtLogin() }
     }
 }
 

@@ -71,7 +71,8 @@ public final class ContainerStatsHistory {
         return point
     }
 
-    /// Forgets a container (deleted, or restarted so counters reset). Call from the stats view's `onDisappear`.
+    /// Forgets a container whose counters restart (`ContainersStore.restart`). Vanished containers are dropped by
+    /// `retain(only:)` on every `ContainersStore.refresh`.
     public func reset(_ id: String) {
         series[id] = nil
         lastRaw[id] = nil

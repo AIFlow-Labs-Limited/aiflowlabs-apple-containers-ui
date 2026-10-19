@@ -15,18 +15,21 @@ public struct BuildRecord: Codable, Identifiable, Hashable, Sendable {
     public var status: Status
     public var log: [String]
     public var errorMessage: String?
+    /// `LongRunningTask.id` of the build that produced this record (`nil` for history saved before it existed).
+    public var taskID: UUID?
 
     public init(id: UUID = UUID(), tag: String, contextDirectory: String, platforms: [String] = [], startedAt: Date = .now,
-                finishedAt: Date? = nil, status: Status = .running, log: [String] = [], errorMessage: String? = nil) {
+                finishedAt: Date? = nil, status: Status = .running, log: [String] = [], errorMessage: String? = nil,
+                taskID: UUID? = nil) {
         self.id = id; self.tag = tag; self.contextDirectory = contextDirectory; self.platforms = platforms
         self.startedAt = startedAt; self.finishedAt = finishedAt; self.status = status; self.log = log
-        self.errorMessage = errorMessage
+        self.errorMessage = errorMessage; self.taskID = taskID
     }
 
     public var duration: TimeInterval? { finishedAt.map { $0.timeIntervalSince(startedAt) } }
 
     private enum CodingKeys: String, CodingKey {
-        case id, tag, contextDirectory, platforms, startedAt, finishedAt, status, log, errorMessage
+        case id, tag, contextDirectory, platforms, startedAt, finishedAt, status, log, errorMessage, taskID
     }
 
     /// Tolerant decoding: fields added after v1 (and an unknown `status`) fall back to defaults instead of
@@ -42,6 +45,7 @@ public struct BuildRecord: Codable, Identifiable, Hashable, Sendable {
         status = (try? c.decodeIfPresent(String.self, forKey: .status)).flatMap { $0.flatMap(Status.init(rawValue:)) } ?? .failed
         log = try c.decodeIfPresent([String].self, forKey: .log) ?? []
         errorMessage = try c.decodeIfPresent(String.self, forKey: .errorMessage)
+        taskID = try c.decodeIfPresent(UUID.self, forKey: .taskID)
     }
 }
 
@@ -126,12 +130,16 @@ public final class BuildsStore: PollingStore {
 
     /// Starts a build, streams it into the Activity panel and records it in the history.
     @discardableResult
+    /// Starts a build. Paths are made absolute here (`resolvingPaths()`: context `~`, `-f`, `--secret src=`), so
+    /// every caller is safe even though the CLI resolves them against its own working directory (`/` from Finder).
     public func build(_ spec: BuildSpec) -> LongRunningTask {
-        let record = BuildRecord(tag: spec.tag, contextDirectory: spec.contextDirectory, platforms: spec.platforms.map(\.slug))
-        history.insert(record, at: 0)
+        let spec = spec.contextDirectory.isEmpty ? spec : spec.resolvingPaths()
         let task = tasks.run(title: "Build \(spec.tag)", kind: .build, stream: backend.buildImage(spec)) { [weak self] _ in
             await self?.refresh()
         }
+        let record = BuildRecord(tag: spec.tag, contextDirectory: spec.contextDirectory, platforms: spec.platforms.map(\.slug),
+                                 startedAt: task.startedAt, taskID: task.id)
+        history.insert(record, at: 0)
         Task { [weak self, task] in
             await task.wait()
             self?.complete(record.id, with: task)
@@ -159,11 +167,6 @@ public final class BuildsStore: PollingStore {
 
     public func deleteHistory(_ ids: Set<UUID>) {
         history.removeAll { ids.contains($0.id) }
-        saveHistory()
-    }
-
-    public func clearHistory() {
-        history.removeAll { $0.status != .running }
         saveHistory()
     }
 

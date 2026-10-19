@@ -137,10 +137,10 @@ public enum ResourceValidator {
         return v.key.trimmingCharacters(in: .whitespaces).isEmpty ? "The key before “=” is empty." : nil
     }
 
-    /// Hint for the build sheet: what `env=` actually reads.
+    /// Hint for the build sheet: the accepted shape, how `src=` resolves, and what `env=` actually reads.
     public static let buildSecretHint =
-        "id=NAME first, then env=VAR or src=PATH. env= reads the app's environment (not your shell's rc files); "
-        + "relative src= paths resolve against the build context."
+        "Start with id=NAME, then env=VAR or src=PATH. Relative src= paths resolve against the build context (~ works). "
+        + "env= reads Container Desktop's own environment, which doesn't include your shell profile when opened from Finder."
 
     /// Build secret as the CLI accepts it: `id=NAME[,env=VAR]` or `id=NAME,src=PATH` — `id=` first, no `type=`.
     public static func buildSecret(_ entry: String) -> String? {

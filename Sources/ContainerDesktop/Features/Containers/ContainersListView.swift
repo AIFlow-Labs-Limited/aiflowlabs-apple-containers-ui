@@ -58,14 +58,14 @@ struct ContainersListView: View {
             }
         }
         .confirmDestructive(title: deleteTitle, message: deleteMessage, actionTitle: "Delete",
-                            isPresented: Binding(get: { !ui.pendingDelete.isEmpty }, set: { if !$0 { ui.pendingDelete = [] } })) {
+                            isPresented: $ui.pendingDelete.isPresent) {
             actions.confirmDelete()
         }
         .confirmDestructive(title: ui.pendingKill.count == 1 ? "Kill “\(ui.pendingKill[0])”?" : "Kill \(ui.pendingKill.count) containers?",
                             message: "Sends SIGKILL to \(ui.pendingKill.joined(separator: ", ")) immediately, without a graceful shutdown. "
                                 + "Unsaved data inside the container may be lost.",
                             actionTitle: "Kill",
-                            isPresented: Binding(get: { !ui.pendingKill.isEmpty }, set: { if !$0 { ui.pendingKill = [] } })) {
+                            isPresented: $ui.pendingKill.isPresent) {
             actions.confirmKill()
         }
         #if DEBUG

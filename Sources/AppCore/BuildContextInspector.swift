@@ -56,15 +56,6 @@ public enum BuildContextInspector {
         if expanded.hasPrefix("/") { return (expanded as NSString).standardizingPath }
         return ((expandTilde(context) as NSString).appendingPathComponent(expanded) as NSString).standardizingPath
     }
-
-    /// A `--secret` entry with its `src=` path made absolute (see `resolve`). `env=` secrets are returned unchanged.
-    public static func resolveSecret(_ entry: String, against context: String) -> String {
-        entry.split(separator: ",", omittingEmptySubsequences: false).map { field in
-            guard field.hasPrefix("src=") else { return String(field) }
-            let path = String(field.dropFirst(4))
-            return path.isEmpty ? String(field) : "src=" + resolve(path, against: context)
-        }.joined(separator: ",")
-    }
 }
 
 public extension BuildSpec {
@@ -74,7 +65,7 @@ public extension BuildSpec {
         var s = self
         s.contextDirectory = BuildContextInspector.resolve(contextDirectory, against: FileManager.default.currentDirectoryPath)
         if let dockerfile, !dockerfile.isEmpty { s.dockerfile = BuildContextInspector.resolve(dockerfile, against: s.contextDirectory) }
-        s.secrets = secrets.map { BuildContextInspector.resolveSecret($0, against: s.contextDirectory) }
+        s.secrets = secrets.map { ResourceValidator.resolvedBuildSecret($0, contextDirectory: s.contextDirectory) }
         return s
     }
 

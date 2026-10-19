@@ -107,7 +107,6 @@ public final class TaskCenter {
     public init() {}
 
     public var activeCount: Int { tasks.count { $0.state == .running } }
-    public var activeTasks: [LongRunningTask] { tasks.filter { $0.state == .running } }
 
     /// Consumes `stream` into a new task. `completion` runs after the task finishes (e.g. refresh a store).
     @discardableResult
