@@ -249,7 +249,16 @@ public struct Container: Codable, Identifiable, Hashable, Sendable {
 
         /// `127.0.0.1:18099->8000/tcp`
         public var display: String { "\(hostAddress):\(hostPort)->\(containerPort)/\(proto)" }
-        public var hostURL: URL? { URL(string: "http://\(hostAddress == "0.0.0.0" ? "127.0.0.1" : hostAddress):\(hostPort)") }
+        /// `http://127.0.0.1:PORT`; wildcard hosts map to loopback and IPv6 hosts are bracketed (`http://[::1]:PORT`).
+        public var hostURL: URL? {
+            let host: String
+            switch hostAddress {
+            case "0.0.0.0", "": host = "127.0.0.1"
+            case "::", "[::]": host = "[::1]"
+            default: host = HostAddress.bracketed(hostAddress)
+            }
+            return URL(string: "http://\(host):\(hostPort)")
+        }
     }
 
     public struct PublishedSocket: Codable, Hashable, Sendable {

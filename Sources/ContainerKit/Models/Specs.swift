@@ -47,9 +47,9 @@ public struct RunSpec: Hashable, Sendable {
         public init(hostAddress: String? = nil, hostPort: Int, containerPort: Int, proto: String = "tcp") {
             self.hostAddress = hostAddress; self.hostPort = hostPort; self.containerPort = containerPort; self.proto = proto
         }
-        /// `[host-ip:]host-port:container-port[/protocol]`
+        /// `[host-ip:]host-port:container-port[/protocol]`; an IPv6 host is bracketed (`[::1]:8080:80/tcp`).
         public var cliArgument: String {
-            let host = hostAddress.map { "\($0):" } ?? ""
+            let host = hostAddress.map { "\(HostAddress.bracketed($0)):" } ?? ""
             return "\(host)\(hostPort):\(containerPort)/\(proto)"
         }
     }
@@ -165,8 +165,14 @@ public struct MachineSpec: Hashable, Sendable {
     public var noBoot: Bool = false
     public var virtualization: Bool = false
     public var kernel: String?
-    public var user: String?
     public var platform: Platform?
+    /// Compatibility shim only: CLI 1.5.0's `machine create` has no `--user`, so this is never passed.
+    @available(*, deprecated, message: "`container machine create` has no --user option; this value is ignored.")
+    public var user: String? {
+        get { _ignoredUser }
+        set { _ignoredUser = newValue }
+    }
+    private var _ignoredUser: String?
 
     public init(image: String, name: String) { self.image = image; self.name = name }
 
@@ -179,7 +185,6 @@ public struct MachineSpec: Hashable, Sendable {
         if noBoot { a.append("--no-boot") }
         if virtualization { a.append("--virtualization") }
         if let kernel { a += ["--kernel", kernel] }
-        if let user { a += ["--user", user] }
         if let platform { a += ["--platform", platform.slug] }
         a.append(image)
         return a
@@ -207,6 +212,14 @@ public struct ClusterSpec: Hashable, Sendable {
         if removeOnStop { a.append("--rm") }
         if let workers, workers > 0 { a += ["--workers", String(workers)] }
         return a
+    }
+}
+
+/// Host-address helpers shared by port mappings and URLs.
+enum HostAddress {
+    /// `::1` → `[::1]`; IPv4, host names and already-bracketed addresses are returned unchanged.
+    static func bracketed(_ address: String) -> String {
+        address.contains(":") && !address.hasPrefix("[") ? "[\(address)]" : address
     }
 }
 

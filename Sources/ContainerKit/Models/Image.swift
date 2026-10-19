@@ -33,9 +33,13 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
         else if ref.hasPrefix("docker.io/") { ref = String(ref.dropFirst("docker.io/".count)) }
         return ref
     }
+    /// `alpine` for `python:alpine`; `nil` when untagged or digest-only (`x@sha256:…`). For `x:1@sha256:…` it is `1`.
     public var tag: String? {
-        guard let colon = reference.lastIndex(of: ":"), !reference[colon...].contains("/") else { return nil }
-        return String(reference[reference.index(after: colon)...])
+        var ref = reference
+        if let at = ref.firstIndex(of: "@") { ref = String(ref[..<at]) }
+        guard let colon = ref.lastIndex(of: ":"), !ref[colon...].contains("/") else { return nil }
+        let tag = ref[ref.index(after: colon)...]
+        return tag.isEmpty ? nil : String(tag)
     }
     public var platforms: [Platform] { variants.map(\.platform) }
     public var isMultiArch: Bool { variants.count > 1 }
