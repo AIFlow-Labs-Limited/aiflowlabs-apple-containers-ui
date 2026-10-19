@@ -5,7 +5,7 @@ import Foundation
 extension CLIBackend {
     /// `container volume ls --format json`.
     public func listVolumes() async throws -> [Volume] {
-        try await decode([Volume].self, ["volume", "ls", "--format", "json"])
+        try await decodeList(Volume.self, ["volume", "ls", "--format", "json"])
     }
 
     /// `container volume inspect -- NAME` (one-element array).

@@ -5,7 +5,7 @@ import Foundation
 extension CLIBackend {
     /// `container network ls --format json`.
     public func listNetworks() async throws -> [Network] {
-        try await decode([Network].self, ["network", "ls", "--format", "json"])
+        try await decodeList(Network.self, ["network", "ls", "--format", "json"])
     }
 
     /// `container network inspect -- NAME` (one-element array).

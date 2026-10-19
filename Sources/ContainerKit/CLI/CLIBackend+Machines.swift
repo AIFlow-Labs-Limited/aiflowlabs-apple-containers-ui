@@ -5,7 +5,7 @@ import Foundation
 extension CLIBackend {
     /// `container machine ls --format json` (this shape lacks `image`/`userSetup`; see `inspectMachine`).
     public func listMachines() async throws -> [Machine] {
-        try await decode([Machine].self, ["machine", "ls", "--format", "json"])
+        try await decodeList(Machine.self, ["machine", "ls", "--format", "json"])
     }
 
     /// `container machine inspect -- NAME` (one-element array).

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Backend that drives the `container` CLI (`/usr/local/bin/container`), using `--format json` wherever the
 /// CLI offers it and parsing tables elsewhere. It keeps no state; stores cache.
@@ -94,6 +95,19 @@ public actor CLIBackend: ContainerBackend {
             throw BackendError.decoding(command: display(arguments), underlying: String(describing: error))
         }
     }
+
+    /// Decodes a `ls`-style JSON array leniently: elements that fail to decode are skipped and logged.
+    nonisolated func decodeList<T: Decodable>(_ type: T.Type, _ arguments: [String]) async throws -> [T] {
+        let list = try await decode(LossyArray<T>.self, arguments)
+        if list.droppedCount > 0 {
+            let command = display(arguments)
+            let reasons = list.errors.prefix(3).joined(separator: " | ")
+            Self.log.error("Skipped \(list.droppedCount, privacy: .public) undecodable element(s) from `\(command, privacy: .public)`: \(reasons, privacy: .public)")
+        }
+        return list.elements
+    }
+
+    static let log = Logger(subsystem: "io.aiflowlabs.containerdesktop", category: "CLIBackend")
 
     /// Decodes an `inspect`-style JSON array and returns its first element (`notFound` when empty).
     nonisolated func inspectFirst<T: Decodable>(_ type: T.Type, kind: String, id: String, _ arguments: [String]) async throws -> T {

@@ -24,6 +24,19 @@ public struct Volume: Codable, Identifiable, Hashable, Sendable {
             self.name = name; self.driver = driver; self.format = format; self.creationDate = creationDate
             self.labels = labels; self.options = options; self.sizeInBytes = sizeInBytes; self.source = source
         }
+
+        /// Only `name` is required; secondary fields fall back to defaults, an unreadable date to the epoch.
+        public init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            driver = try c.decodeIfPresent(String.self, forKey: .driver) ?? "local"
+            format = try c.decodeIfPresent(String.self, forKey: .format) ?? "ext4"
+            creationDate = LenientDecoding.date(c, .creationDate)
+            labels = (try? c.decodeIfPresent([String: String].self, forKey: .labels)) ?? [:]
+            options = (try? c.decodeIfPresent([String: String].self, forKey: .options)) ?? [:]
+            sizeInBytes = (try? c.decodeIfPresent(Int64.self, forKey: .sizeInBytes)) ?? 0
+            source = try c.decodeIfPresent(String.self, forKey: .source) ?? ""
+        }
     }
 
     public init(id: String, configuration: Configuration) { self.id = id; self.configuration = configuration }
@@ -53,6 +66,17 @@ public struct Network: Codable, Identifiable, Hashable, Sendable {
             self.name = name; self.mode = mode; self.plugin = plugin; self.creationDate = creationDate
             self.labels = labels; self.options = options
         }
+
+        /// Only `name` is required; secondary fields fall back to defaults, an unreadable date to the epoch.
+        public init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            mode = try c.decodeIfPresent(String.self, forKey: .mode) ?? "nat"
+            plugin = try c.decodeIfPresent(String.self, forKey: .plugin)
+            creationDate = LenientDecoding.date(c, .creationDate)
+            labels = (try? c.decodeIfPresent([String: String].self, forKey: .labels)) ?? [:]
+            options = (try? c.decodeIfPresent([String: String].self, forKey: .options)) ?? [:]
+        }
     }
 
     public struct Status: Codable, Hashable, Sendable {
@@ -66,6 +90,13 @@ public struct Network: Codable, Identifiable, Hashable, Sendable {
 
     public init(id: String, configuration: Configuration, status: Status? = nil) {
         self.id = id; self.configuration = configuration; self.status = status
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        configuration = try c.decode(Configuration.self, forKey: .configuration)
+        status = try? c.decodeIfPresent(Status.self, forKey: .status)
     }
 
     public var name: String { configuration.name }
@@ -92,6 +123,21 @@ public struct ContainerStats: Codable, Identifiable, Hashable, Sendable {
         self.id = id; self.cpuUsageUsec = cpuUsageUsec; self.memoryUsageBytes = memoryUsageBytes
         self.memoryLimitBytes = memoryLimitBytes; self.networkRxBytes = networkRxBytes; self.networkTxBytes = networkTxBytes
         self.blockReadBytes = blockReadBytes; self.blockWriteBytes = blockWriteBytes; self.numProcesses = numProcesses
+    }
+
+    /// Only `id` is required; missing counters read as 0.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func int64(_ key: CodingKeys) -> Int64 { (try? c.decodeIfPresent(Int64.self, forKey: key)) ?? 0 }
+        id = try c.decode(String.self, forKey: .id)
+        cpuUsageUsec = int64(.cpuUsageUsec)
+        memoryUsageBytes = int64(.memoryUsageBytes)
+        memoryLimitBytes = int64(.memoryLimitBytes)
+        networkRxBytes = int64(.networkRxBytes)
+        networkTxBytes = int64(.networkTxBytes)
+        blockReadBytes = int64(.blockReadBytes)
+        blockWriteBytes = int64(.blockWriteBytes)
+        numProcesses = (try? c.decodeIfPresent(Int.self, forKey: .numProcesses)) ?? 0
     }
 
     public var memoryFraction: Double { memoryLimitBytes > 0 ? Double(memoryUsageBytes) / Double(memoryLimitBytes) : 0 }
@@ -175,10 +221,29 @@ public struct DiskUsage: Codable, Hashable, Sendable {
         public init(total: Int, active: Int, sizeInBytes: Int64, reclaimable: Int64) {
             self.total = total; self.active = active; self.sizeInBytes = sizeInBytes; self.reclaimable = reclaimable
         }
+
+        public static let empty = Bucket(total: 0, active: 0, sizeInBytes: 0, reclaimable: 0)
+
+        /// Missing counters read as 0.
+        public init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            total = (try? c.decodeIfPresent(Int.self, forKey: .total)) ?? 0
+            active = (try? c.decodeIfPresent(Int.self, forKey: .active)) ?? 0
+            sizeInBytes = (try? c.decodeIfPresent(Int64.self, forKey: .sizeInBytes)) ?? 0
+            reclaimable = (try? c.decodeIfPresent(Int64.self, forKey: .reclaimable)) ?? 0
+        }
     }
 
     public init(containers: Bucket, images: Bucket, volumes: Bucket) {
         self.containers = containers; self.images = images; self.volumes = volumes
+    }
+
+    /// A missing or unreadable bucket reads as empty.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        containers = (try? c.decodeIfPresent(Bucket.self, forKey: .containers)) ?? .empty
+        images = (try? c.decodeIfPresent(Bucket.self, forKey: .images)) ?? .empty
+        volumes = (try? c.decodeIfPresent(Bucket.self, forKey: .volumes)) ?? .empty
     }
 
     public var totalBytes: Int64 { containers.sizeInBytes + images.sizeInBytes + volumes.sizeInBytes }

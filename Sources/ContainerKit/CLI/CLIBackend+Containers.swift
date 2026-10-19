@@ -5,7 +5,7 @@ import Foundation
 extension CLIBackend {
     /// `container ls [-a] --format json`.
     public func listContainers(includeStopped: Bool) async throws -> [Container] {
-        try await decode([Container].self, ["ls"] + (includeStopped ? ["-a"] : []) + ["--format", "json"])
+        try await decodeList(Container.self, ["ls"] + (includeStopped ? ["-a"] : []) + ["--format", "json"])
     }
 
     /// `container inspect -- ID` (the CLI returns a one-element array).
@@ -106,7 +106,7 @@ extension CLIBackend {
     /// `container stats --no-stream --format json [-- IDS…]`.
     public func containerStats(ids: [String]) async throws -> [ContainerStats] {
         try Self.validateOperands(ids, "Container")
-        return try await decode([ContainerStats].self, ["stats", "--no-stream", "--format", "json"] + (ids.isEmpty ? [] : ["--"] + ids))
+        return try await decodeList(ContainerStats.self, ["stats", "--no-stream", "--format", "json"] + (ids.isEmpty ? [] : ["--"] + ids))
     }
 
     /// `container exec [-w DIR] -- ID COMMAND…`. The command's own non-zero exit and stderr are returned, not

@@ -17,7 +17,7 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         configuration = try c.decode(Configuration.self, forKey: .configuration)
-        variants = try c.decodeIfPresent([Variant].self, forKey: .variants) ?? []
+        variants = (try? c.decodeIfPresent(LossyArray<Variant>.self, forKey: .variants))?.elements ?? []
     }
 
     // MARK: Derived
@@ -53,6 +53,14 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
             self.name = name
             self.creationDate = creationDate
             self.descriptor = descriptor
+        }
+
+        /// `name` and `descriptor` are required; an unreadable date falls back to the epoch.
+        public init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            creationDate = LenientDecoding.date(c, .creationDate)
+            descriptor = try c.decode(Descriptor.self, forKey: .descriptor)
         }
     }
 

@@ -5,7 +5,7 @@ import Foundation
 extension CLIBackend {
     /// `container image ls --format json`.
     public func listImages() async throws -> [Image] {
-        try await decode([Image].self, ["image", "ls", "--format", "json"])
+        try await decodeList(Image.self, ["image", "ls", "--format", "json"])
     }
 
     /// `container image inspect -- REF` (one-element array).
