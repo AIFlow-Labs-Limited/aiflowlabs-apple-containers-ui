@@ -166,7 +166,9 @@ struct RunFormValues: Codable, Equatable {
             let target = row.target.trimmingCharacters(in: .whitespaces)
             let source = row.source.trimmingCharacters(in: .whitespaces)
             switch row.kind {
-            case .bind: return source.isEmpty && target.isEmpty ? nil : .init(kind: .bind(hostPath: source), target: target, readOnly: row.readOnly)
+            case .bind:
+                return source.isEmpty && target.isEmpty ? nil
+                    : .init(kind: .bind(hostPath: Self.expandingTilde(source)), target: target, readOnly: row.readOnly)
             case .volume: return source.isEmpty && target.isEmpty ? nil : .init(kind: .volume(name: source), target: target, readOnly: row.readOnly)
             case .anonymous: return target.isEmpty ? nil : .init(kind: .anonymous, target: target, readOnly: row.readOnly)
             }
@@ -202,9 +204,25 @@ struct RunFormValues: Codable, Equatable {
         return s
     }
 
+    /// `~` / `~/x` → the user's home folder (the CLI does not expand it; the field suggests `~/project`).
+    static func expandingTilde(_ path: String) -> String {
+        path.hasPrefix("~") ? (path as NSString).expandingTildeInPath : path
+    }
+
     /// Everything that blocks Run, as user-facing sentences.
     var issues: [String] {
         var result = spec.issues.map(\.description)
+        // TODO(merge): move into `RunSpec.issues` (invalidImage / relativeMountSource) once AppCore has them.
+        let imageText = image.trimmingCharacters(in: .whitespaces)
+        if imageText.hasPrefix("-") || imageText.contains(where: \.isWhitespace) {
+            result.append("“\(imageText)” is not an image reference (it cannot start with “-” or contain spaces).")
+        }
+        for row in volumes where row.kind == .bind {
+            let source = row.source.trimmingCharacters(in: .whitespaces)
+            if !source.isEmpty, !Self.expandingTilde(source).hasPrefix("/") {
+                result.append("Host folder “\(source)” must be an absolute path (or start with ~).")
+            }
+        }
         result += malformedPorts.map { "Port mapping “\($0)” must be numbers, e.g. 8080 → 80." }
         if let shm = Self.trimmed(shmSize), MemorySize(parsing: shm) == nil { result.append("Shared memory size “\(shm)” is not a size like 64m.") }
         if volumes.contains(where: { $0.kind != .anonymous && !$0.target.isEmpty && $0.source.trimmingCharacters(in: .whitespaces).isEmpty }) {
@@ -215,18 +233,51 @@ struct RunFormValues: Codable, Equatable {
 
     // MARK: Last-used values per image
 
-    private static func key(for image: String) -> String { "containers.run.lastUsed." + image }
+    /// How many images keep remembered settings (least recently used are forgotten).
+    static let lastUsedLimit = 20
+    private static let lastUsedPrefix = "containers.run.lastUsed."
+    private static let lastUsedIndexKey = "containers.run.lastUsedIndex"
+
+    private static func key(for image: String) -> String { lastUsedPrefix + image }
 
     static func lastUsed(for image: String, defaults: UserDefaults = .standard) -> RunFormValues? {
         guard !image.isEmpty, let data = defaults.data(forKey: key(for: image)) else { return nil }
         return try? JSONDecoder().decode(RunFormValues.self, from: data)
     }
 
-    /// Saves everything except the name (names must be unique, so reusing one would fail).
-    func saveAsLastUsed(defaults: UserDefaults = .standard) {
+    /// What gets persisted: no name (names must be unique) and no secret values — sensitive environment entries keep
+    /// their key with an empty value, so the user re-enters it instead of it sitting in a plist in plain text.
+    var persistableCopy: RunFormValues {
         var copy = self
         copy.name = ""
+        // TODO(merge): `EnvironmentVariable.isSensitive` is the single masker; ContainerSecrets wraps it.
+        copy.environment = environment.map { row in
+            var row = row
+            if ContainerSecrets.isSensitive(key: row.key.trimmingCharacters(in: .whitespaces)) { row.value = "" }
+            return row
+        }
+        return copy
+    }
+
+    /// Saves `persistableCopy` for this image and keeps only the `lastUsedLimit` most recently used images.
+    func saveAsLastUsed(defaults: UserDefaults = .standard) {
+        let copy = persistableCopy
         guard !copy.image.isEmpty, let data = try? JSONEncoder().encode(copy) else { return }
         defaults.set(data, forKey: Self.key(for: copy.image))
+        var index = defaults.stringArray(forKey: Self.lastUsedIndexKey) ?? []
+        index.removeAll { $0 == copy.image }
+        index.insert(copy.image, at: 0)
+        // Entries saved before the index existed are adopted (oldest) so they get evicted too.
+        let known = Set(index)
+        let legacy = defaults.dictionaryRepresentation().keys
+            .filter { $0.hasPrefix(Self.lastUsedPrefix) }
+            .map { String($0.dropFirst(Self.lastUsedPrefix.count)) }
+            .filter { !known.contains($0) }
+            .sorted()
+        index += legacy
+        while index.count > Self.lastUsedLimit {
+            defaults.removeObject(forKey: Self.key(for: index.removeLast()))
+        }
+        defaults.set(index, forKey: Self.lastUsedIndexKey)
     }
 }
