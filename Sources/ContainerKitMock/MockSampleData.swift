@@ -160,7 +160,7 @@ extension MockBackend {
                 }
             }
             return Array((boot + steady).prefix(count))
-        case "cache":
+        case "cache", "redis":
             let boot = [
                 "1:C 19 Oct 2026 15:40:00.010 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo",
                 "1:C 19 Oct 2026 15:40:00.010 * Redis version=7.4.1, bits=64, commit=00000000, modified=0, pid=1",
