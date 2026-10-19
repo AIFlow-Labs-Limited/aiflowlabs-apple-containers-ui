@@ -13,8 +13,8 @@ struct ChildProcess: Sendable {
     let stderr: AsyncStream<Data>
     /// Yields the exit status once (128 + signal number when killed by a signal).
     let exit: AsyncStream<Int32>
-    private let stdoutContinuation: AsyncStream<Data>.Continuation
-    private let stderrContinuation: AsyncStream<Data>.Continuation
+    private let stdoutReader: PipeReader
+    private let stderrReader: PipeReader
 
     /// Starts `arguments[0]` with the remaining arguments.
     static func launch(_ arguments: [String], stdin: Data?, environment: [String: String]) throws -> ChildProcess {
@@ -36,8 +36,8 @@ struct ChildProcess: Sendable {
 
         let (outStream, outContinuation) = AsyncStream.makeStream(of: Data.self)
         let (errStream, errContinuation) = AsyncStream.makeStream(of: Data.self)
-        forward(outPipe.fileHandleForReading, to: outContinuation)
-        forward(errPipe.fileHandleForReading, to: errContinuation)
+        let outReader = PipeReader(outPipe.fileHandleForReading, continuation: outContinuation)
+        let errReader = PipeReader(errPipe.fileHandleForReading, continuation: errContinuation)
 
         let (exitStream, exitContinuation) = AsyncStream.makeStream(of: Int32.self, bufferingPolicy: .bufferingNewest(1))
         process.terminationHandler = { finished in
@@ -49,15 +49,15 @@ struct ChildProcess: Sendable {
         do {
             try process.run()
         } catch {
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            outContinuation.finish()
-            errContinuation.finish()
+            outReader.close()
+            errReader.close()
             throw BackendError.commandFailed(command: display, exitCode: -1, message: error.localizedDescription)
         }
 
         if let inPipe, let stdin {
             let writer = inPipe.fileHandleForWriting
+            // A child that exits before reading stdin must yield EPIPE, never a process-killing SIGPIPE.
+            _ = fcntl(writer.fileDescriptor, F_SETNOSIGPIPE, 1)
             // Written off the caller's task so a child that does not read stdin cannot stall us.
             Task.detached {
                 try? writer.write(contentsOf: stdin)
@@ -67,25 +67,14 @@ struct ChildProcess: Sendable {
 
         return ChildProcess(
             process: process, display: display, stdout: outStream, stderr: errStream, exit: exitStream,
-            stdoutContinuation: outContinuation, stderrContinuation: errContinuation)
+            stdoutReader: outReader, stderrReader: errReader)
     }
 
-    private static func forward(_ handle: FileHandle, to continuation: AsyncStream<Data>.Continuation) {
-        handle.readabilityHandler = { readable in
-            let chunk = readable.availableData
-            if chunk.isEmpty {
-                readable.readabilityHandler = nil
-                continuation.finish()
-            } else {
-                continuation.yield(chunk)
-            }
-        }
-    }
-
-    /// Ends both pipe streams even if a grandchild still holds the write ends open.
+    /// Ends both pipe streams even if a grandchild still holds the write ends open: removes the readability
+    /// handlers, closes our read ends and finishes the streams.
     func finishPipes() {
-        stdoutContinuation.finish()
-        stderrContinuation.finish()
+        stdoutReader.close()
+        stderrReader.close()
     }
 
     /// Waits for the exit status.
@@ -94,15 +83,17 @@ struct ChildProcess: Sendable {
         return -1
     }
 
-    /// Sends SIGTERM, then SIGKILL after `grace` if the child is still alive.
+    /// Sends SIGTERM, then SIGKILL to the whole process group after `grace` (grandchildren included, even
+    /// when the group leader already exited).
     func terminate(grace: Duration) {
         let pid = process.processIdentifier
         guard pid > 0, process.isRunning else { return }
         ChildProcess.signal(SIGTERM, to: pid)
-        let process = self.process
         Task.detached {
             try? await Task.sleep(for: grace)
-            if process.isRunning { ChildProcess.signal(SIGKILL, to: pid) }
+            // Fails harmlessly with ESRCH when the group is already gone.
+            _ = killpg(pid, SIGKILL)
+            _ = kill(pid, SIGKILL)
         }
     }
 
@@ -116,5 +107,48 @@ struct ChildProcess: Sendable {
         var data = Data()
         for await chunk in chunks { data.append(chunk) }
         return data
+    }
+}
+
+/// Forwards one pipe's read end into an `AsyncStream`. Reading and closing are serialized by a lock, so a
+/// readability callback can never touch a handle that `close()` already closed.
+private final class PipeReader: @unchecked Sendable {
+    private let lock = NSLock()
+    private let handle: FileHandle
+    private let continuation: AsyncStream<Data>.Continuation
+    private var closed = false
+
+    init(_ handle: FileHandle, continuation: AsyncStream<Data>.Continuation) {
+        self.handle = handle
+        self.continuation = continuation
+        // Strong capture on purpose: the cycle is broken when `closeLocked()` clears the handler.
+        handle.readabilityHandler = { _ in self.readAvailable() }
+    }
+
+    private func readAvailable() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !closed else { return }
+        let chunk = handle.availableData
+        if chunk.isEmpty {
+            closeLocked()
+        } else {
+            continuation.yield(chunk)
+        }
+    }
+
+    /// Idempotent: clears the handler, closes the fd and finishes the stream.
+    func close() {
+        lock.lock()
+        defer { lock.unlock() }
+        closeLocked()
+    }
+
+    private func closeLocked() {
+        guard !closed else { return }
+        closed = true
+        handle.readabilityHandler = nil
+        try? handle.close()
+        continuation.finish()
     }
 }

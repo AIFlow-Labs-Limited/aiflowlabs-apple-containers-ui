@@ -117,7 +117,7 @@ public actor CLIBackend: ContainerBackend {
     /// Streams `container <arguments>`, remapping a failure to the most specific `BackendError`.
     nonisolated func streamCommand(_ arguments: [String]) -> LineStream {
         let upstream = runner.stream([executable] + arguments, environment: [:])
-        return AsyncThrowingStream { continuation in
+        return AsyncThrowingStream(bufferingPolicy: .bufferingNewest(ProcessRunner.streamBufferLimit)) { continuation in
             let task = Task {
                 do {
                     for try await line in upstream { continuation.yield(line) }

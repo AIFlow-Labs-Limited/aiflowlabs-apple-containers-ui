@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Outcome of a child process that ran to completion.
@@ -62,7 +63,18 @@ public struct ProcessRunner: CommandRunning {
     /// Directories that are always on the child's `PATH`, ahead of the inherited entries.
     public static let basePath = ["/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin"]
     /// Variables removed from the inherited environment so the CLI never emits colors or TTY control codes.
-    public static let strippedVariables: Set<String> = ["TERM", "COLORTERM", "CLICOLOR", "CLICOLOR_FORCE", "FORCE_COLOR", "TERM_PROGRAM"]
+    /// `CONTAINER_DEFAULT_PLATFORM` / `CONTAINER_DEBUG` are removed too: the app passes platforms explicitly
+    /// and parses non-debug output.
+    static let strippedVariables: Set<String> = [
+        "TERM", "COLORTERM", "CLICOLOR", "CLICOLOR_FORCE", "FORCE_COLOR", "TERM_PROGRAM",
+        "CONTAINER_DEFAULT_PLATFORM", "CONTAINER_DEBUG",
+    ]
+    /// Maximum number of undelivered lines a `stream` buffers for a slow consumer (oldest are dropped).
+    static let streamBufferLimit = 10_000
+
+    /// Ignores SIGPIPE process-wide, once: a write to a pipe whose reader exited must fail with EPIPE
+    /// instead of killing the app.
+    private static let ignoreSIGPIPE: Void = { _ = Darwin.signal(SIGPIPE, SIG_IGN) }()
 
     /// Time between SIGTERM and SIGKILL when a child must be stopped.
     public var killGracePeriod: Duration
@@ -71,6 +83,7 @@ public struct ProcessRunner: CommandRunning {
 
     /// Creates a runner.
     public init(killGracePeriod: Duration = .seconds(2), drainGracePeriod: Duration = .seconds(2)) {
+        _ = Self.ignoreSIGPIPE
         self.killGracePeriod = killGracePeriod
         self.drainGracePeriod = drainGracePeriod
     }
@@ -139,9 +152,18 @@ public struct ProcessRunner: CommandRunning {
         if timedOut, let timeout {
             throw BackendError.commandFailed(
                 command: child.display, exitCode: result.exitCode,
-                message: "Timed out after \(timeout.components.seconds) s: \(child.display)")
+                message: "Timed out after \(Self.describe(timeout)): \(child.display)")
         }
         return result
+    }
+
+    /// `750 ms`, `2 s`, `1.5 s`.
+    static func describe(_ duration: Duration) -> String {
+        let (seconds, attoseconds) = duration.components
+        let total = Double(seconds) + Double(attoseconds) / 1e18
+        if total < 1 { return "\(Int((total * 1000).rounded())) ms" }
+        if total == total.rounded() { return "\(Int(total)) s" }
+        return String(format: "%.1f s", total)
     }
 
     /// See `CommandRunning.stream`.
@@ -149,7 +171,7 @@ public struct ProcessRunner: CommandRunning {
         let grace = killGracePeriod
         let drain = drainGracePeriod
         let env = Self.childEnvironment(overrides: environment)
-        return AsyncThrowingStream { continuation in
+        return AsyncThrowingStream(bufferingPolicy: .bufferingNewest(Self.streamBufferLimit)) { continuation in
             let task = Task {
                 do {
                     let child = try ChildProcess.launch(arguments, stdin: nil, environment: env)

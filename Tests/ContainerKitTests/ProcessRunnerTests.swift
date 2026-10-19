@@ -164,3 +164,64 @@ struct ProcessRunnerTests {
         return false
     }
 }
+
+@Suite("ProcessRunner robustness")
+struct ProcessRunnerRobustnessTests {
+    let runner = ProcessRunner(killGracePeriod: .milliseconds(500), drainGracePeriod: .milliseconds(500))
+
+    /// Writing stdin to a child that exits without reading must not SIGPIPE the test process.
+    @Test func stdinToEarlyExitingChildDoesNotKillUs() async throws {
+        for _ in 0..<5 {
+            let result = try await runner.run(["/usr/bin/true"], stdin: Data(count: 1 << 20), timeout: .seconds(10))
+            #expect(result.exitCode == 0)
+        }
+    }
+
+    /// A grandchild that keeps the pipes open must not stall `run` past the drain grace.
+    @Test func backgroundGrandchildDoesNotStallRun() async throws {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let result = try await runner.run(["/bin/sh", "-c", "sleep 30 & echo started"], timeout: .seconds(20))
+        #expect(result.stdoutText == "started\n")
+        #expect(clock.now - start < .seconds(5))
+    }
+
+    @Test func timeoutMessageUsesMilliseconds() {
+        #expect(ProcessRunner.describe(.milliseconds(300)) == "300 ms")
+        #expect(ProcessRunner.describe(.seconds(2)) == "2 s")
+        #expect(ProcessRunner.describe(.milliseconds(1500)) == "1.5 s")
+    }
+
+    @Test func childEnvironmentStripsContainerOverrides() {
+        let env = ProcessRunner.childEnvironment(base: ["CONTAINER_DEFAULT_PLATFORM": "linux/amd64", "CONTAINER_DEBUG": "1", "HOME": "/h"])
+        #expect(env["CONTAINER_DEFAULT_PLATFORM"] == nil)
+        #expect(env["CONTAINER_DEBUG"] == nil)
+        #expect(env["HOME"] == "/h")
+    }
+
+    @Test func lineSplitterCapsLineLength() {
+        var splitter = LineSplitter()
+        let long = Data(repeating: UInt8(ascii: "x"), count: LineSplitter.maxLineLength * 2 + 10)
+        let lines = splitter.feed(long + Data("\n".utf8))
+        #expect(lines.map(\.count) == [LineSplitter.maxLineLength, LineSplitter.maxLineLength, 10])
+    }
+
+    @Test func lineSplitterSplitsOnCharacterBoundary() {
+        var splitter = LineSplitter()
+        let text = String(repeating: "x", count: LineSplitter.maxLineLength - 1) + "é\n"
+        let lines = splitter.feed(Data(text.utf8))
+        #expect(lines.count == 2)
+        #expect(lines.last == "é")
+        #expect(!lines.joined().contains("\u{FFFD}"))
+    }
+
+    @Test func lineSplitterKeepsBlankCRLFLines() {
+        var splitter = LineSplitter()
+        #expect(splitter.feed(Data("a\r\n\r\nb\r\n".utf8)) == ["a", "", "b"])
+    }
+
+    @Test func stripANSIHandlesOSCWithStringTerminator() {
+        #expect(LineSplitter.stripANSI("\u{1B}]0;title\u{1B}\\hello") == "hello")
+        #expect(LineSplitter.stripANSI("\u{1B}]8;;http://x\u{07}link") == "link")
+    }
+}
