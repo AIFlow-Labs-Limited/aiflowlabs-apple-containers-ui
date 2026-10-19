@@ -15,8 +15,9 @@ extension CLIBackend {
                 throw BackendError.decoding(command: display(arguments), underlying: String(describing: error))
             }
         }
-        let error = CLIErrorMapper.map(command: display(arguments), exitCode: result.exitCode,
-                                       stderr: result.stderrText, stdout: result.stdoutText)
+        let error = CLIErrorMapper.map(
+            command: display(arguments), exitCode: result.exitCode,
+            stderr: result.stderrText, stdout: result.stdoutText)
         // A failing `system status` is itself the authoritative "services are down" signal.
         if error == .systemNotRunning || CLIErrorMapper.isPluginsUnavailable(result.stderrText + result.stdoutText) {
             return .stopped(clientVersion: await clientVersion())
@@ -26,7 +27,9 @@ extension CLIBackend {
 
     /// The CLI's own version (`container --version`), available even when services are down.
     public func clientVersion() async -> String? {
-        guard let result = try? await runRaw(["--version"], timeout: .seconds(15)), result.exitCode == 0 else { return nil }
+        guard let result = try? await runRaw(["--version"], timeout: .seconds(15)), result.exitCode == 0 else {
+            return nil
+        }
         return CLIOutputParsing.cliVersion(result.stdoutText)
     }
 
@@ -69,7 +72,8 @@ extension CLIBackend {
         try Self.validateDomain(domain)
         var arguments = ["system", "dns", "create"]
         if let localhostAddress {
-            guard !localhostAddress.isEmpty, localhostAddress.allSatisfy({ $0.isHexDigit || $0 == "." || $0 == ":" }) else {
+            guard !localhostAddress.isEmpty, localhostAddress.allSatisfy({ $0.isHexDigit || $0 == "." || $0 == ":" })
+            else {
                 throw BackendError.other("“\(localhostAddress)” is not a valid IP address.")
             }
             arguments += ["--localhost", localhostAddress]
@@ -130,7 +134,8 @@ extension CLIBackend {
     /// The `osascript` argv that runs `container <arguments>` with administrator privileges.
     nonisolated func administratorCommand(_ arguments: [String]) -> [String] {
         let shell = ([executable] + arguments).map(Self.shellQuote).joined(separator: " ")
-        let appleScriptLiteral = shell.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let appleScriptLiteral = shell.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(
+            of: "\"", with: "\\\"")
         return ["/usr/bin/osascript", "-e", "do shell script \"\(appleScriptLiteral)\" with administrator privileges"]
     }
 
@@ -154,7 +159,9 @@ extension CLIBackend {
 
     static func validateDomain(_ domain: String) throws {
         try validateOperand(domain, "DNS domain")
-        let valid = !domain.isEmpty && domain.allSatisfy { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "-" || $0 == "." }
+        let valid =
+            !domain.isEmpty
+            && domain.allSatisfy { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "-" || $0 == "." }
         guard valid else { throw BackendError.other("“\(domain)” is not a valid DNS domain name.") }
     }
 }

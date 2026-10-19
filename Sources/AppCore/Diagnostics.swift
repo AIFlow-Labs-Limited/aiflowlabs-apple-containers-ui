@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// Plain-text bug-report blob for Settings → About → "Copy diagnostics". Contains no secrets.
 @MainActor
@@ -19,11 +19,18 @@ public enum Diagnostics {
         lines.append("Engine: \(describe(model.engine))")
         if let s = model.engine.status ?? model.system.status {
             lines.append("CLI client: \(s.client?.version ?? "?")  server: \(s.server?.version ?? "?")")
-            if let host = s.host { lines.append("Host: \(host.operatingSystem) \(host.architecture), \(host.cpus) CPUs") }
-            if let r = s.resources { lines.append("Resources: \(r.containersRunning)/\(r.containersTotal) containers running, \(r.images) images") }
+            if let host = s.host {
+                lines.append("Host: \(host.operatingSystem) \(host.architecture), \(host.cpus) CPUs")
+            }
+            if let r = s.resources {
+                lines.append(
+                    "Resources: \(r.containersRunning)/\(r.containersTotal) containers running, \(r.images) images")
+            }
         }
-        lines.append("Counts: containers=\(model.containers.items.count) images=\(model.images.items.count) volumes=\(model.volumes.items.count) "
-                     + "networks=\(model.networks.items.count) machines=\(model.machines.items.count) clusters=\(model.clusters.items.count)")
+        lines.append(
+            "Counts: containers=\(model.containers.items.count) images=\(model.images.items.count) volumes=\(model.volumes.items.count) "
+                + "networks=\(model.networks.items.count) machines=\(model.machines.items.count) clusters=\(model.clusters.items.count)"
+        )
         lines.append("Tasks: \(model.taskCenter.activeCount) active, \(model.taskCenter.tasks.count) retained")
         lines.append("")
         lines.append("Settings:")
@@ -32,7 +39,8 @@ public enum Diagnostics {
         lines.append("Recent errors:")
         if model.recentErrors.isEmpty { lines.append("  (none)") }
         for e in model.recentErrors {
-            lines.append("  [\(e.date.formatted(date: .omitted, time: .standard))] \(e.error.errorDescription ?? "\(e.error)")")
+            lines.append(
+                "  [\(e.date.formatted(date: .omitted, time: .standard))] \(e.error.errorDescription ?? "\(e.error)")")
         }
         return lines.joined(separator: "\n")
     }

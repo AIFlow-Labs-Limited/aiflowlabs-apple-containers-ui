@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import Testing
+
 @testable import ContainerKit
 
 @Suite("ProcessRunner")
@@ -31,8 +32,9 @@ struct ProcessRunnerTests {
     }
 
     @Test func environmentHasPathAndNoTerm() async throws {
-        let result = try await runner.run(sh("echo \"$PATH\"; echo \"term=$(/usr/bin/printenv TERM || echo unset)\"; echo \"$EXTRA\""),
-                                          stdin: nil, timeout: nil, environment: ["EXTRA": "yes"])
+        let result = try await runner.run(
+            sh("echo \"$PATH\"; echo \"term=$(/usr/bin/printenv TERM || echo unset)\"; echo \"$EXTRA\""),
+            stdin: nil, timeout: nil, environment: ["EXTRA": "yes"])
         let lines = result.stdoutText.split(separator: "\n").map(String.init)
         #expect(lines[0].hasPrefix("/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"))
         #expect(lines[1] == "term=unset")
@@ -40,7 +42,9 @@ struct ProcessRunnerTests {
     }
 
     @Test func childEnvironmentStripsColorVariables() {
-        let env = ProcessRunner.childEnvironment(base: ["TERM": "xterm", "CLICOLOR_FORCE": "1", "PATH": "/x:/usr/bin", "HOME": "/h"])
+        let env = ProcessRunner.childEnvironment(base: [
+            "TERM": "xterm", "CLICOLOR_FORCE": "1", "PATH": "/x:/usr/bin", "HOME": "/h",
+        ])
         #expect(env["TERM"] == nil)
         #expect(env["CLICOLOR_FORCE"] == nil)
         #expect(env["NO_COLOR"] == "1")
@@ -150,7 +154,10 @@ struct ProcessRunnerTests {
     private func waitForPID(in file: URL) async throws -> pid_t {
         for _ in 0..<100 {
             if let text = try? String(contentsOf: file, encoding: .utf8),
-               let pid = pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)) { return pid }
+                let pid = pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines))
+            {
+                return pid
+            }
             try await Task.sleep(for: .milliseconds(50))
         }
         throw BackendError.other("child never wrote its pid")
@@ -193,7 +200,9 @@ struct ProcessRunnerRobustnessTests {
     }
 
     @Test func childEnvironmentStripsContainerOverrides() {
-        let env = ProcessRunner.childEnvironment(base: ["CONTAINER_DEFAULT_PLATFORM": "linux/amd64", "CONTAINER_DEBUG": "1", "HOME": "/h"])
+        let env = ProcessRunner.childEnvironment(base: [
+            "CONTAINER_DEFAULT_PLATFORM": "linux/amd64", "CONTAINER_DEBUG": "1", "HOME": "/h",
+        ])
         #expect(env["CONTAINER_DEFAULT_PLATFORM"] == nil)
         #expect(env["CONTAINER_DEBUG"] == nil)
         #expect(env["HOME"] == "/h")

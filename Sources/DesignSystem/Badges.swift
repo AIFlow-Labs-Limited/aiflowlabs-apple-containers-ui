@@ -1,5 +1,5 @@
-import SwiftUI
 import ContainerKit
+import SwiftUI
 
 /// A small colored dot for state columns and the status bar.
 public struct StatusDot: View {
@@ -17,7 +17,7 @@ public struct StatusDot: View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            .overlay(Circle().strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))   // visible in dark mode
+            .overlay(Circle().strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))  // visible in dark mode
             .accessibilityElement()
             .accessibilityLabel(label ?? "")
             .accessibilityHidden(label == nil)
@@ -89,10 +89,15 @@ public struct TagBadge: View {
 
 #Preview("Badges") {
     VStack(alignment: .leading, spacing: Spacing.s) {
-        HStack { StatusDot(.statusRunning); StatusDot(.statusStopped); StatusDot(.statusWarning); StatusDot(.statusError) }
+        HStack {
+            StatusDot(.statusRunning); StatusDot(.statusStopped); StatusDot(.statusWarning); StatusDot(.statusError)
+        }
         HStack { ForEach(ContainerState.allCases, id: \.self) { StateBadge($0) } }
         StateBadge(.running, detail: "2h")
-        HStack { PlatformBadge(.arm64); PlatformBadge(.amd64); TagBadge("default"); TagBadge("Experimental", tint: .statusWarning) }
+        HStack {
+            PlatformBadge(.arm64); PlatformBadge(.amd64); TagBadge("default");
+            TagBadge("Experimental", tint: .statusWarning)
+        }
     }
     .padding()
 }

@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Local images, "in use" detection from containers, and pull/push/tag/delete/prune.
 @MainActor
@@ -62,7 +62,8 @@ public final class ImagesStore: PollingStore {
     /// Streams `container image pull` into the Activity panel; refreshes when done.
     @discardableResult
     public func pull(_ reference: String, platform: Platform? = nil) -> LongRunningTask {
-        tasks.run(title: "Pull \(reference)", kind: .pull, stream: backend.pullImage(reference, platform: platform)) { [weak self] _ in
+        tasks.run(title: "Pull \(reference)", kind: .pull, stream: backend.pullImage(reference, platform: platform)) {
+            [weak self] _ in
             await self?.refresh()
         }
     }
@@ -83,7 +84,9 @@ public final class ImagesStore: PollingStore {
     /// `all == false` removes dangling images only.
     /// Removes dangling (or, with `all`, every unused) image. The outcome is also stored in `actionError`.
     @discardableResult
-    public func prune(all: Bool) async -> Result<Void, BackendError> { await attempt { try await backend.pruneImages(all: all) } }
+    public func prune(all: Bool) async -> Result<Void, BackendError> {
+        await attempt { try await backend.pruneImages(all: all) }
+    }
 
     public func save(_ references: [String], to path: String, platform: Platform? = nil) async {
         await perform { try await backend.saveImages(references, to: path, platform: platform) }

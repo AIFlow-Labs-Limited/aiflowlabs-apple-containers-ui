@@ -1,7 +1,7 @@
-import SwiftUI
-import AppKit
 import AppCore
+import AppKit
 import DesignSystem
+import SwiftUI
 
 /// Menu bar extra menu: engine state, running containers (stop), open app, start/stop engine, quit.
 /// Freshness: the menu bar extra exists only while `menuBarEnabled`, and then `AppModel.updateBackgroundPolling()`
@@ -46,7 +46,9 @@ struct MenuBarContent: View {
         default:
             EmptyView()
         }
-        Button("Activity") { openWindow(id: SceneID.activity); NSApp.activate() }
+        Button("Activity") {
+            openWindow(id: SceneID.activity); NSApp.activate()
+        }
         SettingsLink { Text("Settings…") }
             .keyboardShortcut(",")
         Divider()

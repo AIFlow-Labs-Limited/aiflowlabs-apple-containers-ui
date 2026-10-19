@@ -1,5 +1,5 @@
-import SwiftUI
 import ContainerKit
+import SwiftUI
 
 public extension EnvironmentValues {
     /// The app model. Prefer `@Environment(AppModel.self)` in views (non-optional); this key exists for code that

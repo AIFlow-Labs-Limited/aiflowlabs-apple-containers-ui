@@ -14,13 +14,16 @@ extension CLIBackend {
     public func registryLogin(server: String, username: String, password: String, scheme: String?) async throws {
         try Self.validateOperand(server, "Registry")
         try Self.validateOperand(username, "User name")
-        try await execute(Self.loginArguments(server: server, username: username, scheme: scheme),
-                          stdin: Data((password + "\n").utf8), timeout: Self.actionTimeout)
+        try await execute(
+            Self.loginArguments(server: server, username: username, scheme: scheme),
+            stdin: Data((password + "\n").utf8), timeout: Self.actionTimeout)
     }
 
     /// argv for `registryLogin` (no secret in it).
     static func loginArguments(server: String, username: String, scheme: String?) -> [String] {
-        ["registry", "login"] + (scheme.map { ["--scheme", $0] } ?? []) + ["--username", username, "--password-stdin", "--", server]
+        ["registry", "login"] + (scheme.map { ["--scheme", $0] } ?? []) + [
+            "--username", username, "--password-stdin", "--", server,
+        ]
     }
 
     /// `container registry logout -- SERVER`.

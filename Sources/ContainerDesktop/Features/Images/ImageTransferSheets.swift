@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Platform choice for pull / push / k8s load-image. `.both` pulls each architecture, one after the other.
 enum PlatformChoice: String, CaseIterable, Identifiable {
@@ -35,8 +35,10 @@ enum PlatformChoice: String, CaseIterable, Identifiable {
 extension LineStream {
     /// Runs `makeStream` for each element in order, forwarding all lines into one stream: the second pull starts
     /// only after the first finished, and cancelling the stream cancels the one in flight.
-    static func sequential<T: Sendable>(_ items: [T], header: @escaping @Sendable (T) -> String,
-                                        _ makeStream: @escaping @Sendable (T) -> LineStream) -> LineStream {
+    static func sequential<T: Sendable>(
+        _ items: [T], header: @escaping @Sendable (T) -> String,
+        _ makeStream: @escaping @Sendable (T) -> LineStream
+    ) -> LineStream {
         LineStream { continuation in
             let work = Task {
                 do {
@@ -102,7 +104,8 @@ struct PullImageSheet: View {
                     ForEach(PlatformChoice.allCases) { Text($0.title).tag($0) }
                 }
                 if platform == .both {
-                    Text("Pulls the image twice, one architecture after the other.").font(.caption).foregroundStyle(.secondary)
+                    Text("Pulls the image twice, one architecture after the other.").font(.caption).foregroundStyle(
+                        .secondary)
                 }
             }
             .formStyle(.grouped)
@@ -138,8 +141,12 @@ struct PullImageSheet: View {
             backend.pullImage(ref, platform: $0)
         }
         let images = model.images
-        tasks = [model.taskCenter.run(title: "Pull \(ref) (\(platforms.map(\.slug).joined(separator: " + ")))", kind: .pull,
-                                      stream: stream) { _ in await images.refresh() }]
+        tasks = [
+            model.taskCenter.run(
+                title: "Pull \(ref) (\(platforms.map(\.slug).joined(separator: " + ")))", kind: .pull,
+                stream: stream
+            ) { _ in await images.refresh() }
+        ]
     }
 }
 
@@ -190,26 +197,34 @@ struct PushImageSheet: View {
                 TextField("Push as", text: $target, prompt: Text("ghcr.io/you/app:1.0"))
                 if let problem, !trimmed.isEmpty { Text(problem).font(.caption).foregroundStyle(.statusError) }
                 if let existing = existingTarget {
-                    Label("\(existing) already exists on this Mac. Pushing re-tags it to point at \(reference) first; "
-                          + "the image it points at now loses that tag.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption).foregroundStyle(.statusWarning)
+                    Label(
+                        "\(existing) already exists on this Mac. Pushing re-tags it to point at \(reference) first; "
+                            + "the image it points at now loses that tag.", systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption).foregroundStyle(.statusWarning)
                 } else if needsTag && problem == nil {
                     Text("The image is tagged as \(trimmed) first, then pushed. The new tag stays on this Mac.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Picker("Platform", selection: $platform) {
-                    ForEach(PlatformChoice.allCases.filter { $0 != .both }) { Text($0 == .native ? "All platforms in the image" : $0.title).tag($0) }
+                    ForEach(PlatformChoice.allCases.filter { $0 != .both }) {
+                        Text($0 == .native ? "All platforms in the image" : $0.title).tag($0)
+                    }
                 }
                 LabeledContent("Registry") {
                     HStack {
                         Text(registry).font(.monoCaption)
                         if isLoggedIn {
-                            Label("Signed in", systemImage: "checkmark.seal.fill").foregroundStyle(.statusRunning).font(.caption)
+                            Label("Signed in", systemImage: "checkmark.seal.fill").foregroundStyle(.statusRunning).font(
+                                .caption)
                         } else {
-                            Label("Not signed in", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.statusWarning).font(.caption)
+                            Label("Not signed in", systemImage: "exclamationmark.triangle.fill").foregroundStyle(
+                                .statusWarning
+                            ).font(.caption)
                             Button("Sign in…") {
                                 dismiss()
-                                model.navigation.open(.registries, select: RegistriesListView.loginToken(server: registry))
+                                model.navigation.open(
+                                    .registries, select: RegistriesListView.loginToken(server: registry))
                             }
                             .buttonStyle(.link)
                         }
@@ -221,8 +236,10 @@ struct PushImageSheet: View {
             if let tagError { ErrorBanner(tagError, dismiss: { self.tagError = nil }) }
             if !tasks.isEmpty { TaskProgressPanel(tasks: tasks) }
             if pushFailed, let createdTag {
-                Text("The tag \(createdTag) created for this push is still on this Mac. Delete it in Images if you don't need it.")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(
+                    "The tag \(createdTag) created for this push is still on this Mac. Delete it in Images if you don't need it."
+                )
+                .font(.caption).foregroundStyle(.secondary)
             }
             HStack {
                 Spacer()
@@ -248,7 +265,9 @@ struct PushImageSheet: View {
             let backend = model.backend, source = reference
             var failure: BackendError?
             let tagged = await model.images.perform {
-                do { try await backend.tagImage(source, newReference: target) } catch { failure = BackendError(wrapping: error); throw error }
+                do { try await backend.tagImage(source, newReference: target) } catch {
+                    failure = BackendError(wrapping: error); throw error
+                }
             }
             guard tagged else {
                 // Shown here; not also as the list banner behind the sheet.

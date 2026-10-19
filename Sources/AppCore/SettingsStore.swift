@@ -1,7 +1,7 @@
+import ContainerKit
 import Foundation
 import Observation
 import ServiceManagement
-import ContainerKit
 
 /// App preferences. Persisted in `UserDefaults` under the same keys `@AppStorage` would use (so views may also
 /// bind with `@AppStorage(SettingsStore.Key.…)`), but observable so stores react to changes.
@@ -49,9 +49,15 @@ public final class SettingsStore {
     @ObservationIgnored private var isSyncingLaunchAtLogin = false
     /// Status source; injectable for tests.
     @ObservationIgnored let loginItemStatus: @MainActor () -> SMAppService.Status
-    public var startEngineOnLaunch: Bool { didSet { defaults.set(startEngineOnLaunch, forKey: Key.startEngineOnLaunch) } }
-    public var showStoppedContainers: Bool { didSet { defaults.set(showStoppedContainers, forKey: Key.showStoppedContainers) } }
-    public var hideSystemContainers: Bool { didSet { defaults.set(hideSystemContainers, forKey: Key.hideSystemContainers) } }
+    public var startEngineOnLaunch: Bool {
+        didSet { defaults.set(startEngineOnLaunch, forKey: Key.startEngineOnLaunch) }
+    }
+    public var showStoppedContainers: Bool {
+        didSet { defaults.set(showStoppedContainers, forKey: Key.showStoppedContainers) }
+    }
+    public var hideSystemContainers: Bool {
+        didSet { defaults.set(hideSystemContainers, forKey: Key.hideSystemContainers) }
+    }
     public var menuBarEnabled: Bool {
         didSet { defaults.set(menuBarEnabled, forKey: Key.menuBarEnabled); onBackgroundNeedsChange?() }
     }
@@ -69,8 +75,10 @@ public final class SettingsStore {
     }
     public var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
 
-    public init(defaults: UserDefaults = .standard,
-                loginItemStatus: @escaping @MainActor () -> SMAppService.Status = { SMAppService.mainApp.status }) {
+    public init(
+        defaults: UserDefaults = .standard,
+        loginItemStatus: @escaping @MainActor () -> SMAppService.Status = { SMAppService.mainApp.status }
+    ) {
         self.defaults = defaults
         self.loginItemStatus = loginItemStatus
         defaults.register(defaults: [
@@ -118,7 +126,7 @@ public final class SettingsStore {
         } catch {
             failure = error.localizedDescription
         }
-        refreshLaunchAtLogin()                       // the system is the source of truth
+        refreshLaunchAtLogin()  // the system is the source of truth
         if let failure { launchAtLoginError = failure }
     }
 
@@ -126,10 +134,12 @@ public final class SettingsStore {
 
     /// Settings summary for diagnostics.
     public var summary: [(String, String)] {
-        [("Launch at login", "\(launchAtLogin)"), ("Start engine on launch", "\(startEngineOnLaunch)"),
-         ("Show stopped", "\(showStoppedContainers)"), ("Hide system containers", "\(hideSystemContainers)"),
-         ("Menu bar", "\(menuBarEnabled)"), ("Polling interval", "\(pollingInterval)s"),
-         ("Notifications", "\(notificationsEnabled)"), ("Appearance", appearance.rawValue)]
+        [
+            ("Launch at login", "\(launchAtLogin)"), ("Start engine on launch", "\(startEngineOnLaunch)"),
+            ("Show stopped", "\(showStoppedContainers)"), ("Hide system containers", "\(hideSystemContainers)"),
+            ("Menu bar", "\(menuBarEnabled)"), ("Polling interval", "\(pollingInterval)s"),
+            ("Notifications", "\(notificationsEnabled)"), ("Appearance", appearance.rawValue),
+        ]
             + (launchAtLoginRequiresApproval ? [("Login item", "requires approval")] : [])
     }
 }

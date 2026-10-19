@@ -41,7 +41,8 @@ extension CLIBackend {
         let result = try await execute(arguments, timeout: nil)
         if let id = Self.lines(result.stdoutText).last?.trimmingCharacters(in: .whitespaces), !id.isEmpty { return id }
         if let name = spec.name, !name.isEmpty { return name }
-        throw BackendError.decoding(command: display(arguments), underlying: "The CLI did not print the new container's id.")
+        throw BackendError.decoding(
+            command: display(arguments), underlying: "The CLI did not print the new container's id.")
     }
 
     /// argv after the executable for `createContainer` (`-d` is meaningless for `create` and dropped).
@@ -106,12 +107,15 @@ extension CLIBackend {
     /// `container stats --no-stream --format json [-- IDS…]`.
     public func containerStats(ids: [String]) async throws -> [ContainerStats] {
         try Self.validateOperands(ids, "Container")
-        return try await decodeList(ContainerStats.self, ["stats", "--no-stream", "--format", "json"] + (ids.isEmpty ? [] : ["--"] + ids))
+        return try await decodeList(
+            ContainerStats.self, ["stats", "--no-stream", "--format", "json"] + (ids.isEmpty ? [] : ["--"] + ids))
     }
 
     /// `container exec [-w DIR] -- ID COMMAND…`. The command's own non-zero exit and stderr are returned, not
     /// thrown; only CLI-level failures throw: the system is down, or *this* container does not exist.
-    public func execCapture(_ id: String, command: [String], workingDirectory: String?) async throws
+    public func execCapture(
+        _ id: String, command: [String], workingDirectory: String?
+    ) async throws
         -> (exitCode: Int32, stdout: String, stderr: String)
     {
         try Self.validateOperand(id, "Container")
@@ -144,8 +148,9 @@ extension CLIBackend {
             return patterns.contains { pattern in
                 guard let range = line.range(of: pattern) else { return false }
                 // The id must end there (so `web` does not match `container web2 not found`).
-                return range.upperBound == line.endIndex || !(line[range.upperBound].isLetter || line[range.upperBound].isNumber
-                    || "-_.".contains(line[range.upperBound]))
+                return range.upperBound == line.endIndex
+                    || !(line[range.upperBound].isLetter || line[range.upperBound].isNumber
+                        || "-_.".contains(line[range.upperBound]))
             }
         }
     }

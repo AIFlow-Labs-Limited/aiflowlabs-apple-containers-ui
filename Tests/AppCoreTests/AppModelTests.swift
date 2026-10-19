@@ -1,7 +1,8 @@
-import Foundation
-import Testing
 import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
 @testable import AppCore
 
 @MainActor

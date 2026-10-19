@@ -11,7 +11,9 @@ import UserNotifications
 public final class SystemNotifier {
     public init() {}
 
-    public static var isAvailable: Bool { Bundle.main.bundleIdentifier != nil && Bundle.main.bundleURL.pathExtension == "app" }
+    public static var isAvailable: Bool {
+        Bundle.main.bundleIdentifier != nil && Bundle.main.bundleURL.pathExtension == "app"
+    }
 
     /// Asks for permission if the user has not decided yet. Returns whether posting is allowed.
     @discardableResult

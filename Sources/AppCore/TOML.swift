@@ -62,13 +62,16 @@ struct TOMLDocument {
                 let isArray = content.hasPrefix("[[")
                 let close = isArray ? "]]" : "]"
                 guard content.hasSuffix(close), content.count >= (isArray ? 4 : 2) else {
-                    entries.append(Entry(kind: .invalid("Section header is missing “\(close)”"), lines: start...start, table: table))
+                    entries.append(
+                        Entry(
+                            kind: .invalid("Section header is missing “\(close)”"), lines: start...start, table: table))
                     continue
                 }
                 let name = String(content.dropFirst(isArray ? 2 : 1).dropLast(isArray ? 2 : 1))
                 guard let path = Self.parseKey(name) else {
                     let shown = name.trimmingCharacters(in: .whitespaces)
-                    entries.append(Entry(kind: .invalid("Invalid section name “\(shown)”"), lines: start...start, table: table))
+                    entries.append(
+                        Entry(kind: .invalid("Invalid section name “\(shown)”"), lines: start...start, table: table))
                     continue
                 }
                 table = path
@@ -87,7 +90,8 @@ struct TOMLDocument {
                 continue
             }
             if value.isEmpty {
-                entries.append(Entry(kind: .invalid("Missing value for “\(keyText)”"), lines: start...start, table: table))
+                entries.append(
+                    Entry(kind: .invalid("Missing value for “\(keyText)”"), lines: start...start, table: table))
                 continue
             }
 
@@ -112,7 +116,8 @@ struct TOMLDocument {
                 }
                 if depth > 0 { unterminated = (start + 1, "Unterminated array") }
             }
-            entries.append(Entry(kind: .keyValue(keyText: keyText, key: key, value: value), lines: start...(i - 1), table: table))
+            entries.append(
+                Entry(kind: .keyValue(keyText: keyText, key: key, value: value), lines: start...(i - 1), table: table))
         }
     }
 
@@ -147,9 +152,13 @@ struct TOMLDocument {
         var quote: Character?
         for i in line.indices {
             let ch = line[i]
-            if let q = quote { if ch == q { quote = nil } }
-            else if ch == "\"" || ch == "'" { quote = ch }
-            else if ch == "=" { return i }
+            if let q = quote {
+                if ch == q { quote = nil }
+            } else if ch == "\"" || ch == "'" {
+                quote = ch
+            } else if ch == "=" {
+                return i
+            }
         }
         return nil
     }
@@ -171,7 +180,9 @@ struct TOMLDocument {
                 quote = ch
             } else if ch == "#" {
                 var start = i
-                while start > line.startIndex, line[line.index(before: start)].isWhitespace { start = line.index(before: start) }
+                while start > line.startIndex, line[line.index(before: start)].isWhitespace {
+                    start = line.index(before: start)
+                }
                 return start
             }
         }
@@ -221,7 +232,7 @@ public enum TOMLValidator {
         let doc = TOMLDocument(text)
         var issues: [TOMLIssue] = []
         var explicitTables = Set<[String]>()
-        var implicitTables = Set<[String]>()       // created by dotted keys
+        var implicitTables = Set<[String]>()  // created by dotted keys
         var keys = Set<[String]>()
         // Keys of each `[[array]]` element live in their own namespace.
         var scope: [String] = []
@@ -250,7 +261,9 @@ public enum TOMLValidator {
                     issues.append(TOMLIssue(line: line, message: "Duplicate key “\(keyText)”"))
                 }
                 keys.insert(full)
-                for n in stride(from: scope.count + 1, to: full.count, by: 1) { implicitTables.insert(Array(full.prefix(n))) }
+                for n in stride(from: scope.count + 1, to: full.count, by: 1) {
+                    implicitTables.insert(Array(full.prefix(n)))
+                }
                 if !value.hasPrefix("\"\"\"") && !value.hasPrefix("'''") && !TOMLDocument.isTerminatedString(value) {
                     issues.append(TOMLIssue(line: line, message: "Unterminated string"))
                 }
@@ -276,7 +289,8 @@ public enum TOMLEditor {
     /// Raw value text (`4`, `"8g"`) of `key` in `[section]` (or `section.key` written as a dotted key), or nil.
     public static func value(_ key: String, section: String, in text: String) -> String? {
         let doc = TOMLDocument(text)
-        guard let index = find(key, section: section, in: doc), case .keyValue(_, _, let value) = doc.entries[index].kind
+        guard let index = find(key, section: section, in: doc),
+            case .keyValue(_, _, let value) = doc.entries[index].kind
         else { return nil }
         return value
     }
@@ -323,14 +337,18 @@ public enum TOMLEditor {
             } else if let headerIndex {
                 insertAt = doc.entries[headerIndex].lines.upperBound + 1
             } else {
-                insertAt = doc.entries.first { if case .header = $0.kind { true } else { false } }?.lines.lowerBound ?? doc.lines.count
+                insertAt =
+                    doc.entries.first { if case .header = $0.kind { true } else { false } }?.lines.lowerBound
+                    ?? doc.lines.count
             }
             doc.lines.insert("\(key) = \(rawValue)", at: insertAt)
             return doc.render()
         }
         // No `[section]` header. If dotted keys already create that table, adding `[section]` would redefine it.
         let dotted = doc.entries.lastIndex { e in
-            if case .keyValue(_, let k, _) = e.kind { return Array((e.table + k).prefix(tablePath.count)) == tablePath && e.table.count < tablePath.count }
+            if case .keyValue(_, let k, _) = e.kind {
+                return Array((e.table + k).prefix(tablePath.count)) == tablePath && e.table.count < tablePath.count
+            }
             return false
         }
         if let dotted, case .keyValue(_, _, _) = doc.entries[dotted].kind {

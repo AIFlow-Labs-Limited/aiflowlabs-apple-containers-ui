@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Runtime config of one variant: Cmd, Entrypoint, Env (secrets masked), WorkingDir, User, ports, volumes, labels.
 struct ImageConfigSection: View {
@@ -26,7 +26,11 @@ struct ImageConfigSection: View {
                 InspectorSection("Environment") { environment(runtime.env ?? []) }
                 InspectorSection("Labels") {
                     let labels = (runtime.labels ?? [:]).sorted { $0.key < $1.key }
-                    if labels.isEmpty { Text("None").foregroundStyle(.secondary) } else { KeyValueGrid(labels.map { ($0.key, $0.value) }) }
+                    if labels.isEmpty {
+                        Text("None").foregroundStyle(.secondary)
+                    } else {
+                        KeyValueGrid(labels.map { ($0.key, $0.value) })
+                    }
                 }
             }
         } else {
@@ -59,7 +63,9 @@ struct ImageConfigSection: View {
                 }
                 HStack {
                     Spacer()
-                    CopyButton(EnvironmentVariable.masked(env).joined(separator: "\n"), label: "Copy environment (secrets masked)")
+                    CopyButton(
+                        EnvironmentVariable.masked(env).joined(separator: "\n"),
+                        label: "Copy environment (secrets masked)")
                 }
             }
         }
@@ -90,12 +96,15 @@ struct ImageLayersSection: View {
             InspectorSection("Layer diff IDs (\(diffIDs.count))") {
                 ForEach(Array(diffIDs.enumerated()), id: \.offset) { index, id in
                     HStack(alignment: .firstTextBaseline) {
-                        Text("\(index + 1)").font(.caption).foregroundStyle(.tertiary).frame(width: 20, alignment: .trailing)
+                        Text("\(index + 1)").font(.caption).foregroundStyle(.tertiary).frame(
+                            width: 20, alignment: .trailing)
                         Text(id).font(.monoCaption).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
                     }
                 }
                 if !diffIDs.isEmpty {
-                    HStack { Spacer(); CopyButton(diffIDs.joined(separator: "\n"), label: "Copy diff IDs") }
+                    HStack {
+                        Spacer(); CopyButton(diffIDs.joined(separator: "\n"), label: "Copy diff IDs")
+                    }
                 }
             }
         }
@@ -113,7 +122,8 @@ private struct LayerRow: View {
                 if step.emptyLayer == true { TagBadge("empty") } else { TagBadge("layer", tint: .accentColor) }
                 Spacer()
                 if let created = step.created {
-                    Text(RelativeDate.format(created)).font(.caption).foregroundStyle(.secondary).help(RelativeDate.absolute(created))
+                    Text(RelativeDate.format(created)).font(.caption).foregroundStyle(.secondary).help(
+                        RelativeDate.absolute(created))
                 }
             }
             Text(LayerHistoryText.shorten(step.createdBy ?? step.comment ?? "—"))

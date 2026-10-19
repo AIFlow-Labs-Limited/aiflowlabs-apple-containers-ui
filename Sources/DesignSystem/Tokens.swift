@@ -1,8 +1,8 @@
+import AppKit
+import ContainerKit
 // DesignSystem — tokens and reusable SwiftUI components for Container Desktop.
 // Owned by the "shell" workstream; see docs/ARCHITECTURE.md § DesignSystem.
 import SwiftUI
-import AppKit
-import ContainerKit
 
 /// Namespace + version marker for the design system.
 public enum DesignSystem {
@@ -87,11 +87,17 @@ public extension BackendError {
         let flag = #"(\s(?:-e|--env)(?:\s+|=))"#
         var masked = command
         // -e 'KEY=…'
-        masked = masked.replacing(try! Regex(flag + #"'([^'=\s]+)=[^']*'"#)) { m in "\(m[1].substring ?? "")'\(m[2].substring ?? "")=…'" }
+        masked = masked.replacing(try! Regex(flag + #"'([^'=\s]+)=[^']*'"#)) { m in
+            "\(m[1].substring ?? "")'\(m[2].substring ?? "")=…'"
+        }
         // -e "KEY=…"
-        masked = masked.replacing(try! Regex(flag + #""([^"=\s]+)=(?:[^"\\]|\\.)*""#)) { m in "\(m[1].substring ?? "")\"\(m[2].substring ?? "")=…\"" }
+        masked = masked.replacing(try! Regex(flag + #""([^"=\s]+)=(?:[^"\\]|\\.)*""#)) { m in
+            "\(m[1].substring ?? "")\"\(m[2].substring ?? "")=…\""
+        }
         // -e KEY=value / -e KEY='quoted value'
-        masked = masked.replacing(try! Regex(flag + #"([^\s'"=]+)=(?:'[^']*'|"[^"]*"|[^\s'"])+"#)) { m in "\(m[1].substring ?? "")\(m[2].substring ?? "")=…" }
+        masked = masked.replacing(try! Regex(flag + #"([^\s'"=]+)=(?:'[^']*'|"[^"]*"|[^\s'"])+"#)) { m in
+            "\(m[1].substring ?? "")\(m[2].substring ?? "")=…"
+        }
         masked = masked.replacing(/([A-Za-z][A-Za-z0-9+.\-]*:\/\/[^\/\s:@]*:)[^\/\s@]+@/) { m in "\(m.output.1)••••@" }
         return masked
     }

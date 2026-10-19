@@ -1,10 +1,10 @@
-import SwiftUI
+import AppCore
 import AppKit
-import UniformTypeIdentifiers
 import ContainerKit
 import ContainerKitMock
-import AppCore
 import DesignSystem
+import SwiftUI
+import UniformTypeIdentifiers
 
 /// Logs tab: follow / wrap / timestamps / boot-log toggles, search with match count and next/previous,
 /// save, copy, clear. The stream lives in `ContainerLogsModel` and stops when the tab disappears.
@@ -30,18 +30,24 @@ struct ContainerLogsTab: View {
                 ErrorBanner(error, retry: restart).padding(Spacing.s)
             }
             if logs.buffer.isEmpty {
-                EmptyStateView(symbol: "text.alignleft", title: logs.isStreaming ? "Waiting for output…" : "No output",
-                               message: boot ? "The VM boot log is empty." : "This container has not written anything to stdout or stderr.")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(nsColor: .textBackgroundColor))
+                EmptyStateView(
+                    symbol: "text.alignleft", title: logs.isStreaming ? "Waiting for output…" : "No output",
+                    message: boot
+                        ? "The VM boot log is empty." : "This container has not written anything to stdout or stderr."
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .textBackgroundColor))
             } else {
-                LogConsole(logs: logs, wrap: wrap, timestamps: timestamps, follow: follow && query.isEmpty,
-                           current: matches.isEmpty ? nil : matches[min(currentMatch, matches.count - 1)])
+                LogConsole(
+                    logs: logs, wrap: wrap, timestamps: timestamps, follow: follow && query.isEmpty,
+                    current: matches.isEmpty ? nil : matches[min(currentMatch, matches.count - 1)])
             }
         }
         .task(id: "\(container.id)|\(boot)|\(container.isRunning)") { restart() }
         .onDisappear { logs.stop() }
-        .onChange(of: query) { logs.setQuery(query); currentMatch = 0 }
+        .onChange(of: query) {
+            logs.setQuery(query); currentMatch = 0
+        }
     }
 
     private func restart() {
@@ -65,30 +71,46 @@ struct ContainerLogsTab: View {
                 Text(matches.isEmpty ? "No matches" : "\(min(currentMatch, matches.count - 1) + 1) of \(matches.count)")
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     .fixedSize()
-                Button { step(-1, matches: matches) } label: { SwiftUI.Image(systemName: "chevron.up") }
-                    .help("Previous match (⇧⌘G)")
-                    .accessibilityLabel("Previous match")
-                    .keyboardShortcut("g", modifiers: [.command, .shift])
-                    .disabled(matches.isEmpty)
-                Button { step(1, matches: matches) } label: { SwiftUI.Image(systemName: "chevron.down") }
-                    .help("Next match (⌘G)")
-                    .accessibilityLabel("Next match")
-                    .keyboardShortcut("g", modifiers: .command)
-                    .disabled(matches.isEmpty)
+                Button {
+                    step(-1, matches: matches)
+                } label: {
+                    SwiftUI.Image(systemName: "chevron.up")
+                }
+                .help("Previous match (⇧⌘G)")
+                .accessibilityLabel("Previous match")
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(matches.isEmpty)
+                Button {
+                    step(1, matches: matches)
+                } label: {
+                    SwiftUI.Image(systemName: "chevron.down")
+                }
+                .help("Next match (⌘G)")
+                .accessibilityLabel("Next match")
+                .keyboardShortcut("g", modifiers: .command)
+                .disabled(matches.isEmpty)
             }
             Spacer(minLength: 0)
             if logs.isStreaming {
                 ProgressView().controlSize(.small).help("Streaming")
             }
             Text("\(logs.buffer.count) lines").font(.caption).foregroundStyle(.secondary).monospacedDigit().fixedSize()
-            Button { copyToPasteboard(logs.buffer.text(timestamps: timestamps)) } label: { SwiftUI.Image(systemName: "doc.on.doc") }
-                .help("Copy the \(logs.buffer.count) lines in view")
-                .accessibilityLabel("Copy \(logs.buffer.count) lines")
+            Button {
+                copyToPasteboard(logs.buffer.text(timestamps: timestamps))
+            } label: {
+                SwiftUI.Image(systemName: "doc.on.doc")
+            }
+            .help("Copy the \(logs.buffer.count) lines in view")
+            .accessibilityLabel("Copy \(logs.buffer.count) lines")
             Button(action: save) { SwiftUI.Image(systemName: "square.and.arrow.down") }
                 .help("Save the full log to a file…").accessibilityLabel("Save full log")
                 .disabled(saving)
-            Button { logs.clear() } label: { SwiftUI.Image(systemName: "clear") }
-                .help("Clear the view").accessibilityLabel("Clear")
+            Button {
+                logs.clear()
+            } label: {
+                SwiftUI.Image(systemName: "clear")
+            }
+            .help("Clear the view").accessibilityLabel("Clear")
         }
         .toggleStyle(.button)
         .labelStyle(.iconOnly)
@@ -179,7 +201,9 @@ private struct LogConsole: View {
     }
 
     private func scroll(_ proxy: ScrollViewProxy, to id: Int, anchor: UnitPoint) {
-        if reduceMotion { proxy.scrollTo(id, anchor: anchor) } else {
+        if reduceMotion {
+            proxy.scrollTo(id, anchor: anchor)
+        } else {
             withAnimation(.linear(duration: 0.1)) { proxy.scrollTo(id, anchor: anchor) }
         }
     }
@@ -204,9 +228,14 @@ private struct LogConsole: View {
 
 #Preview("Logs") {
     let model = AppModel(backend: MockBackend(), observeAppActivation: false)
-    let c = Container(id: "api", configuration: .init(
-        id: "api", image: ImageReference(reference: "acdemo-api:latest", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
-        creationDate: .now, initProcess: .init(executable: "uvicorn")), status: .init(state: .running, startedDate: .now))
+    let c = Container(
+        id: "api",
+        configuration: .init(
+            id: "api",
+            image: ImageReference(
+                reference: "acdemo-api:latest", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
+            creationDate: .now, initProcess: .init(executable: "uvicorn")),
+        status: .init(state: .running, startedDate: .now))
     ContainerLogsTab(container: c)
         .appModelEnvironment(model)
         .frame(width: 900, height: 400)

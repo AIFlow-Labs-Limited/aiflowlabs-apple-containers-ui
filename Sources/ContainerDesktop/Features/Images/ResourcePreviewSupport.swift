@@ -1,9 +1,9 @@
-import SwiftUI
+import AppCore
 import AppKit
-import UniformTypeIdentifiers
 import ContainerKit
 import ContainerKitMock
-import AppCore
+import SwiftUI
+import UniformTypeIdentifiers
 
 /// The one `#Preview` factory for every feature in this folder group (resources + platform).
 @MainActor
@@ -12,8 +12,9 @@ enum ResourcePreview {
     static func model() -> AppModel {
         let defaults = UserDefaults(suiteName: "ContainerDesktop.previews") ?? .standard
         let history = FileManager.default.temporaryDirectory.appending(path: "cd-preview-builds.json")
-        let model = AppModel(backend: MockBackend(), settings: SettingsStore(defaults: defaults),
-                             buildsHistoryURL: history, observeAppActivation: false)
+        let model = AppModel(
+            backend: MockBackend(), settings: SettingsStore(defaults: defaults),
+            buildsHistoryURL: history, observeAppActivation: false)
         Task {
             await model.refreshEngine()
             await model.refreshAll()

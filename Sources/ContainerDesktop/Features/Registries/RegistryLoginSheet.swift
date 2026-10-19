@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Log in to a registry. The password is handed to the backend (piped to `--password-stdin`), cleared from
 /// this view right after the attempt, and never logged. Backend errors show inline; the sheet stays open.
@@ -19,8 +19,12 @@ struct RegistryLoginSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     /// `server` prefills the sheet (e.g. from Push → "Sign in…"); `nil` starts on Docker Hub.
-    init(server: String? = nil,
-         login: @escaping (_ server: String, _ username: String, _ password: String, _ scheme: String?) async -> BackendError?) {
+    init(
+        server: String? = nil,
+        login:
+            @escaping (_ server: String, _ username: String, _ password: String, _ scheme: String?) async ->
+            BackendError?
+    ) {
         self.login = login
         let initial = server.map(RegistryServerRule.normalize) ?? (RegistryPreset.dockerHub.server ?? "")
         let preset = RegistryPreset.matching(server: initial)
@@ -40,7 +44,11 @@ struct RegistryLoginSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: preset) { _, p in
-                    if let fixed = p.server { server = fixed } else if RegistryPreset.matching(server: server) != .custom { server = "" }
+                    if let fixed = p.server {
+                        server = fixed
+                    } else if RegistryPreset.matching(server: server) != .custom {
+                        server = ""
+                    }
                     if !p.allowsHTTP { useHTTP = false }
                     error = nil
                 }
@@ -60,8 +68,10 @@ struct RegistryLoginSheet: View {
                     }
                     .pickerStyle(.segmented)
                     if useHTTP {
-                        Text("Only for local registries (for example localhost:5000). Credentials are sent unencrypted.")
-                            .font(.caption).foregroundStyle(.statusWarning)
+                        Text(
+                            "Only for local registries (for example localhost:5000). Credentials are sent unencrypted."
+                        )
+                        .font(.caption).foregroundStyle(.statusWarning)
                     }
                 }
             }
@@ -69,8 +79,10 @@ struct RegistryLoginSheet: View {
             if let error {
                 ErrorBanner(error, dismiss: { self.error = nil })
             }
-            Text("The password goes straight to the container CLI and is saved in your macOS Keychain. Paste it from your password manager.")
-                .font(.caption).foregroundStyle(.secondary)
+            Text(
+                "The password goes straight to the container CLI and is saved in your macOS Keychain. Paste it from your password manager."
+            )
+            .font(.caption).foregroundStyle(.secondary)
             HStack {
                 if busy { ProgressView().controlSize(.small).accessibilityLabel("Logging in") }
                 Spacer()

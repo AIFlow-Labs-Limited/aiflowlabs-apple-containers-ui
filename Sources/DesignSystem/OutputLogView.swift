@@ -1,5 +1,5 @@
-import SwiftUI
 import ContainerKit
+import SwiftUI
 
 /// Fast monospaced log viewer: lazy rows, stderr tinted, auto-scroll while following, built-in search.
 ///
@@ -22,8 +22,10 @@ public struct OutputLogView: View {
     private static let bottomID = -1
 
     /// Ring-buffer form: `firstLineNumber` = lines dropped so far, `totalAppended` = lines ever appended.
-    public init(lines: ArraySlice<OutputLine>, firstLineNumber: Int, totalAppended: Int, follow: Bool = true,
-                filter: String = "", showsSearchField: Bool = true, showsTimestamps: Bool = false) {
+    public init(
+        lines: ArraySlice<OutputLine>, firstLineNumber: Int, totalAppended: Int, follow: Bool = true,
+        filter: String = "", showsSearchField: Bool = true, showsTimestamps: Bool = false
+    ) {
         self.lines = lines
         self.firstLineNumber = firstLineNumber
         self.followToken = totalAppended
@@ -34,10 +36,13 @@ public struct OutputLogView: View {
         _query = State(initialValue: filter)
     }
 
-    public init(lines: [OutputLine], follow: Bool = true, filter: String = "",
-                showsSearchField: Bool = true, showsTimestamps: Bool = false) {
-        self.init(lines: lines[...], firstLineNumber: 0, totalAppended: lines.count, follow: follow, filter: filter,
-                  showsSearchField: showsSearchField, showsTimestamps: showsTimestamps)
+    public init(
+        lines: [OutputLine], follow: Bool = true, filter: String = "",
+        showsSearchField: Bool = true, showsTimestamps: Bool = false
+    ) {
+        self.init(
+            lines: lines[...], firstLineNumber: 0, totalAppended: lines.count, follow: follow, filter: filter,
+            showsSearchField: showsSearchField, showsTimestamps: showsTimestamps)
         // A capped array stops growing; the last line still changes, so follow on it too.
         self.followTokenOverride = lines.count &+ (lines.last?.hashValue ?? 0)
     }
@@ -57,7 +62,9 @@ public struct OutputLogView: View {
         let base = firstLineNumber - lines.startIndex
         for index in lines.indices {
             let line = lines[index]
-            if q.isEmpty || line.text.localizedCaseInsensitiveContains(q) { rows.append(Row(id: base + index, line: line)) }
+            if q.isEmpty || line.text.localizedCaseInsensitiveContains(q) {
+                rows.append(Row(id: base + index, line: line))
+            }
         }
         return rows
     }
@@ -127,9 +134,12 @@ private struct LogRow: View {
 }
 
 #Preview("OutputLogView") {
-    OutputLogView(lines: (0..<200).map { i in
-        OutputLine(i % 9 == 0 ? "warning: something odd at step \(i)" : "[\(i)/200] Fetching layer sha256:\(i)…",
-                   stream: i % 9 == 0 ? .stderr : .stdout)
-    }, follow: true, showsTimestamps: true)
+    OutputLogView(
+        lines: (0..<200).map { i in
+            OutputLine(
+                i % 9 == 0 ? "warning: something odd at step \(i)" : "[\(i)/200] Fetching layer sha256:\(i)…",
+                stream: i % 9 == 0 ? .stderr : .stdout)
+        }, follow: true, showsTimestamps: true
+    )
     .frame(width: 600, height: 360)
 }

@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 // Form models for the Machines / Kubernetes / Registries sheets (features-platform). They live in AppCore so the
 // validation, defaults and command previews are unit-testable; the views only bind to them.
@@ -16,8 +16,9 @@ public struct HostResources: Hashable, Sendable {
 
     /// This Mac.
     public static var current: HostResources {
-        HostResources(cpus: ProcessInfo.processInfo.activeProcessorCount,
-                      memoryBytes: Int64(clamping: ProcessInfo.processInfo.physicalMemory))
+        HostResources(
+            cpus: ProcessInfo.processInfo.activeProcessorCount,
+            memoryBytes: Int64(clamping: ProcessInfo.processInfo.physicalMemory))
     }
 
     /// Whole gigabytes of RAM (rounded down, at least 1).
@@ -64,21 +65,26 @@ public struct MachineImageOption: Identifiable, Hashable, Sendable {
 
     /// Images known to boot (or known not to without extra work) on CLI 1.5.0.
     public static let curated: [MachineImageOption] = [
-        MachineImageOption(reference: "ghcr.io/linuxcontainers/alpine:3.20", title: "Alpine 3.20 — verified",
-                           note: "Apple's own machine test image. Boots in seconds.", support: .verified),
-        MachineImageOption(reference: "ubuntu:24.04", title: "Ubuntu 24.04 — needs systemd image",
-                           note: "Stock Ubuntu has no init. Build the systemd Dockerfile from Apple's machine docs first.",
-                           support: .needsSetup),
-        MachineImageOption(reference: "debian:bookworm", title: "Debian 12 — unverified",
-                           note: "Not tested yet. Needs a real /sbin/init to boot.", support: .unverified),
+        MachineImageOption(
+            reference: "ghcr.io/linuxcontainers/alpine:3.20", title: "Alpine 3.20 — verified",
+            note: "Apple's own machine test image. Boots in seconds.", support: .verified),
+        MachineImageOption(
+            reference: "ubuntu:24.04", title: "Ubuntu 24.04 — needs systemd image",
+            note: "Stock Ubuntu has no init. Build the systemd Dockerfile from Apple's machine docs first.",
+            support: .needsSetup),
+        MachineImageOption(
+            reference: "debian:bookworm", title: "Debian 12 — unverified",
+            note: "Not tested yet. Needs a real /sbin/init to boot.", support: .unverified),
     ]
 
     /// The image the create sheet offers instead of a known-broken one.
     public static var verified: MachineImageOption { curated[0] }
 
     /// Spellings of Docker Hub's `alpine`, shown to the user when one is blocked.
-    public static let knownBrokenPatterns = ["alpine", "alpine:<tag>", "alpine:latest", "docker.io/alpine:<tag>",
-                                             "docker.io/library/alpine:<tag>", "index.docker.io/library/alpine:<tag>"]
+    public static let knownBrokenPatterns = [
+        "alpine", "alpine:<tag>", "alpine:latest", "docker.io/alpine:<tag>",
+        "docker.io/library/alpine:<tag>", "index.docker.io/library/alpine:<tag>",
+    ]
 
     /// Docker Hub's `alpine` (any tag or digest, any spelling) uses busybox init, which calls a missing
     /// /sbin/openrc and reboots immediately. `ghcr.io/linuxcontainers/alpine` is a different image and boots.
@@ -108,7 +114,8 @@ public enum HomeMountMode: String, CaseIterable, Identifiable, Sendable {
     }
     public var explanation: String {
         switch self {
-        case .readWrite: return "Your home folder appears at the same path inside the machine. Changes there change your Mac."
+        case .readWrite:
+            return "Your home folder appears at the same path inside the machine. Changes there change your Mac."
         case .readOnly: return "The machine can read your home folder but can't change it."
         case .none: return "The machine only sees its own disk."
         }
@@ -192,7 +199,9 @@ public enum MachineResize {
     }
 
     /// The command for `settings`, in the same key order `CLIBackend.configureMachine` sends (sorted).
-    public static func previewCommand(name: String, settings: [String: String], executable: String = "container") -> String {
+    public static func previewCommand(
+        name: String, settings: [String: String], executable: String = "container"
+    ) -> String {
         let pairs = settings.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
         return CommandLine(executable: executable, arguments: ["machine", "set", "-n", name] + pairs).display
     }
@@ -276,8 +285,10 @@ public enum RegistryPreset: String, CaseIterable, Identifiable, Sendable {
 
     public var hint: String {
         switch self {
-        case .dockerHub: return "Use an access token, not your password (Docker Hub → Account settings → Personal access tokens)."
-        case .ghcr: return "Use a personal access token (classic) with the write:packages scope (read:packages to pull only)."
+        case .dockerHub:
+            return "Use an access token, not your password (Docker Hub → Account settings → Personal access tokens)."
+        case .ghcr:
+            return "Use a personal access token (classic) with the write:packages scope (read:packages to pull only)."
         case .custom: return "Credentials are stored in your macOS Keychain by the container CLI."
         }
     }
@@ -302,7 +313,9 @@ public enum RegistryServerRule {
     public static func validate(_ server: String) -> String? {
         let s = normalize(server)
         if s.isEmpty { return "Enter a registry server." }
-        if s.hasPrefix("http://") || s.hasPrefix("https://") { return "Leave out http:// or https:// — pick the scheme below." }
+        if s.hasPrefix("http://") || s.hasPrefix("https://") {
+            return "Leave out http:// or https:// — pick the scheme below."
+        }
         if s.contains(where: \.isWhitespace) { return "Server names can't contain spaces." }
         guard s.wholeMatch(of: /[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?(\/[a-z0-9._\/-]+)?/) != nil else {
             return "Use a host name like registry.example.com or localhost:5000."

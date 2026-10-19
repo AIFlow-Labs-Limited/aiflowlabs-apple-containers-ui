@@ -119,8 +119,10 @@ public struct Container: Codable, Identifiable, Hashable, Sendable {
         public var terminal: Bool
         public var user: User?
 
-        public init(executable: String, arguments: [String] = [], environment: [String] = [],
-                    workingDirectory: String? = "/", terminal: Bool = false, user: User? = nil) {
+        public init(
+            executable: String, arguments: [String] = [], environment: [String] = [],
+            workingDirectory: String? = "/", terminal: Bool = false, user: User? = nil
+        ) {
             self.executable = executable
             self.arguments = arguments
             self.environment = environment
@@ -242,7 +244,9 @@ public struct Container: Codable, Identifiable, Hashable, Sendable {
         public var proto: String
         public var count: Int?
 
-        public init(hostAddress: String = "127.0.0.1", hostPort: Int, containerPort: Int, proto: String = "tcp", count: Int? = 1) {
+        public init(
+            hostAddress: String = "127.0.0.1", hostPort: Int, containerPort: Int, proto: String = "tcp", count: Int? = 1
+        ) {
             self.hostAddress = hostAddress; self.hostPort = hostPort; self.containerPort = containerPort
             self.proto = proto; self.count = count
         }
@@ -264,7 +268,9 @@ public struct Container: Codable, Identifiable, Hashable, Sendable {
     public struct PublishedSocket: Codable, Hashable, Sendable {
         public var hostPath: String
         public var containerPath: String
-        public init(hostPath: String, containerPath: String) { self.hostPath = hostPath; self.containerPath = containerPath }
+        public init(hostPath: String, containerPath: String) {
+            self.hostPath = hostPath; self.containerPath = containerPath
+        }
     }
 
     public struct DNSConfiguration: Codable, Hashable, Sendable {
@@ -272,8 +278,11 @@ public struct Container: Codable, Identifiable, Hashable, Sendable {
         public var nameservers: [String]
         public var searchDomains: [String]
         public var options: [String]
-        public init(domain: String? = nil, nameservers: [String] = [], searchDomains: [String] = [], options: [String] = []) {
-            self.domain = domain; self.nameservers = nameservers; self.searchDomains = searchDomains; self.options = options
+        public init(
+            domain: String? = nil, nameservers: [String] = [], searchDomains: [String] = [], options: [String] = []
+        ) {
+            self.domain = domain; self.nameservers = nameservers; self.searchDomains = searchDomains;
+            self.options = options
         }
     }
 
@@ -306,9 +315,13 @@ public struct Container: Codable, Identifiable, Hashable, Sendable {
         public var mtu: Int?
         public var variant: String?
 
-        public init(network: String = "default", hostname: String? = nil, ipv4Address: String, ipv4Gateway: String? = "192.168.64.1",
-                    ipv6Address: String? = nil, macAddress: String? = nil, mtu: Int? = nil, variant: String? = nil) {
-            self.network = network; self.hostname = hostname; self.ipv4Address = ipv4Address; self.ipv4Gateway = ipv4Gateway
+        public init(
+            network: String = "default", hostname: String? = nil, ipv4Address: String,
+            ipv4Gateway: String? = "192.168.64.1",
+            ipv6Address: String? = nil, macAddress: String? = nil, mtu: Int? = nil, variant: String? = nil
+        ) {
+            self.network = network; self.hostname = hostname; self.ipv4Address = ipv4Address;
+            self.ipv4Gateway = ipv4Gateway
             self.ipv6Address = ipv6Address; self.macAddress = macAddress; self.mtu = mtu; self.variant = variant
         }
     }

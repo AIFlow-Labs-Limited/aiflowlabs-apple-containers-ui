@@ -55,7 +55,9 @@ extension CLIBackend {
     /// `container image save --output TAR [--platform P] -- REFS…`.
     public func saveImages(_ references: [String], to tarPath: String, platform: Platform?) async throws {
         try Self.validateOperands(references, "Image reference")
-        let arguments = ["image", "save", "--output", tarPath] + (platform.map { ["--platform", $0.slug] } ?? []) + ["--"] + references
+        let arguments =
+            ["image", "save", "--output", tarPath] + (platform.map { ["--platform", $0.slug] } ?? []) + ["--"]
+            + references
         try await execute(arguments, timeout: nil)
     }
 

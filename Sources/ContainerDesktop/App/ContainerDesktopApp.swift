@@ -1,9 +1,9 @@
-import SwiftUI
+import AppCore
 import AppKit
 import ContainerKit
 import ContainerKitMock
-import AppCore
 import DesignSystem
+import SwiftUI
 
 @main
 struct ContainerDesktopApp: App {
@@ -34,8 +34,11 @@ struct ContainerDesktopApp: App {
         }
         .defaultSize(width: 860, height: 520)
 
-        MenuBarExtra(isInserted: Binding(get: { model.settings.menuBarEnabled },
-                                         set: { model.settings.menuBarEnabled = $0 })) {
+        MenuBarExtra(
+            isInserted: Binding(
+                get: { model.settings.menuBarEnabled },
+                set: { model.settings.menuBarEnabled = $0 })
+        ) {
             MenuBarContent()
                 .appModelEnvironment(model)
         } label: {

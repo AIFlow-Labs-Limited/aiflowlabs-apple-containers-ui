@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// Bounded log line buffer (oldest lines dropped first) with case-insensitive search.
 ///
@@ -53,7 +53,8 @@ public struct LogRingBuffer: Sendable, Equatable {
 
     /// `HH:mm:ss.SSS` in the current time zone.
     public static func timestamp(_ date: Date) -> String {
-        date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)
-            .secondFraction(.fractional(3)))
+        date.formatted(
+            .dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)
+                .secondFraction(.fractional(3)))
     }
 }

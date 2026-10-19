@@ -1,7 +1,8 @@
-import Testing
-import Foundation
-@testable import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
+@testable import ContainerKit
 
 @Suite("CLI 1.5.0 fixture decoding")
 struct ModelDecodingTests {
@@ -79,7 +80,7 @@ struct ModelDecodingTests {
         #expect(m.id == "probe-m")
         #expect(m.isDefault)
         #expect(m.status == .stopped)
-        #expect(m.userSetup == nil)   // only `machine inspect` includes userSetup
+        #expect(m.userSetup == nil)  // only `machine inspect` includes userSetup
     }
 
     @Test func dates() {
@@ -127,7 +128,11 @@ struct ModelDecodingTests {
         spec.environment = ["POSTGRES_PASSWORD=x"]
         spec.ports = [.init(hostAddress: "127.0.0.1", hostPort: 5432, containerPort: 5432)]
         spec.mounts = [.init(kind: .volume(name: "pgdata"), target: "/var/lib/postgresql/data")]
-        #expect(spec.cliArguments == ["-d", "--name", "db", "-e", "POSTGRES_PASSWORD=x", "-p", "127.0.0.1:5432:5432/tcp", "-v", "pgdata:/var/lib/postgresql/data", "-m", "2G", "postgres:16"])
+        #expect(
+            spec.cliArguments == [
+                "-d", "--name", "db", "-e", "POSTGRES_PASSWORD=x", "-p", "127.0.0.1:5432:5432/tcp", "-v",
+                "pgdata:/var/lib/postgresql/data", "-m", "2G", "postgres:16",
+            ])
     }
 
     @Test func mockBackendMutates() async throws {

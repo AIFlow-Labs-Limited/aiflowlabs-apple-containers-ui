@@ -1,9 +1,9 @@
-import SwiftUI
-import AppKit
-import UniformTypeIdentifiers
-import ContainerKit
 import AppCore
+import AppKit
+import ContainerKit
 import DesignSystem
+import SwiftUI
+import UniformTypeIdentifiers
 
 /// Ports section: host → container rows, "Suggest" fills the image's EXPOSE ports.
 struct RunPortsSection: View {
@@ -37,7 +37,11 @@ struct RunPortsSection: View {
             HStack {
                 Button("Add Port", systemImage: "plus") { form.ports.append(.init()) }
                 Button(action: suggest) {
-                    if isSuggesting { ProgressView().controlSize(.small) } else { Label("Suggest", systemImage: "wand.and.stars") }
+                    if isSuggesting {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label("Suggest", systemImage: "wand.and.stars")
+                    }
                 }
                 .help("Publish the ports the image declares with EXPOSE")
                 .disabled(form.image.isEmpty || isSuggesting)
@@ -74,7 +78,11 @@ struct RunVolumesSection: View {
                     case .volume:
                         TextField("Volume", text: $row.source, prompt: Text("data"))
                             .textInputSuggestions {
-                                ForEach(volumeNames.filter { row.source.isEmpty || $0.localizedCaseInsensitiveContains(row.source) }, id: \.self) {
+                                ForEach(
+                                    volumeNames.filter {
+                                        row.source.isEmpty || $0.localizedCaseInsensitiveContains(row.source)
+                                    }, id: \.self
+                                ) {
                                     Text($0).textInputCompletion($0)
                                 }
                             }
@@ -106,7 +114,8 @@ struct RunVolumesSection: View {
         panel.allowsMultipleSelection = false
         panel.prompt = "Mount"
         guard panel.runModal() == .OK, let url = panel.url,
-              let index = form.volumes.firstIndex(where: { $0.id == id }) else { return }
+            let index = form.volumes.firstIndex(where: { $0.id == id })
+        else { return }
         form.volumes[index].source = url.path
         if form.volumes[index].target.isEmpty { form.volumes[index].target = "/" + url.lastPathComponent }
     }
@@ -138,7 +147,9 @@ struct RunKeyValueSection: View {
                     }
                     .font(.monoBody)
                     .accessibilityLabel("\(title) value")
-                    RemoveRowButton(label: "Remove \(row.key.isEmpty ? "row" : row.key)") { rows.removeAll { $0.id == row.id } }
+                    RemoveRowButton(label: "Remove \(row.key.isEmpty ? "row" : row.key)") {
+                        rows.removeAll { $0.id == row.id }
+                    }
                 }
                 .textFieldStyle(.roundedBorder)
                 .labelsHidden()
@@ -166,7 +177,9 @@ struct RunKeyValueSection: View {
             let text = try String(contentsOf: url, encoding: .utf8)
             let parsed = DotEnv.parse(text)
             for v in parsed {
-                if let i = rows.firstIndex(where: { $0.key == v.key }) { rows[i].value = v.value ?? "" } else {
+                if let i = rows.firstIndex(where: { $0.key == v.key }) {
+                    rows[i].value = v.value ?? ""
+                } else {
                     rows.append(.init(key: v.key, value: v.value ?? ""))
                 }
             }

@@ -1,7 +1,8 @@
-import Foundation
-import Testing
 import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
 @testable import AppCore
 
 @Suite struct PlatformFeaturesTests {
@@ -36,10 +37,16 @@ import ContainerKitMock
         form.cpus = 2
         form.memoryGB = 2
         form.setDefault = true
-        #expect(form.previewCommand() ==
-            "container machine create --name cd-ui-test --cpus 2 --memory 2G --home-mount rw --set-default ghcr.io/linuxcontainers/alpine:3.20")
-        #expect(form.previewCommand() == CommandLine(executable: "container",
-                                                     arguments: ["machine", "create"] + form.spec.cliArguments).display)
+        #expect(
+            form.previewCommand()
+                == "container machine create --name cd-ui-test --cpus 2 --memory 2G --home-mount rw --set-default ghcr.io/linuxcontainers/alpine:3.20"
+        )
+        #expect(
+            form.previewCommand()
+                == CommandLine(
+                    executable: "container",
+                    arguments: ["machine", "create"] + form.spec.cliArguments
+                ).display)
     }
 
     @Test func machineFormBootAndVirtualization() {
@@ -52,7 +59,9 @@ import ContainerKitMock
         #expect(!form.isValid)
         form.kernelPath = "/k/vmlinux"
         #expect(form.isValid)
-        #expect(form.previewCommand().hasSuffix("--home-mount none --no-boot --virtualization --kernel /k/vmlinux ghcr.io/linuxcontainers/alpine:3.20"))
+        #expect(
+            form.previewCommand().hasSuffix(
+                "--home-mount none --no-boot --virtualization --kernel /k/vmlinux ghcr.io/linuxcontainers/alpine:3.20"))
         #expect(!form.previewCommand().contains("--user"))
     }
 
@@ -80,15 +89,19 @@ import ContainerKitMock
         #expect(form.imageError == nil && form.isValid)
     }
 
-    @Test(arguments: ["alpine", "alpine:latest", "alpine:3.22", "Alpine:3.20", "docker.io/alpine", "docker.io/alpine:3.19",
-                      "docker.io/library/alpine", "docker.io/library/alpine:latest", "docker.io/library/alpine:3.20",
-                      "index.docker.io/library/alpine:3.18", "alpine@sha256:abc", " alpine:edge "])
+    @Test(arguments: [
+        "alpine", "alpine:latest", "alpine:3.22", "Alpine:3.20", "docker.io/alpine", "docker.io/alpine:3.19",
+        "docker.io/library/alpine", "docker.io/library/alpine:latest", "docker.io/library/alpine:3.20",
+        "index.docker.io/library/alpine:3.18", "alpine@sha256:abc", " alpine:edge ",
+    ])
     func knownBrokenAlpineSpellings(_ ref: String) {
         #expect(MachineImageOption.knownBroken(ref))
     }
 
-    @Test(arguments: ["ghcr.io/linuxcontainers/alpine:3.20", "alpine-sdk:1", "you/alpine:1", "docker.io/you/alpine",
-                      "ubuntu:24.04", "quay.io/alpine/alpine:3"])
+    @Test(arguments: [
+        "ghcr.io/linuxcontainers/alpine:3.20", "alpine-sdk:1", "you/alpine:1", "docker.io/you/alpine",
+        "ubuntu:24.04", "quay.io/alpine/alpine:3",
+    ])
     func notKnownBroken(_ ref: String) {
         #expect(!MachineImageOption.knownBroken(ref))
     }
@@ -102,7 +115,9 @@ import ContainerKitMock
     @Test func resizeSettingsAndPreview() {
         let settings = MachineResize.settings(cpus: 8, memoryGB: 16)
         #expect(settings == ["cpus": "8", "memory": "16G"])
-        #expect(MachineResize.previewCommand(name: "dev", settings: settings) == "container machine set -n dev cpus=8 memory=16G")
+        #expect(
+            MachineResize.previewCommand(name: "dev", settings: settings)
+                == "container machine set -n dev cpus=8 memory=16G")
     }
 
     // MARK: CLI 1.5.0 golden flags
@@ -110,7 +125,10 @@ import ContainerKitMock
     // Every flag a create/build sheet can emit must exist in the CLI's own `--help` (Fixtures/CLIHelpFixtures.swift).
 
     static func helpFlags(_ help: String) -> Set<String> {
-        Set(help.split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "[" || $0 == "]" || $0 == "(" || $0 == ")" })
+        Set(
+            help.split(whereSeparator: {
+                $0.isWhitespace || $0 == "," || $0 == "[" || $0 == "]" || $0 == "(" || $0 == ")"
+            })
             .map(String.init)
             .filter { $0.wholeMatch(of: /--?[a-zA-Z][a-zA-Z0-9-]*/) != nil })
     }
@@ -168,10 +186,10 @@ import ContainerKitMock
     // MARK: Kubernetes
 
     @Test(arguments: [
-        (4, 8, 2, 2),       // small Mac: minimums
-        (12, 64, 3, 16),    // quarter
+        (4, 8, 2, 2),  // small Mac: minimums
+        (12, 64, 3, 16),  // quarter
         (16, 128, 4, 32),
-        (1, 1, 1, 1),       // minimums never exceed the host
+        (1, 1, 1, 1),  // minimums never exceed the host
     ])
     func clusterDefaultSizing(cpus: Int, ramGB: Int64, expectCPUs: Int, expectGB: Int) {
         let host = HostResources(cpus: cpus, memoryBytes: ramGB << 30)
@@ -189,8 +207,10 @@ import ContainerKitMock
         form.nodeImage = "docker.io/kindest/node:v1.34.0"
         form.cniManifestPath = "/tmp/cilium.yaml"
         form.removeOnStop = true
-        #expect(form.previewCommand() ==
-            "container k8s create --name cd-ui-test -c 3 -m 16G --node-image docker.io/kindest/node:v1.34.0 --cni /tmp/cilium.yaml --rm")
+        #expect(
+            form.previewCommand()
+                == "container k8s create --name cd-ui-test -c 3 -m 16G --node-image docker.io/kindest/node:v1.34.0 --cni /tmp/cilium.yaml --rm"
+        )
     }
 
     @Test func kubectlCommands() {
@@ -216,7 +236,8 @@ import ContainerKitMock
         #expect(RegistryPreset.custom.server == nil)
         #expect(RegistryPreset.dockerHub.hint.contains("access token"))
         #expect(RegistryPreset.ghcr.hint.contains("write:packages"))
-        #expect(!RegistryPreset.dockerHub.allowsHTTP && !RegistryPreset.ghcr.allowsHTTP && RegistryPreset.custom.allowsHTTP)
+        #expect(
+            !RegistryPreset.dockerHub.allowsHTTP && !RegistryPreset.ghcr.allowsHTTP && RegistryPreset.custom.allowsHTTP)
         #expect(RegistryPreset.matching(server: "GHCR.io/") == .ghcr)
         #expect(RegistryPreset.matching(server: "quay.io") == .custom)
         #expect(RegistryServerRule.normalize(" Docker.IO/ ") == "docker.io")
@@ -225,9 +246,9 @@ import ContainerKitMock
     /// Recorded from the real engine (CLI 1.5.0, 2026-10-19): the CLUSTER cell is blank.
     @Test func parsesRealK8sListWithBlankClusterColumn() {
         let text = """
-        CLUSTER  NODE        ROLE                  STATE    CPUS  MEMORY    ADDR           PORTS
-                 cd-ui-test  control-plane,worker  running  4     32768 MB  192.168.64.36
-        """
+            CLUSTER  NODE        ROLE                  STATE    CPUS  MEMORY    ADDR           PORTS
+                     cd-ui-test  control-plane,worker  running  4     32768 MB  192.168.64.36
+            """
         let clusters = CLIOutputParsing.clusters(text)
         #expect(clusters.map(\.name) == ["cd-ui-test"])
         let node = clusters.first?.nodes.first

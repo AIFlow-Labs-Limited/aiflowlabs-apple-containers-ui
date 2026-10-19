@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// A `KEY=VALUE` entry from a container's process environment, with secret masking for display.
 ///
@@ -37,8 +37,10 @@ public struct EnvironmentVariable: Hashable, Sendable, Identifiable {
     // MARK: Secret detection
 
     /// Fragments that mark a key as secret wherever they appear (case-insensitive).
-    public static let sensitiveSubstrings = ["PASSWORD", "PASSWD", "PASSPHRASE", "SECRET", "TOKEN", "KEY", "CREDENTIAL",
-                                             "PRIVATE", "AUTHORIZATION", "CERTIFICATE"]
+    public static let sensitiveSubstrings = [
+        "PASSWORD", "PASSWD", "PASSPHRASE", "SECRET", "TOKEN", "KEY", "CREDENTIAL",
+        "PRIVATE", "AUTHORIZATION", "CERTIFICATE",
+    ]
     /// Whole words (split on `_`, `-`, `.`) that mark a key as secret: `DB_PASS`, `GITHUB_PAT`, `X_AUTH`, `TLS_CERT`.
     public static let sensitiveWords = ["PASS", "PWD", "AUTH", "PAT", "CERT", "CREDS", "APIKEY"]
 
@@ -59,7 +61,9 @@ public struct EnvironmentVariable: Hashable, Sendable, Identifiable {
 
     /// Range of the password in `scheme://user:password@host…`, if any.
     static func urlCredentialRange(in value: String) -> Range<String.Index>? {
-        guard let match = value.firstMatch(of: /[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^\/\s:@]*:([^\/\s@]+)@/) else { return nil }
+        guard let match = value.firstMatch(of: /[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^\/\s:@]*:([^\/\s@]+)@/) else {
+            return nil
+        }
         return match.output.1.startIndex..<match.output.1.endIndex
     }
 
@@ -178,7 +182,7 @@ public enum ShellWords {
                     quote = nil
                 } else if ch == "\\", let next = chars.first, "\"\\$`\n".contains(next) {
                     chars.removeFirst()
-                    if next != "\n" { current.append(next) }      // backslash-newline is a line continuation
+                    if next != "\n" { current.append(next) }  // backslash-newline is a line continuation
                 } else {
                     current.append(ch)
                 }
@@ -188,7 +192,7 @@ public enum ShellWords {
                     if let next = chars.popFirst() {
                         if next != "\n" { current.append(next) }
                     } else {
-                        current.append(ch)                       // trailing backslash stays literal
+                        current.append(ch)  // trailing backslash stays literal
                     }
                 } else if ch == "'" || ch == "\"" {
                     quote = ch; inWord = true

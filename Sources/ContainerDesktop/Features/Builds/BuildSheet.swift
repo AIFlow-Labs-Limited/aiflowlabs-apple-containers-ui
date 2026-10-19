@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Build an image from a context folder. Every option maps to `BuildSpec`; the command preview is
 /// `BuildSpec.cliArguments`. Output streams into the sheet and the Activity window.
@@ -53,12 +53,15 @@ struct BuildSheet: View {
                             .foregroundStyle(draft.contextDirectory.isEmpty ? .secondary : .primary)
                         Spacer()
                         Menu("Recent") {
-                            ForEach(recents.values, id: \.self) { path in Button(path) { draft.contextDirectory = path } }
+                            ForEach(recents.values, id: \.self) { path in Button(path) { draft.contextDirectory = path }
+                            }
                             if recents.values.isEmpty { Text("No recent folders") }
                         }
                         .fixedSize()
                         Button("Choose…") {
-                            if let url = FilePanels.openFolder(title: "Choose the build context", startingAt: draft.contextDirectory) {
+                            if let url = FilePanels.openFolder(
+                                title: "Choose the build context", startingAt: draft.contextDirectory)
+                            {
                                 draft.contextDirectory = url.path(percentEncoded: false)
                             }
                         }
@@ -69,7 +72,8 @@ struct BuildSheet: View {
                     ForEach(dockerfiles, id: \.self) { Text($0).tag(String?.some($0)) }
                 }
                 if contextURL != nil && dockerfiles.isEmpty {
-                    Text("No Dockerfile or Containerfile found in this folder.").font(.caption).foregroundStyle(.statusWarning)
+                    Text("No Dockerfile or Containerfile found in this folder.").font(.caption).foregroundStyle(
+                        .statusWarning)
                 }
                 TextField("Tag", text: $draft.tag, prompt: Text("myapp:dev"))
                 if !draft.tag.isEmpty, let p = ResourceValidator.imageReference(draft.tag) {
@@ -96,7 +100,9 @@ struct BuildSheet: View {
                 Toggle("Always pull base images", isOn: $draft.pull)
                 Toggle("Forward SSH agent (--ssh default)", isOn: $draft.forwardSSH)
                 LabeledContent("Build args") {
-                    StringRowsEditor("Build arg", rows: $draft.buildArgs, placeholder: "KEY=VALUE", addTitle: "Add build arg") {
+                    StringRowsEditor(
+                        "Build arg", rows: $draft.buildArgs, placeholder: "KEY=VALUE", addTitle: "Add build arg"
+                    ) {
                         ResourceValidator.keyValue($0, allowBareKey: true)
                     }
                 }
@@ -107,8 +113,9 @@ struct BuildSheet: View {
                 }
                 LabeledContent("Secrets") {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
-                        StringRowsEditor("Secret", rows: $draft.secrets, placeholder: "id=npm,env=NPM_TOKEN",
-                                         addTitle: "Add secret", validate: ResourceValidator.buildSecret)
+                        StringRowsEditor(
+                            "Secret", rows: $draft.secrets, placeholder: "id=npm,env=NPM_TOKEN",
+                            addTitle: "Add secret", validate: ResourceValidator.buildSecret)
                         Text(ResourceValidator.buildSecretHint)
                             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
@@ -170,7 +177,9 @@ struct BuildSheet: View {
     private func inspectContext() {
         guard let url = contextURL else { dockerfiles = []; stages = []; return }
         dockerfiles = BuildContextInspector.dockerfiles(in: url)
-        if let chosen = draft.dockerfile, !dockerfiles.contains(chosen), !chosen.hasPrefix("/") { draft.dockerfile = nil }
+        if let chosen = draft.dockerfile, !dockerfiles.contains(chosen), !chosen.hasPrefix("/") {
+            draft.dockerfile = nil
+        }
         loadStages()
     }
 

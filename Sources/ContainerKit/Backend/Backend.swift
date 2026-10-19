@@ -43,7 +43,9 @@ public protocol ContainerOperations: Sendable {
     func containerLogs(_ id: String, follow: Bool, boot: Bool, tail: Int?) -> LineStream
     func containerStats(ids: [String]) async throws -> [ContainerStats]
     /// Runs a command to completion and returns its output (non-interactive).
-    func execCapture(_ id: String, command: [String], workingDirectory: String?) async throws -> (exitCode: Int32, stdout: String, stderr: String)
+    func execCapture(
+        _ id: String, command: [String], workingDirectory: String?
+    ) async throws -> (exitCode: Int32, stdout: String, stderr: String)
     /// `container cp` — either side may be `<container>:<path>`.
     func copy(from source: String, to destination: String) async throws
     func exportContainer(_ id: String, to tarPath: String) async throws
@@ -113,7 +115,9 @@ public protocol KubernetesOperations: Sendable {
     func listClusters() async throws -> [KubernetesCluster]
     func createCluster(_ spec: ClusterSpec) -> LineStream
     func deleteCluster(_ name: String) async throws
-    func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream
+    func loadImage(
+        _ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?
+    ) -> LineStream
 }
 
 extension KubernetesOperations {
@@ -124,7 +128,8 @@ extension KubernetesOperations {
 /// The complete backend.
 public protocol ContainerBackend:
     SystemBackend, ContainerOperations, ImageOperations, VolumeOperations,
-    NetworkOperations, RegistryOperations, MachineOperations, KubernetesOperations {
+    NetworkOperations, RegistryOperations, MachineOperations, KubernetesOperations
+{
     /// Human-readable backend name for the About/diagnostics screens (`CLI 1.5.0`, `Mock`, `XPC`).
     var backendDescription: String { get }
 }
@@ -148,8 +153,11 @@ public enum BackendError: Error, LocalizedError, Hashable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .systemNotRunning: return "The container system is not running."
-        case .cliNotInstalled(let paths): return "The `container` command was not found (looked in \(paths.joined(separator: ", "))). Install it from github.com/apple/container/releases."
-        case .commandFailed(let command, let code, let message): return message.isEmpty ? "`\(command)` failed with exit code \(code)." : message
+        case .cliNotInstalled(let paths):
+            return
+                "The `container` command was not found (looked in \(paths.joined(separator: ", "))). Install it from github.com/apple/container/releases."
+        case .commandFailed(let command, let code, let message):
+            return message.isEmpty ? "`\(command)` failed with exit code \(code)." : message
         case .notFound(let kind, let id): return "\(kind.capitalized) “\(id)” was not found."
         case .decoding(let command, let underlying): return "Could not read the output of `\(command)`: \(underlying)"
         case .unsupported(let feature, let reason): return "\(feature) is not available: \(reason)"

@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// Periodically runs an action while its `PollingGate` is open.
 ///
@@ -36,8 +36,10 @@ public final class Poller {
     /// - Parameters:
     ///   - interval: fixed foreground interval (overrides the gate's; e.g. 10 s for the status bar's disk usage).
     ///   - backgroundInterval: see the property.
-    public init(gate: PollingGate, requiresEngine: Bool = true, interval: Duration? = nil,
-                backgroundInterval: Duration? = nil, action: @escaping @MainActor () async throws -> Void) {
+    public init(
+        gate: PollingGate, requiresEngine: Bool = true, interval: Duration? = nil,
+        backgroundInterval: Duration? = nil, action: @escaping @MainActor () async throws -> Void
+    ) {
         self.gate = gate
         self.requiresEngine = requiresEngine
         self.fixedInterval = interval
@@ -131,7 +133,8 @@ public final class Poller {
         let base = fixedInterval ?? gate.interval
         if clients > 0 && gate.isOpen(requiresEngine: requiresEngine) { return base }
         if let backgroundInterval, gate.isOpenInBackground(requiresEngine: requiresEngine),
-           backgroundClients > 0 || (clients > 0 && !gate.appActive) {
+            backgroundClients > 0 || (clients > 0 && !gate.appActive)
+        {
             return max(base, backgroundInterval)
         }
         return nil

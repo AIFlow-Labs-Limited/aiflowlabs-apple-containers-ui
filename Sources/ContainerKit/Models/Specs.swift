@@ -10,17 +10,17 @@ public struct RunSpec: Hashable, Sendable {
     public var removeOnExit: Bool = false
     public var interactive: Bool = false
     public var tty: Bool = false
-    public var environment: [String] = []          // KEY=VALUE or KEY (inherit)
+    public var environment: [String] = []  // KEY=VALUE or KEY (inherit)
     public var envFiles: [String] = []
     public var ports: [PortMapping] = []
     public var mounts: [MountSpec] = []
-    public var tmpfs: [String] = []                // "/path[:size=64M,mode=1777]"
+    public var tmpfs: [String] = []  // "/path[:size=64M,mode=1777]"
     public var workingDirectory: String?
     public var user: String?
     public var cpus: Int?
     public var memory: MemorySize?
     public var platform: Platform?
-    public var network: String?                    // nil = default
+    public var network: String?  // nil = default
     public var networkAliases: [String] = []
     public var macAddress: String?
     public var dnsDomain: String?
@@ -33,9 +33,9 @@ public struct RunSpec: Hashable, Sendable {
     public var capAdd: [String] = []
     public var capDrop: [String] = []
     public var shmSize: MemorySize?
-    public var ulimits: [String] = []              // "nofile=65536:131072"
+    public var ulimits: [String] = []  // "nofile=65536:131072"
     public var kernel: String?
-    public var extraArguments: [String] = []       // escape hatch for flags the UI does not model
+    public var extraArguments: [String] = []  // escape hatch for flags the UI does not model
 
     public init(image: String) { self.image = image }
 
@@ -45,7 +45,8 @@ public struct RunSpec: Hashable, Sendable {
         public var containerPort: Int
         public var proto: String = "tcp"
         public init(hostAddress: String? = nil, hostPort: Int, containerPort: Int, proto: String = "tcp") {
-            self.hostAddress = hostAddress; self.hostPort = hostPort; self.containerPort = containerPort; self.proto = proto
+            self.hostAddress = hostAddress; self.hostPort = hostPort; self.containerPort = containerPort;
+            self.proto = proto
         }
         /// `[host-ip:]host-port:container-port[/protocol]`; an IPv6 host is bracketed (`[::1]:8080:80/tcp`).
         public var cliArgument: String {
@@ -59,7 +60,9 @@ public struct RunSpec: Hashable, Sendable {
         public var kind: Kind
         public var target: String
         public var readOnly: Bool = false
-        public init(kind: Kind, target: String, readOnly: Bool = false) { self.kind = kind; self.target = target; self.readOnly = readOnly }
+        public init(kind: Kind, target: String, readOnly: Bool = false) {
+            self.kind = kind; self.target = target; self.readOnly = readOnly
+        }
         /// `--volume` argument.
         public var cliArgument: String {
             let ro = readOnly ? ":ro" : ""
@@ -122,16 +125,16 @@ public struct BuildSpec: Hashable, Sendable {
     public var dockerfile: String?
     public var tag: String
     public var platforms: [Platform] = []
-    public var buildArgs: [String] = []            // KEY=VALUE
+    public var buildArgs: [String] = []  // KEY=VALUE
     public var target: String?
     public var noCache: Bool = false
     public var pull: Bool = false
     public var labels: [String] = []
-    public var secrets: [String] = []              // id=KEY,env=ENV or id=KEY,src=path
+    public var secrets: [String] = []  // id=KEY,env=ENV or id=KEY,src=path
     public var forwardSSH: Bool = false
     public var cpus: Int?
     public var memory: MemorySize?
-    public var output: String?                     // type=oci,dest=…
+    public var output: String?  // type=oci,dest=…
 
     public init(contextDirectory: String, tag: String) { self.contextDirectory = contextDirectory; self.tag = tag }
 
@@ -160,7 +163,7 @@ public struct MachineSpec: Hashable, Sendable {
     public var name: String
     public var cpus: Int?
     public var memory: MemorySize?
-    public var homeMount: String?                  // rw | ro | none
+    public var homeMount: String?  // rw | ro | none
     public var setDefault: Bool = false
     public var noBoot: Bool = false
     public var virtualization: Bool = false
@@ -199,7 +202,7 @@ public struct ClusterSpec: Hashable, Sendable {
     public var nodeImage: String?
     public var cniManifest: String?
     public var removeOnStop: Bool = false
-    public var workers: Int?                       // not in 1.5.0; backend omits if unsupported
+    public var workers: Int?  // not in 1.5.0; backend omits if unsupported
 
     public init(name: String = "k8s-dev") { self.name = name }
 
@@ -230,8 +233,11 @@ public struct CommandLine: Hashable, Sendable {
     public var environment: [String: String]
     public var workingDirectory: String?
 
-    public init(executable: String, arguments: [String], environment: [String: String] = [:], workingDirectory: String? = nil) {
-        self.executable = executable; self.arguments = arguments; self.environment = environment; self.workingDirectory = workingDirectory
+    public init(
+        executable: String, arguments: [String], environment: [String: String] = [:], workingDirectory: String? = nil
+    ) {
+        self.executable = executable; self.arguments = arguments; self.environment = environment;
+        self.workingDirectory = workingDirectory
     }
 
     /// Shell-quoted one-liner for display / copy (`ShellQuote.join`).
@@ -240,7 +246,7 @@ public struct CommandLine: Hashable, Sendable {
 
 /// What an embedded terminal should attach to.
 public enum TerminalTarget: Hashable, Sendable {
-    case container(id: String, command: [String])   // `container exec -it <id> <command>`
-    case machine(name: String)                       // `container machine run -n <name>`
-    case shell                                       // plain login shell with `container` on PATH
+    case container(id: String, command: [String])  // `container exec -it <id> <command>`
+    case machine(name: String)  // `container machine run -n <name>`
+    case shell  // plain login shell with `container` on PATH
 }

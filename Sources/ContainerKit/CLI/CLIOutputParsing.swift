@@ -10,8 +10,10 @@ public enum CLIOutputParsing {
             return values.compactMap { value in
                 if let name = value.stringValue { return DNSDomain(domain: name) }
                 guard let object = value.objectValue,
-                      let name = firstString(object, ["domain", "name", "id"]) else { return nil }
-                return DNSDomain(domain: name, localhostAddress: firstString(object, ["localhostAddress", "localhost"]))
+                    let name = firstString(object, ["domain", "name", "id"])
+                else { return nil }
+                return DNSDomain(
+                    domain: name, localhostAddress: firstString(object, ["localhostAddress", "localhost"]))
             }
         }
         let table = TableParser.parse(String(decoding: data, as: UTF8.self))
@@ -29,14 +31,18 @@ public enum CLIOutputParsing {
         if let values = jsonArray(data) {
             return values.compactMap { value in
                 guard let object = value.objectValue,
-                      let server = firstString(object, ["name", "hostname", "server", "id"]) else { return nil }
-                return RegistryLogin(server: server, username: firstString(object, ["username", "user"]),
-                                     scheme: firstString(object, ["scheme"]))
+                    let server = firstString(object, ["name", "hostname", "server", "id"])
+                else { return nil }
+                return RegistryLogin(
+                    server: server, username: firstString(object, ["username", "user"]),
+                    scheme: firstString(object, ["scheme"]))
             }
         }
         let table = TableParser.parse(String(decoding: data, as: UTF8.self))
         return table.records.compactMap { record in
-            guard let server = record["HOSTNAME"] ?? record["SERVER"] ?? record["NAME"], !server.isEmpty else { return nil }
+            guard let server = record["HOSTNAME"] ?? record["SERVER"] ?? record["NAME"], !server.isEmpty else {
+                return nil
+            }
             let username = record["USERNAME"].flatMap { $0.isEmpty ? nil : $0 }
             return RegistryLogin(server: server, username: username)
         }
@@ -101,7 +107,8 @@ public enum CLIOutputParsing {
     }
 
     private static func jsonArray(_ data: Data) -> [JSONValue]? {
-        guard let first = data.first(where: { !($0 == 0x20 || $0 == 0x0A || $0 == 0x0D || $0 == 0x09) }), first == UInt8(ascii: "[")
+        guard let first = data.first(where: { !($0 == 0x20 || $0 == 0x0A || $0 == 0x0D || $0 == 0x09) }),
+            first == UInt8(ascii: "[")
         else { return nil }
         return try? JSONDecoder().decode([JSONValue].self, from: data)
     }

@@ -33,33 +33,57 @@ public final class CommandPalette {
 
     /// Static actions available everywhere.
     public static let actions: [PaletteItem] = [
-        PaletteItem(id: "action.start-engine", title: "Start engine", subtitle: "container system start", symbol: "play.circle", action: .startEngine),
-        PaletteItem(id: "action.stop-engine", title: "Stop engine", subtitle: "container system stop", symbol: "stop.circle", action: .stopEngine),
-        PaletteItem(id: "action.prune", title: "Prune…", subtitle: "Clean up unused containers, images, volumes", symbol: "trash", action: .cleanUp),
-        PaletteItem(id: "action.settings", title: "Open Settings", subtitle: "Preferences", symbol: "gearshape", action: .openSettings),
-        PaletteItem(id: "action.activity", title: "Open Activity", subtitle: "Running and recent tasks", symbol: "list.bullet.rectangle", action: .openActivity),
-        PaletteItem(id: "action.refresh", title: "Refresh", subtitle: "Reload the current section", symbol: "arrow.clockwise", action: .refresh),
-        PaletteItem(id: "action.terminal", title: "Toggle terminal", subtitle: "Integrated terminal panel", symbol: "terminal", action: .toggleTerminal),
+        PaletteItem(
+            id: "action.start-engine", title: "Start engine", subtitle: "container system start", symbol: "play.circle",
+            action: .startEngine),
+        PaletteItem(
+            id: "action.stop-engine", title: "Stop engine", subtitle: "container system stop", symbol: "stop.circle",
+            action: .stopEngine),
+        PaletteItem(
+            id: "action.prune", title: "Prune…", subtitle: "Clean up unused containers, images, volumes",
+            symbol: "trash", action: .cleanUp),
+        PaletteItem(
+            id: "action.settings", title: "Open Settings", subtitle: "Preferences", symbol: "gearshape",
+            action: .openSettings),
+        PaletteItem(
+            id: "action.activity", title: "Open Activity", subtitle: "Running and recent tasks",
+            symbol: "list.bullet.rectangle", action: .openActivity),
+        PaletteItem(
+            id: "action.refresh", title: "Refresh", subtitle: "Reload the current section", symbol: "arrow.clockwise",
+            action: .refresh),
+        PaletteItem(
+            id: "action.terminal", title: "Toggle terminal", subtitle: "Integrated terminal panel", symbol: "terminal",
+            action: .toggleTerminal),
     ]
 
     /// All candidate items for the current model state.
     public func items(for model: AppModel) -> [PaletteItem] {
         var items = SidebarSection.allCases.map {
-            PaletteItem(id: "section.\($0.rawValue)", title: $0.title, subtitle: "Go to section", symbol: $0.symbol, action: .navigate($0, itemID: nil))
+            PaletteItem(
+                id: "section.\($0.rawValue)", title: $0.title, subtitle: "Go to section", symbol: $0.symbol,
+                action: .navigate($0, itemID: nil))
         }
         items += model.containers.items.filter { !$0.isSystemManaged }.map {
-            PaletteItem(id: "container.\($0.id)", title: $0.id, subtitle: "Container · \($0.imageReference)", symbol: "shippingbox",
-                        action: .navigate(.containers, itemID: $0.id))
+            PaletteItem(
+                id: "container.\($0.id)", title: $0.id, subtitle: "Container · \($0.imageReference)",
+                symbol: "shippingbox",
+                action: .navigate(.containers, itemID: $0.id))
         }
         items += model.images.items.map {
-            PaletteItem(id: "image.\($0.id).\($0.reference)", title: $0.reference, subtitle: "Image · \($0.shortID)", symbol: "square.stack.3d.up",
-                        action: .navigate(.images, itemID: $0.id))
+            PaletteItem(
+                id: "image.\($0.id).\($0.reference)", title: $0.reference, subtitle: "Image · \($0.shortID)",
+                symbol: "square.stack.3d.up",
+                action: .navigate(.images, itemID: $0.id))
         }
         items += model.volumes.items.map {
-            PaletteItem(id: "volume.\($0.name)", title: $0.name, subtitle: "Volume", symbol: "externaldrive", action: .navigate(.volumes, itemID: $0.name))
+            PaletteItem(
+                id: "volume.\($0.name)", title: $0.name, subtitle: "Volume", symbol: "externaldrive",
+                action: .navigate(.volumes, itemID: $0.name))
         }
         items += model.machines.items.map {
-            PaletteItem(id: "machine.\($0.name)", title: $0.name, subtitle: "Machine", symbol: "desktopcomputer", action: .navigate(.machines, itemID: $0.name))
+            PaletteItem(
+                id: "machine.\($0.name)", title: $0.name, subtitle: "Machine", symbol: "desktopcomputer",
+                action: .navigate(.machines, itemID: $0.name))
         }
         return items + Self.actions
     }
@@ -73,9 +97,12 @@ public final class CommandPalette {
             let rest = items.filter { !recents.contains($0.id) }
             return Array((recent + rest).prefix(Self.maxResults))
         }
-        return items
+        return
+            items
             .compactMap { item -> (PaletteItem, Int)? in
-                let candidates = [Self.score(q, item.title), Self.score(q, item.subtitle).map { $0 - 50 }].compactMap { $0 }
+                let candidates = [Self.score(q, item.title), Self.score(q, item.subtitle).map { $0 - 50 }].compactMap {
+                    $0
+                }
                 guard let best = candidates.max() else { return nil }
                 let recentBonus = recents.contains(item.id) ? 15 : 0
                 return (item, best + recentBonus)

@@ -1,7 +1,7 @@
-import Foundation
-import Observation
 import AppKit
 import ContainerKit
+import Foundation
+import Observation
 
 /// Root of the app's state: backend, engine state, child stores, tasks, toasts, navigation, settings.
 /// Injected via `.environment(model)` and `\.appModel`; never a singleton.
@@ -52,13 +52,16 @@ public final class AppModel {
     @ObservationIgnored private var notificationsWereEnabled = false
     @ObservationIgnored private let notifier = SystemNotifier()
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
-    @ObservationIgnored public private(set) lazy var enginePoller = Poller(gate: gate, requiresEngine: false) { [weak self] in
+    @ObservationIgnored public private(set) lazy var enginePoller = Poller(gate: gate, requiresEngine: false) {
+        [weak self] in
         await self?.refreshEngine()
     }
     @ObservationIgnored private var didBootstrap = false
 
-    public init(backend: any ContainerBackend, settings: SettingsStore = SettingsStore(),
-                buildsHistoryURL: URL = BuildsStore.defaultHistoryURL, observeAppActivation: Bool = true) {
+    public init(
+        backend: any ContainerBackend, settings: SettingsStore = SettingsStore(),
+        buildsHistoryURL: URL = BuildsStore.defaultHistoryURL, observeAppActivation: Bool = true
+    ) {
         let gate = PollingGate(interval: .seconds(settings.pollingInterval))
         let tasks = TaskCenter()
         self.backend = backend
@@ -72,13 +75,17 @@ public final class AppModel {
         configureStores()
         wireCallbacks()
         if observeAppActivation { observeActivation() }
-        if let unavailable = backend as? UnavailableBackend { engine = .notInstalled(searchedPaths: unavailable.searchedPaths) }
+        if let unavailable = backend as? UnavailableBackend {
+            engine = .notInstalled(searchedPaths: unavailable.searchedPaths)
+        }
     }
 
     /// Chooses the backend from `CONTAINER_DESKTOP_BACKEND`. `mock` is a factory because AppCore does not link
     /// ContainerKitMock; the app passes `{ MockBackend() }`.
-    public static func make(selection: BackendSelection = .fromEnvironment, mock: () -> any ContainerBackend,
-                            settings: SettingsStore = SettingsStore()) -> AppModel {
+    public static func make(
+        selection: BackendSelection = .fromEnvironment, mock: () -> any ContainerBackend,
+        settings: SettingsStore = SettingsStore()
+    ) -> AppModel {
         AppModel(backend: makeBackend(selection: selection, mock: mock), settings: settings)
     }
 
@@ -168,8 +175,9 @@ public final class AppModel {
             if engine.isRunning {
                 toasts.success("Container system started")
             } else if !cameUp {
-                toasts.error("The container system did not start",
-                             message: "It was still not running after 60 seconds. Check `container system logs`.")
+                toasts.error(
+                    "The container system did not start",
+                    message: "It was still not running after 60 seconds. Check `container system logs`.")
             }
         } catch {
             engineBusy = false
@@ -281,7 +289,10 @@ public final class AppModel {
             guard let self else { return }
             self.toasts.error("\(c.id) exited", message: c.imageReference)
             if self.settings.notificationsEnabled {
-                Task { await self.notifier.post(title: "Container exited", body: "\(c.id) (\(c.imageReference)) stopped unexpectedly.") }
+                Task {
+                    await self.notifier.post(
+                        title: "Container exited", body: "\(c.id) (\(c.imageReference)) stopped unexpectedly.")
+                }
             }
         }
     }
@@ -313,27 +324,37 @@ public final class AppModel {
 
     private func observeActivation() {
         let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.gate.appActive = false }
-        })
-        observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.gate.appActive = true }
-        })
+        observers.append(
+            center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) {
+                [weak self] _ in
+                MainActor.assumeIsolated { self?.gate.appActive = false }
+            })
+        observers.append(
+            center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) {
+                [weak self] _ in
+                MainActor.assumeIsolated { self?.gate.appActive = true }
+            })
     }
 
-    private typealias Stores = (ContainersStore, ImagesStore, VolumesStore, NetworksStore, BuildsStore,
-                                MachinesStore, ClustersStore, RegistriesStore, SystemStore)
+    private typealias Stores = (
+        ContainersStore, ImagesStore, VolumesStore, NetworksStore, BuildsStore,
+        MachinesStore, ClustersStore, RegistriesStore, SystemStore
+    )
 
-    private static func makeStores(backend: SwitchableBackend, gate: PollingGate, tasks: TaskCenter, historyURL: URL) -> Stores {
+    private static func makeStores(
+        backend: SwitchableBackend, gate: PollingGate, tasks: TaskCenter, historyURL: URL
+    ) -> Stores {
         let containers = ContainersStore(backend: backend, gate: gate)
-        return (containers,
-                ImagesStore(backend: backend, containers: containers, tasks: tasks, gate: gate),
-                VolumesStore(backend: backend, containers: containers, gate: gate),
-                NetworksStore(backend: backend, containers: containers, gate: gate),
-                BuildsStore(backend: backend, tasks: tasks, gate: gate, historyURL: historyURL),
-                MachinesStore(backend: backend, tasks: tasks, gate: gate),
-                ClustersStore(backend: backend, tasks: tasks, gate: gate),
-                RegistriesStore(backend: backend, gate: gate),
-                SystemStore(backend: backend, gate: gate))
+        return (
+            containers,
+            ImagesStore(backend: backend, containers: containers, tasks: tasks, gate: gate),
+            VolumesStore(backend: backend, containers: containers, gate: gate),
+            NetworksStore(backend: backend, containers: containers, gate: gate),
+            BuildsStore(backend: backend, tasks: tasks, gate: gate, historyURL: historyURL),
+            MachinesStore(backend: backend, tasks: tasks, gate: gate),
+            ClustersStore(backend: backend, tasks: tasks, gate: gate),
+            RegistriesStore(backend: backend, gate: gate),
+            SystemStore(backend: backend, gate: gate)
+        )
     }
 }

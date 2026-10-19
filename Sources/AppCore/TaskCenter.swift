@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// A pull/push/build/create in flight or recently finished, with its streamed output.
 @MainActor
@@ -110,8 +110,10 @@ public final class TaskCenter {
 
     /// Consumes `stream` into a new task. `completion` runs after the task finishes (e.g. refresh a store).
     @discardableResult
-    public func run(title: String, kind: LongRunningTask.Kind, stream: LineStream,
-                    completion: (@MainActor (LongRunningTask.State) async -> Void)? = nil) -> LongRunningTask {
+    public func run(
+        title: String, kind: LongRunningTask.Kind, stream: LineStream,
+        completion: (@MainActor (LongRunningTask.State) async -> Void)? = nil
+    ) -> LongRunningTask {
         let task = LongRunningTask(title: title, kind: kind)
         tasks.insert(task, at: 0)
         trim()

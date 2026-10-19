@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Volume inspector: key facts, "Used by" deep links, reveal / copy actions.
 struct VolumeDetailView: View {
@@ -19,13 +19,19 @@ struct VolumeDetailView: View {
                     if volume.isAnonymous { TagBadge("anonymous") }
                 }
                 HStack {
-                    Button("Reveal in Finder", systemImage: "folder") { FilePanels.reveal([volume.configuration.source]) }
-                    Button("Copy -v flag", systemImage: "doc.on.doc") { copyToPasteboard(VolumeRow.mountFlag(volume.name)) }
-                        .help(VolumeRow.mountFlag(volume.name))
+                    Button("Reveal in Finder", systemImage: "folder") {
+                        FilePanels.reveal([volume.configuration.source])
+                    }
+                    Button("Copy -v flag", systemImage: "doc.on.doc") {
+                        copyToPasteboard(VolumeRow.mountFlag(volume.name))
+                    }
+                    .help(VolumeRow.mountFlag(volume.name))
                     Spacer()
                     Button("Delete…", systemImage: "trash", role: .destructive, action: delete)
                         .disabled(!usedBy.isEmpty)
-                        .help(usedBy.isEmpty ? "Delete this volume" : "Mounted by \(usedBy.map(\.id).joined(separator: ", "))")
+                        .help(
+                            usedBy.isEmpty
+                                ? "Delete this volume" : "Mounted by \(usedBy.map(\.id).joined(separator: ", "))")
                 }
                 .controlSize(.small)
                 .labelStyle(.titleAndIcon)

@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// Placeholder backend used when the `container` CLI is not installed. Every call throws
 /// `cliNotInstalled`, so stores stay empty and the UI shows the install screen.
@@ -37,8 +37,11 @@ public struct UnavailableBackend: ContainerBackend {
     public func pruneContainers() async throws { throw error }
     public func containerLogs(_ id: String, follow: Bool, boot: Bool, tail: Int?) -> LineStream { fail() }
     public func containerStats(ids: [String]) async throws -> [ContainerStats] { throw error }
-    public func execCapture(_ id: String, command: [String], workingDirectory: String?) async throws
-        -> (exitCode: Int32, stdout: String, stderr: String) { throw error }
+    public func execCapture(
+        _ id: String, command: [String], workingDirectory: String?
+    ) async throws
+        -> (exitCode: Int32, stdout: String, stderr: String)
+    { throw error }
     public func copy(from source: String, to destination: String) async throws { throw error }
     public func exportContainer(_ id: String, to tarPath: String) async throws { throw error }
     public func terminalCommand(for target: TerminalTarget) -> CommandLine {
@@ -64,16 +67,22 @@ public struct UnavailableBackend: ContainerBackend {
     // MARK: Volumes / networks / registries
     public func listVolumes() async throws -> [Volume] { throw error }
     public func inspectVolume(_ name: String) async throws -> Volume { throw error }
-    public func createVolume(name: String, size: MemorySize?, journal: String?, labels: [String: String]) async throws { throw error }
+    public func createVolume(name: String, size: MemorySize?, journal: String?, labels: [String: String]) async throws {
+        throw error
+    }
     public func deleteVolume(_ name: String) async throws { throw error }
     public func pruneVolumes() async throws { throw error }
     public func listNetworks() async throws -> [Network] { throw error }
     public func inspectNetwork(_ name: String) async throws -> Network { throw error }
-    public func createNetwork(name: String, subnet: String?, subnetV6: String?, labels: [String: String]) async throws { throw error }
+    public func createNetwork(name: String, subnet: String?, subnetV6: String?, labels: [String: String]) async throws {
+        throw error
+    }
     public func deleteNetwork(_ name: String) async throws { throw error }
     public func pruneNetworks() async throws { throw error }
     public func listRegistries() async throws -> [RegistryLogin] { throw error }
-    public func registryLogin(server: String, username: String, password: String, scheme: String?) async throws { throw error }
+    public func registryLogin(server: String, username: String, password: String, scheme: String?) async throws {
+        throw error
+    }
     public func registryLogout(server: String) async throws { throw error }
 
     // MARK: Machines / Kubernetes
@@ -89,5 +98,7 @@ public struct UnavailableBackend: ContainerBackend {
     public func listClusters() async throws -> [KubernetesCluster] { throw error }
     public func createCluster(_ spec: ClusterSpec) -> LineStream { fail() }
     public func deleteCluster(_ name: String) async throws { throw error }
-    public func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream { fail() }
+    public func loadImage(
+        _ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?
+    ) -> LineStream { fail() }
 }

@@ -1,12 +1,15 @@
 import Foundation
 import Testing
+
 @testable import ContainerKit
 
 /// Hits the real `container` CLI. Read-only except for one container and one (cached) image pull that the
 /// test creates itself. Run with: `CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`.
-@Suite("CLIBackend Integration", .serialized,
-       .enabled(if: ProcessInfo.processInfo.environment["CONTAINER_DESKTOP_INTEGRATION"] == "1",
-                "set CONTAINER_DESKTOP_INTEGRATION=1 to run against the real CLI"))
+@Suite(
+    "CLIBackend Integration", .serialized,
+    .enabled(
+        if: ProcessInfo.processInfo.environment["CONTAINER_DESKTOP_INTEGRATION"] == "1",
+        "set CONTAINER_DESKTOP_INTEGRATION=1 to run against the real CLI"))
 struct CLIBackendIntegrationTests {
     let backend: CLIBackend
 
@@ -63,10 +66,18 @@ struct CLIBackendIntegrationTests {
 
     @Test func missingResourcesMapToNotFound() async throws {
         let ghost = "cd-kit-ghost-\(UUID().uuidString.prefix(8).lowercased())"
-        await #expect(throws: BackendError.notFound(kind: "container", id: ghost)) { _ = try await backend.inspectContainer(ghost) }
-        await #expect(throws: BackendError.notFound(kind: "volume", id: ghost)) { _ = try await backend.inspectVolume(ghost) }
-        await #expect(throws: BackendError.notFound(kind: "network", id: ghost)) { _ = try await backend.inspectNetwork(ghost) }
-        await #expect(throws: BackendError.notFound(kind: "machine", id: ghost)) { _ = try await backend.inspectMachine(ghost) }
+        await #expect(throws: BackendError.notFound(kind: "container", id: ghost)) {
+            _ = try await backend.inspectContainer(ghost)
+        }
+        await #expect(throws: BackendError.notFound(kind: "volume", id: ghost)) {
+            _ = try await backend.inspectVolume(ghost)
+        }
+        await #expect(throws: BackendError.notFound(kind: "network", id: ghost)) {
+            _ = try await backend.inspectNetwork(ghost)
+        }
+        await #expect(throws: BackendError.notFound(kind: "machine", id: ghost)) {
+            _ = try await backend.inspectMachine(ghost)
+        }
         await #expect(throws: BackendError.notFound(kind: "container", id: ghost)) {
             _ = try await backend.execCapture(ghost, command: ["true"], workingDirectory: nil)
         }
@@ -95,18 +106,22 @@ struct CLIBackendIntegrationTests {
             var sawHello = false
             for _ in 0..<40 where !sawHello {
                 var lines: [String] = []
-                for try await line in backend.containerLogs(name, follow: false, boot: false, tail: nil) { lines.append(line.text) }
+                for try await line in backend.containerLogs(name, follow: false, boot: false, tail: nil) {
+                    lines.append(line.text)
+                }
                 sawHello = lines.contains("hello")
                 if !sawHello { try await Task.sleep(for: .milliseconds(250)) }
             }
             #expect(sawHello)
 
-            let exec = try await backend.execCapture(name, command: ["sh", "-c", "echo from-exec; exit 3"], workingDirectory: "/tmp")
+            let exec = try await backend.execCapture(
+                name, command: ["sh", "-c", "echo from-exec; exit 3"], workingDirectory: "/tmp")
             #expect(exec.exitCode == 3)
             #expect(exec.stdout.contains("from-exec"))
 
             // Following logs must end (and kill the child) when the consumer stops listening.
-            for try await line in backend.containerLogs(name, follow: true, boot: false, tail: 10) where line.text == "hello" { break }
+            for try await line in backend.containerLogs(name, follow: true, boot: false, tail: 10)
+            where line.text == "hello" { break }
 
             try await backend.stopContainer(name, timeoutSeconds: 1, signal: nil)
             #expect(try await backend.inspectContainer(name).state == .stopped)

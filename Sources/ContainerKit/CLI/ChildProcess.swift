@@ -39,7 +39,8 @@ struct ChildProcess: Sendable {
         let outReader = PipeReader(outPipe.fileHandleForReading, continuation: outContinuation)
         let errReader = PipeReader(errPipe.fileHandleForReading, continuation: errContinuation)
 
-        let (exitStream, exitContinuation) = AsyncStream.makeStream(of: Int32.self, bufferingPolicy: .bufferingNewest(1))
+        let (exitStream, exitContinuation) = AsyncStream.makeStream(
+            of: Int32.self, bufferingPolicy: .bufferingNewest(1))
         process.terminationHandler = { finished in
             let status = finished.terminationStatus
             exitContinuation.yield(finished.terminationReason == .uncaughtSignal ? 128 + status : status)

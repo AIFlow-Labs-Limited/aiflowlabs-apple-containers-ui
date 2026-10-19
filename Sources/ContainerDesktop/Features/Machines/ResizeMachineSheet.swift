@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// "Resize…": `container machine set -n NAME cpus=N memory=Mg`. The new size applies on the next boot,
 /// so after saving we explain that and offer to stop a running machine.
@@ -44,13 +44,16 @@ struct ResizeMachineSheet: View {
                 }
                 VStack(alignment: .leading) {
                     LabeledContent("Memory", value: "\(memoryGB) GB (now \(ByteCount.format(machine.memory)))")
-                    Slider(value: Binding(get: { Double(memoryGB) }, set: { memoryGB = Int($0.rounded()) }),
-                           in: 1...Double(host.memoryGB), step: 1)
-                        .accessibilityLabel("Memory")
-                        .accessibilityValue("\(memoryGB) gigabytes")
+                    Slider(
+                        value: Binding(get: { Double(memoryGB) }, set: { memoryGB = Int($0.rounded()) }),
+                        in: 1...Double(host.memoryGB), step: 1
+                    )
+                    .accessibilityLabel("Memory")
+                    .accessibilityValue("\(memoryGB) gigabytes")
                 }
-                CommandPreview(command: MachineResize.previewCommand(
-                    name: machine.name, settings: MachineResize.settings(cpus: cpus, memoryGB: memoryGB)))
+                CommandPreview(
+                    command: MachineResize.previewCommand(
+                        name: machine.name, settings: MachineResize.settings(cpus: cpus, memoryGB: memoryGB)))
             }
             .formStyle(.grouped)
             Text("The new size applies the next time the machine boots.").font(.caption).foregroundStyle(.secondary)
@@ -73,18 +76,24 @@ struct ResizeMachineSheet: View {
     private var savedView: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             InfoCard(title: "Saved — applies on next boot", symbol: "arrow.clockwise.circle") {
-                Text(machine.isRunning
-                     ? "“\(machine.name)” keeps its current size until it restarts. Stop it now and it boots with \(cpus) CPUs and \(memoryGB) GB the next time you open a terminal."
-                     : "“\(machine.name)” boots with \(cpus) CPUs and \(memoryGB) GB the next time you open a terminal.")
+                Text(
+                    machine.isRunning
+                        ? "“\(machine.name)” keeps its current size until it restarts. Stop it now and it boots with \(cpus) CPUs and \(memoryGB) GB the next time you open a terminal."
+                        : "“\(machine.name)” boots with \(cpus) CPUs and \(memoryGB) GB the next time you open a terminal."
+                )
             }
             HStack {
                 Spacer()
                 if machine.isRunning {
                     Button("Later") { dismiss() }
                         .keyboardShortcut(.cancelAction)
-                    Button("Stop Now") { Task { await stop(); dismiss() } }
-                        .keyboardShortcut(.defaultAction)
-                        .help("Stops \(machine.name); terminal sessions end. Files are kept.")
+                    Button("Stop Now") {
+                        Task {
+                            await stop(); dismiss()
+                        }
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .help("Stops \(machine.name); terminal sessions end. Files are kept.")
                 } else {
                     Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
                 }
@@ -94,6 +103,7 @@ struct ResizeMachineSheet: View {
 }
 
 #Preview("Resize machine") {
-    ResizeMachineSheet(machine: Machine(id: "dev", status: .running, cpus: 4, memory: 8 << 30, diskSize: 1 << 30, isDefault: true),
-                       save: { _, _ in true }, stop: {})
+    ResizeMachineSheet(
+        machine: Machine(id: "dev", status: .running, cpus: 4, memory: 8 << 30, diskSize: 1 << 30, isDefault: true),
+        save: { _, _ in true }, stop: {})
 }

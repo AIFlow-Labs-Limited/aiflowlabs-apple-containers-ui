@@ -9,11 +9,14 @@ public enum ResourceValidator {
         let s = name.trimmingCharacters(in: .whitespaces)
         if s.isEmpty { return "Enter a name." }
         if let maxLength, s.count > maxLength { return "Use at most \(maxLength) characters." }
-        let ok = allowDots ? s.wholeMatch(of: /[A-Za-z0-9][A-Za-z0-9_.\-]*/) != nil
-                           : s.wholeMatch(of: /[A-Za-z0-9][A-Za-z0-9_\-]*/) != nil
+        let ok =
+            allowDots
+            ? s.wholeMatch(of: /[A-Za-z0-9][A-Za-z0-9_.\-]*/) != nil
+            : s.wholeMatch(of: /[A-Za-z0-9][A-Za-z0-9_\-]*/) != nil
         guard ok else {
-            return allowDots ? "Use letters, digits, “_”, “.” or “-”, starting with a letter or digit."
-                             : "Use letters, digits, “_” or “-”, starting with a letter or digit."
+            return allowDots
+                ? "Use letters, digits, “_”, “.” or “-”, starting with a letter or digit."
+                : "Use letters, digits, “_” or “-”, starting with a letter or digit."
         }
         return nil
     }
@@ -26,7 +29,9 @@ public enum ResourceValidator {
         var rest = Substring(s)
         if let at = rest.firstIndex(of: "@") {
             let digest = rest[rest.index(after: at)...]
-            guard digest.wholeMatch(of: /[a-z0-9]+:[a-f0-9]{32,}/) != nil else { return "The digest must look like sha256:<hex>." }
+            guard digest.wholeMatch(of: /[a-z0-9]+:[a-f0-9]{32,}/) != nil else {
+                return "The digest must look like sha256:<hex>."
+            }
             rest = rest[..<at]
         }
         if let colon = rest.lastIndex(of: ":"), !rest[colon...].contains("/") {
@@ -36,14 +41,18 @@ public enum ResourceValidator {
         }
         var components = rest.split(separator: "/", omittingEmptySubsequences: false)
         if components.count > 1, let first = components.first, ImageReferenceName.isRegistryHost(first) {
-            guard first.wholeMatch(of: /[A-Za-z0-9.\-]+(:[0-9]+)?/) != nil
-                || first.wholeMatch(of: /\[[0-9A-Fa-f:.]+\](:[0-9]+)?/) != nil else { return "Invalid registry host “\(first)”." }
+            guard
+                first.wholeMatch(of: /[A-Za-z0-9.\-]+(:[0-9]+)?/) != nil
+                    || first.wholeMatch(of: /\[[0-9A-Fa-f:.]+\](:[0-9]+)?/) != nil
+            else { return "Invalid registry host “\(first)”." }
             components.removeFirst()
         }
         if components.isEmpty { return "Missing repository name." }
         for c in components {
             guard c.wholeMatch(of: /[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*/) != nil else {
-                return c.isEmpty ? "Repository path has an empty component." : "“\(c)” must be lowercase letters, digits, “.”, “_” or “-”."
+                return c.isEmpty
+                    ? "Repository path has an empty component."
+                    : "“\(c)” must be lowercase letters, digits, “.”, “_” or “-”."
             }
         }
         return nil
@@ -67,7 +76,8 @@ public enum ResourceValidator {
     public static func ipv4CIDR(_ cidr: String) -> String? {
         let parts = cidr.trimmingCharacters(in: .whitespaces).split(separator: "/", omittingEmptySubsequences: false)
         guard parts.count == 2, !parts[1].isEmpty, parts[1].allSatisfy(\.isASCII), parts[1].allSatisfy(\.isNumber),
-              let prefix = Int(parts[1]) else {
+            let prefix = Int(parts[1])
+        else {
             return "Use CIDR notation, e.g. 192.168.70.0/24."
         }
         guard let address = parseIPv4(parts[0]) else { return "“\(parts[0])” is not an IPv4 address." }
@@ -100,7 +110,8 @@ public enum ResourceValidator {
         guard octets.count == 4 else { return nil }
         var value: UInt32 = 0
         for o in octets {
-            guard !o.isEmpty, o.count <= 3, o.allSatisfy({ $0.isASCII && $0.isNumber }), let n = UInt32(o), n <= 255 else { return nil }
+            guard !o.isEmpty, o.count <= 3, o.allSatisfy({ $0.isASCII && $0.isNumber }), let n = UInt32(o), n <= 255
+            else { return nil }
             value = value << 8 | n
         }
         return value
@@ -110,7 +121,8 @@ public enum ResourceValidator {
 
     static func ipv4Range(_ cidr: String) -> ClosedRange<UInt32>? {
         let parts = cidr.trimmingCharacters(in: .whitespaces).split(separator: "/")
-        guard parts.count == 2, let address = parseIPv4(parts[0]), let prefix = Int(parts[1]), (0...32).contains(prefix) else { return nil }
+        guard parts.count == 2, let address = parseIPv4(parts[0]), let prefix = Int(parts[1]), (0...32).contains(prefix)
+        else { return nil }
         let mask: UInt32 = prefix == 0 ? 0 : ~UInt32(0) << (32 - prefix)
         return (address & mask)...(address | ~mask)
     }
@@ -119,7 +131,8 @@ public enum ResourceValidator {
     public static func ipv6CIDR(_ cidr: String) -> String? {
         let parts = cidr.trimmingCharacters(in: .whitespaces).split(separator: "/", omittingEmptySubsequences: false)
         guard parts.count == 2, parts[1].allSatisfy({ $0.isASCII && $0.isNumber }), let prefix = Int(parts[1]),
-              (0...128).contains(prefix) else {
+            (0...128).contains(prefix)
+        else {
             return "Use CIDR notation, e.g. fd00:1::/64."
         }
         let address = String(parts[0])
@@ -169,8 +182,10 @@ public enum ResourceValidator {
     /// Rewrites `src=` for the CLI: `~` expands to the home directory and relative paths resolve against
     /// `contextDirectory` (the CLI would otherwise resolve them against its own working directory, `/` for a
     /// Finder-launched app). Other entries are returned unchanged.
-    public static func resolvedBuildSecret(_ entry: String, contextDirectory: String,
-                                           home: String = NSHomeDirectory()) -> String {
+    public static func resolvedBuildSecret(
+        _ entry: String, contextDirectory: String,
+        home: String = NSHomeDirectory()
+    ) -> String {
         let s = entry.trimmingCharacters(in: .whitespaces)
         return s.split(separator: ",", omittingEmptySubsequences: false).map { part -> String in
             guard part.hasPrefix("src=") else { return String(part) }
@@ -179,7 +194,9 @@ public enum ResourceValidator {
     }
 
     /// `~` / `~/x` → home-based absolute path; relative → under `base`; absolute unchanged.
-    public static func resolvedPath(_ path: String, relativeTo base: String?, home: String = NSHomeDirectory()) -> String {
+    public static func resolvedPath(
+        _ path: String, relativeTo base: String?, home: String = NSHomeDirectory()
+    ) -> String {
         if path == "~" { return home }
         if path.hasPrefix("~/") { return (home as NSString).appendingPathComponent(String(path.dropFirst(2))) }
         if path.hasPrefix("/") || base == nil { return path }

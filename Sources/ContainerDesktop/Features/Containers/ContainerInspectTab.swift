@@ -1,8 +1,8 @@
-import SwiftUI
+import AppCore
 import ContainerKit
 import ContainerKitMock
-import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Inspect tab: key facts grid on top, collapsible JSON tree of the full `Container`, Copy JSON.
 struct ContainerInspectTab: View {
@@ -41,7 +41,9 @@ struct ContainerInspectTab: View {
                 Spacer()
                 if EnvironmentVariable.containsSecrets(container.configuration.initProcess.environment) {
                     Toggle(isOn: $showSecrets) {
-                        Label(showSecrets ? "Hide Secrets" : "Show Secrets", systemImage: showSecrets ? "eye.slash" : "eye")
+                        Label(
+                            showSecrets ? "Hide Secrets" : "Show Secrets",
+                            systemImage: showSecrets ? "eye.slash" : "eye")
                     }
                     .toggleStyle(.button)
                     .controlSize(.small)
@@ -57,7 +59,8 @@ struct ContainerInspectTab: View {
                 if let tree = try? JSONValue(encoding: shown) {
                     JSONTreeView(tree, rootName: container.id)
                 } else {
-                    EmptyStateView(symbol: "curlybraces", title: "Unavailable", message: "Could not encode this container.")
+                    EmptyStateView(
+                        symbol: "curlybraces", title: "Unavailable", message: "Could not encode this container.")
                 }
             }
         }
@@ -80,7 +83,10 @@ struct ContainerInspectTab: View {
             ("Image", c.imageReference),
             ("Digest", cfg.image.descriptor.digest),
             ("State", c.state.displayName),
-            ("Started", c.status?.startedDate.map { "\(RelativeDate.absolute($0)) (\(RelativeDate.format($0)))" } ?? ""),
+            (
+                "Started",
+                c.status?.startedDate.map { "\(RelativeDate.absolute($0)) (\(RelativeDate.format($0)))" } ?? ""
+            ),
             ("Created", RelativeDate.absolute(cfg.creationDate)),
             ("IP address", c.primaryIPv4 ?? ""),
             ("Hostname", c.hostname ?? cfg.networks.first?.options?.hostname ?? ""),
@@ -92,16 +98,27 @@ struct ContainerInspectTab: View {
             ("Command", ShellWords.join([process.executable] + process.arguments)),
             ("Working dir", process.workingDirectory ?? "/"),
             ("User", process.user?.display ?? "root"),
-            ("Flags", [cfg.useInit ? "init" : nil, cfg.readOnly ? "read-only" : nil, cfg.ssh ? "ssh agent" : nil,
-                       cfg.virtualization ? "nested virtualization" : nil].compactMap { $0 }.joined(separator: ", ")),
+            (
+                "Flags",
+                [
+                    cfg.useInit ? "init" : nil, cfg.readOnly ? "read-only" : nil, cfg.ssh ? "ssh agent" : nil,
+                    cfg.virtualization ? "nested virtualization" : nil,
+                ].compactMap { $0 }.joined(separator: ", ")
+            ),
         ]
     }
 }
 
 #Preview("Inspect") {
-    let c = (try? Fixtures.containers().first) ?? Container(
-        id: "x", configuration: .init(id: "x", image: ImageReference(reference: "alpine", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
-                                      creationDate: .now, initProcess: .init(executable: "sh")))
+    let c =
+        (try? Fixtures.containers().first)
+        ?? Container(
+            id: "x",
+            configuration: .init(
+                id: "x",
+                image: ImageReference(
+                    reference: "alpine", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
+                creationDate: .now, initProcess: .init(executable: "sh")))
     ContainerInspectTab(container: c)
         .frame(width: 900, height: 480)
 }

@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// Reads a build context folder (local files only, never the CLI): Dockerfile candidates and stage names.
 public enum BuildContextInspector {
@@ -15,7 +15,8 @@ public enum BuildContextInspector {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path(percentEncoded: false))) ?? []
         let matches = names.filter { name in
             guard !ignoreSuffixes.contains(where: { name.lowercased().hasSuffix($0) }) else { return false }
-            return knownNames.contains(name) || knownNames.contains { name.hasPrefix("\($0).") || name.hasSuffix(".\($0)") }
+            return knownNames.contains(name)
+                || knownNames.contains { name.hasPrefix("\($0).") || name.hasSuffix(".\($0)") }
         }
         return matches.sorted { a, b in
             let ra = knownNames.firstIndex(of: a) ?? Int.max, rb = knownNames.firstIndex(of: b) ?? Int.max
@@ -28,7 +29,9 @@ public enum BuildContextInspector {
         text.split(whereSeparator: \.isNewline).compactMap { line in
             let words = line.trimmingCharacters(in: .whitespaces).split(whereSeparator: \.isWhitespace)
             guard words.count >= 4, words[0].uppercased() == "FROM" else { return nil }
-            guard let asIndex = words.lastIndex(where: { $0.uppercased() == "AS" }), asIndex + 1 < words.count else { return nil }
+            guard let asIndex = words.lastIndex(where: { $0.uppercased() == "AS" }), asIndex + 1 < words.count else {
+                return nil
+            }
             return String(words[asIndex + 1])
         }
     }
@@ -63,8 +66,11 @@ public extension BuildSpec {
     /// (`~` expanded), `-f` (relative to the context) and `--secret …,src=` (relative to the context).
     func resolvingPaths() -> BuildSpec {
         var s = self
-        s.contextDirectory = BuildContextInspector.resolve(contextDirectory, against: FileManager.default.currentDirectoryPath)
-        if let dockerfile, !dockerfile.isEmpty { s.dockerfile = BuildContextInspector.resolve(dockerfile, against: s.contextDirectory) }
+        s.contextDirectory = BuildContextInspector.resolve(
+            contextDirectory, against: FileManager.default.currentDirectoryPath)
+        if let dockerfile, !dockerfile.isEmpty {
+            s.dockerfile = BuildContextInspector.resolve(dockerfile, against: s.contextDirectory)
+        }
         s.secrets = secrets.map { ResourceValidator.resolvedBuildSecret($0, contextDirectory: s.contextDirectory) }
         return s
     }

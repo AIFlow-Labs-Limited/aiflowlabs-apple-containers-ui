@@ -1,10 +1,12 @@
+import ContainerKit
 import Foundation
 import Testing
-import ContainerKit
 
 @Suite("ShellQuote")
 struct ShellQuoteTests {
-    static let tricky = ["a;b", "x|y", "", "*", "it's", "$HOME", "!x", "C:\\path", "a b", "`id`", "~", "#c", "(x)", "line\nbreak"]
+    static let tricky = [
+        "a;b", "x|y", "", "*", "it's", "$HOME", "!x", "C:\\path", "a b", "`id`", "~", "#c", "(x)", "line\nbreak",
+    ]
 
     @Test func safeWordsStayBare() {
         #expect(ShellQuote.quote("ghcr.io/x/y:1.2@sha256") == "ghcr.io/x/y:1.2@sha256")

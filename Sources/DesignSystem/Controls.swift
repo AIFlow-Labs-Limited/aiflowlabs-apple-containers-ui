@@ -19,11 +19,15 @@ public struct SearchField: View {
                 .textFieldStyle(.plain)
                 .accessibilityLabel(prompt)
             if !text.isEmpty {
-                Button { text = "" } label: { Image(systemName: "xmark.circle.fill") }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .help("Clear")
-                    .accessibilityLabel("Clear search")
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("Clear")
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, Spacing.s)
@@ -81,8 +85,10 @@ public struct InspectorSection<Content: View>: View {
 
 public extension View {
     /// Destructive confirmation alert. The message must name exactly what gets removed.
-    func confirmDestructive(title: String, message: String, actionTitle: String,
-                            isPresented: Binding<Bool>, action: @escaping () -> Void) -> some View {
+    func confirmDestructive(
+        title: String, message: String, actionTitle: String,
+        isPresented: Binding<Bool>, action: @escaping () -> Void
+    ) -> some View {
         alert(title, isPresented: isPresented) {
             Button(actionTitle, role: .destructive, action: action)
             Button("Cancel", role: .cancel) {}
@@ -104,6 +110,8 @@ public extension View {
         InspectorSection("Network") { Text("192.168.64.3") }
     }
     .padding()
-    .confirmDestructive(title: "Delete web?", message: "Deletes container “web”.", actionTitle: "Delete",
-                        isPresented: $confirm) {}
+    .confirmDestructive(
+        title: "Delete web?", message: "Deletes container “web”.", actionTitle: "Delete",
+        isPresented: $confirm
+    ) {}
 }

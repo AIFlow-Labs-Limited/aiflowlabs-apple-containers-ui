@@ -1,7 +1,7 @@
-import SwiftUI
 import AppKit
-import SwiftTerm
 import ContainerKit
+import SwiftTerm
+import SwiftUI
 
 /// Embedded terminal (SwiftTerm `LocalProcessTerminalView`) running a `ContainerKit.CommandLine` produced by
 /// `backend.terminalCommand(for:)`. Never builds CLI arguments itself.
@@ -20,9 +20,10 @@ struct TerminalView: NSViewRepresentable {
         view.configureNativeColors()
         view.processDelegate = context.coordinator
         view.setAccessibilityLabel("Terminal")
-        view.startProcess(executable: command.executable, args: command.arguments,
-                          environment: Self.environment(for: command), execName: nil,
-                          currentDirectory: command.workingDirectory ?? FileManager.default.homeDirectoryForCurrentUser.path)
+        view.startProcess(
+            executable: command.executable, args: command.arguments,
+            environment: Self.environment(for: command), execName: nil,
+            currentDirectory: command.workingDirectory ?? FileManager.default.homeDirectoryForCurrentUser.path)
         return view
     }
 

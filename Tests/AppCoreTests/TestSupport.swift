@@ -1,6 +1,7 @@
-import Foundation
 import ContainerKit
 import ContainerKitMock
+import Foundation
+
 @testable import AppCore
 
 @MainActor
@@ -13,12 +14,14 @@ enum TestSupport {
     }
 
     static func historyURL() -> URL {
-        FileManager.default.temporaryDirectory.appending(path: "cd-tests-\(UUID().uuidString)").appending(path: "builds.json")
+        FileManager.default.temporaryDirectory.appending(path: "cd-tests-\(UUID().uuidString)").appending(
+            path: "builds.json")
     }
 
     static func model(_ backend: any ContainerBackend = MockBackend()) -> AppModel {
-        AppModel(backend: backend, settings: SettingsStore(defaults: defaults()), buildsHistoryURL: historyURL(),
-                 observeAppActivation: false)
+        AppModel(
+            backend: backend, settings: SettingsStore(defaults: defaults()), buildsHistoryURL: historyURL(),
+            observeAppActivation: false)
     }
 }
 
@@ -50,10 +53,14 @@ struct FailingBackend: ContainerBackend {
     func pruneContainers() async throws { throw error }
     func containerLogs(_ id: String, follow: Bool, boot: Bool, tail: Int?) -> LineStream { fail() }
     func containerStats(ids: [String]) async throws -> [ContainerStats] { throw error }
-    func execCapture(_ id: String, command: [String], workingDirectory: String?) async throws -> (exitCode: Int32, stdout: String, stderr: String) { throw error }
+    func execCapture(
+        _ id: String, command: [String], workingDirectory: String?
+    ) async throws -> (exitCode: Int32, stdout: String, stderr: String) { throw error }
     func copy(from source: String, to destination: String) async throws { throw error }
     func exportContainer(_ id: String, to tarPath: String) async throws { throw error }
-    func terminalCommand(for target: TerminalTarget) -> ContainerKit.CommandLine { wrapped.terminalCommand(for: target) }
+    func terminalCommand(for target: TerminalTarget) -> ContainerKit.CommandLine {
+        wrapped.terminalCommand(for: target)
+    }
     func listImages() async throws -> [Image] { throw error }
     func inspectImage(_ reference: String) async throws -> Image { throw error }
     func pullImage(_ reference: String, platform: Platform?) -> LineStream { fail() }
@@ -70,12 +77,16 @@ struct FailingBackend: ContainerBackend {
     func builderDelete() async throws { throw error }
     func listVolumes() async throws -> [Volume] { throw error }
     func inspectVolume(_ name: String) async throws -> Volume { throw error }
-    func createVolume(name: String, size: MemorySize?, journal: String?, labels: [String: String]) async throws { throw error }
+    func createVolume(name: String, size: MemorySize?, journal: String?, labels: [String: String]) async throws {
+        throw error
+    }
     func deleteVolume(_ name: String) async throws { throw error }
     func pruneVolumes() async throws { throw error }
     func listNetworks() async throws -> [Network] { throw error }
     func inspectNetwork(_ name: String) async throws -> Network { throw error }
-    func createNetwork(name: String, subnet: String?, subnetV6: String?, labels: [String: String]) async throws { throw error }
+    func createNetwork(name: String, subnet: String?, subnetV6: String?, labels: [String: String]) async throws {
+        throw error
+    }
     func deleteNetwork(_ name: String) async throws { throw error }
     func pruneNetworks() async throws { throw error }
     func listRegistries() async throws -> [RegistryLogin] { throw error }
@@ -93,7 +104,9 @@ struct FailingBackend: ContainerBackend {
     func listClusters() async throws -> [KubernetesCluster] { throw error }
     func createCluster(_ spec: ClusterSpec) -> LineStream { fail() }
     func deleteCluster(_ name: String) async throws { throw error }
-    func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream { fail() }
+    func loadImage(
+        _ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?
+    ) -> LineStream { fail() }
 
     private func fail() -> LineStream { let e = error; return AsyncThrowingStream { $0.finish(throwing: e) } }
 }

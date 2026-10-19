@@ -1,5 +1,6 @@
 import Foundation
 import Synchronization
+
 @testable import ContainerKit
 
 /// A `CommandRunning` fake that records every argv and answers from a handler.
@@ -17,8 +18,10 @@ final class RecordingRunner: CommandRunning {
     private let streamLines: [OutputLine]
     private let streamError: (any Error & Sendable)?
 
-    init(streamLines: [OutputLine] = [], streamError: (any Error & Sendable)? = nil,
-         handler: @escaping Handler = { _ in ProcessResult(stdout: "[]") }) {
+    init(
+        streamLines: [OutputLine] = [], streamError: (any Error & Sendable)? = nil,
+        handler: @escaping Handler = { _ in ProcessResult(stdout: "[]") }
+    ) {
         self.handler = handler
         self.streamLines = streamLines
         self.streamError = streamError
@@ -28,7 +31,9 @@ final class RecordingRunner: CommandRunning {
     /// argv of every call with the executable dropped.
     var commands: [[String]] { calls.map { Array($0.arguments.dropFirst()) } }
 
-    func run(_ arguments: [String], stdin: Data?, timeout: Duration?, environment: [String: String]) async throws -> ProcessResult {
+    func run(
+        _ arguments: [String], stdin: Data?, timeout: Duration?, environment: [String: String]
+    ) async throws -> ProcessResult {
         state.withLock { $0.append(Call(arguments: arguments, stdin: stdin, streamed: false)) }
         return handler(arguments)
     }

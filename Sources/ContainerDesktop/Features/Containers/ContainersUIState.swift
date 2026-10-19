@@ -1,7 +1,7 @@
+import AppCore
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
-import AppCore
 
 /// Tabs of the container detail pane (Docker Desktop order).
 enum ContainerDetailTab: String, CaseIterable, Identifiable, Codable {
@@ -51,7 +51,8 @@ final class ContainersUIState {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         if let data = defaults.data(forKey: Self.tabsKey),
-           let decoded = try? JSONDecoder().decode([String: ContainerDetailTab].self, from: data) {
+            let decoded = try? JSONDecoder().decode([String: ContainerDetailTab].self, from: data)
+        {
             tabs = decoded
         } else {
             tabs = [:]

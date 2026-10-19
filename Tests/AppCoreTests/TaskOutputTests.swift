@@ -1,6 +1,7 @@
+import ContainerKit
 import Foundation
 import Testing
-import ContainerKit
+
 @testable import AppCore
 
 @MainActor
@@ -18,8 +19,8 @@ import ContainerKit
         let task = center.run(title: "Chatty", kind: .build, stream: stream(n))
         await task.wait()
         #expect(task.buffer.count == LongRunningTask.maxLines)
-        #expect(task.buffer.totalAppended == n)              // follow token keeps moving past the cap
-        #expect(task.buffer.droppedCount == 1_234)           // stable row ids: droppedCount + offset
+        #expect(task.buffer.totalAppended == n)  // follow token keeps moving past the cap
+        #expect(task.buffer.droppedCount == 1_234)  // stable row ids: droppedCount + offset
         #expect(task.lines.first?.text == "line 1234")
         #expect(task.lines.last?.text == "line \(n - 1)")
     }

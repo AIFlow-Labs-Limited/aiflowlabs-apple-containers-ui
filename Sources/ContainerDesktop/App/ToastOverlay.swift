@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Bottom-right transient toasts from `AppModel.toasts` (the ToastCenter model lives in AppCore so stores can post).
 struct ToastOverlay: View {

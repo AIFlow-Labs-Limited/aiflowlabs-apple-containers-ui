@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Collapsible bottom panel with a login shell (`.shell` target), like Docker Desktop's integrated terminal.
 /// Toggle with ⌘T or the toolbar. Drag the top edge to resize.
@@ -40,14 +40,22 @@ struct TerminalPanel: View {
             Text("Terminal").font(.callout.weight(.semibold))
             Text("PATH includes /usr/local/bin (where `container` installs)").font(.caption).foregroundStyle(.secondary)
             Spacer()
-            Button { restart() } label: { Image(systemName: "plus") }
-                .buttonStyle(.borderless)
-                .help("New session")
-                .accessibilityLabel("New terminal session")
-            Button { withAnimation { model.navigation.isTerminalOpen = false } } label: { Image(systemName: "chevron.down") }
-                .buttonStyle(.borderless)
-                .help("Hide terminal (⌘T)")
-                .accessibilityLabel("Hide terminal")
+            Button {
+                restart()
+            } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(.borderless)
+            .help("New session")
+            .accessibilityLabel("New terminal session")
+            Button {
+                withAnimation { model.navigation.isTerminalOpen = false }
+            } label: {
+                Image(systemName: "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .help("Hide terminal (⌘T)")
+            .accessibilityLabel("Hide terminal")
         }
         .padding(.horizontal, Spacing.m)
         .padding(.vertical, Spacing.xs)
@@ -60,12 +68,14 @@ struct TerminalPanel: View {
             .frame(height: 5)
             .overlay(Divider(), alignment: .top)
             .contentShape(Rectangle())
-            .pointerStyle(.rowResize)   // balanced by SwiftUI, unlike NSCursor.push/pop on hover
-            .gesture(DragGesture(minimumDistance: 1).onChanged { value in
-                let start = dragStart ?? height
-                dragStart = start
-                height = min(max(start - value.translation.height, 140), 700)
-            }.onEnded { _ in dragStart = nil })
+            .pointerStyle(.rowResize)  // balanced by SwiftUI, unlike NSCursor.push/pop on hover
+            .gesture(
+                DragGesture(minimumDistance: 1).onChanged { value in
+                    let start = dragStart ?? height
+                    dragStart = start
+                    height = min(max(start - value.translation.height, 140), 700)
+                }.onEnded { _ in dragStart = nil }
+            )
             .accessibilityHidden(true)
     }
 

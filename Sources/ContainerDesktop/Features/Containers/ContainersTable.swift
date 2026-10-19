@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// The containers `Table`: sortable columns, persisted column visibility/order, project groups as
 /// disclosure rows, context menus, Return/double-click opens the detail pane.
@@ -17,7 +17,8 @@ struct ContainersTable: View {
     @State private var didLoadColumns = false
 
     var body: some View {
-        Table(of: ContainerRow.self, selection: $ui.selection, sortOrder: $ui.sortOrder, columnCustomization: $columns) {
+        Table(of: ContainerRow.self, selection: $ui.selection, sortOrder: $ui.sortOrder, columnCustomization: $columns)
+        {
             TableColumn("Name", value: \.name) { ContainerNameCell(row: $0) }
                 .width(min: 120, ideal: 150)
                 .customizationID("name")
@@ -45,7 +46,8 @@ struct ContainersTable: View {
                 .width(min: 70, ideal: 100)
                 .customizationID("ports")
             TableColumn("IP", value: \.ip) { row in
-                Text(row.ip.isEmpty ? emDash : row.ip).font(.monoCaption).foregroundStyle(row.ip.isEmpty ? .secondary : .primary)
+                Text(row.ip.isEmpty ? emDash : row.ip).font(.monoCaption).foregroundStyle(
+                    row.ip.isEmpty ? .secondary : .primary)
             }
             .width(min: 85, ideal: 100)
             .customizationID("ip")
@@ -82,23 +84,26 @@ struct ContainersTable: View {
             actions.requestDelete(Array(ui.selection))
             return .handled
         }
-        .alternatingRowBackgrounds(.disabled)   // no striped "rows" below the content
+        .alternatingRowBackgrounds(.disabled)  // no striped "rows" below the content
         .onAppear(perform: loadColumns)
         .onChange(of: columns) { saveColumns() }
         .accessibilityLabel("Containers")
     }
 
     private func expandedBinding(_ project: String) -> Binding<Bool> {
-        Binding(get: { !ui.collapsedProjects.contains(project) },
-                set: { expanded in
-                    if expanded { ui.collapsedProjects.remove(project) } else { ui.collapsedProjects.insert(project) }
-                })
+        Binding(
+            get: { !ui.collapsedProjects.contains(project) },
+            set: { expanded in
+                if expanded { ui.collapsedProjects.remove(project) } else { ui.collapsedProjects.insert(project) }
+            })
     }
 
     private func loadColumns() {
         guard !didLoadColumns else { return }
         didLoadColumns = true
-        if !columnsData.isEmpty, let decoded = try? JSONDecoder().decode(TableColumnCustomization<ContainerRow>.self, from: columnsData) {
+        if !columnsData.isEmpty,
+            let decoded = try? JSONDecoder().decode(TableColumnCustomization<ContainerRow>.self, from: columnsData)
+        {
             columns = decoded
         }
     }

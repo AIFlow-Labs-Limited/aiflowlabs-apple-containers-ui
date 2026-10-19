@@ -1,8 +1,8 @@
-import SwiftUI
+import AppCore
 import ContainerKit
 import ContainerKitMock
-import AppCore
 import DesignSystem
+import SwiftUI
 
 /// "Run a new container" (Docker Desktop's Optional settings + Apple extras). Live `container run` preview
 /// built from `RunSpec.cliArguments`; Run streams through `TaskCenter` and then selects the new container.
@@ -24,7 +24,8 @@ struct RunContainerSheet: View {
         self.onLaunched = onLaunched
         var values = prefill.map(RunFormValues.init(spec:)) ?? RunFormValues()
         // Opened from an image with nothing else set: restore what was used last time for that image.
-        if let prefill, prefill == RunSpec(image: prefill.image), let last = RunFormValues.lastUsed(for: prefill.image) {
+        if let prefill, prefill == RunSpec(image: prefill.image), let last = RunFormValues.lastUsed(for: prefill.image)
+        {
             values = last
         }
         _form = State(initialValue: values)
@@ -35,7 +36,11 @@ struct RunContainerSheet: View {
     private var hostMemoryMB: Double { Double(ProcessInfo.processInfo.physicalMemory >> 20) }
     private var spec: RunSpec { form.spec }
     private var issues: [String] { form.issues }
-    private var imageIsLocal: Bool { model.images.items.contains { $0.reference == spec.image || ContainerRow.shortImage($0.reference) == spec.image } }
+    private var imageIsLocal: Bool {
+        model.images.items.contains {
+            $0.reference == spec.image || ContainerRow.shortImage($0.reference) == spec.image
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,8 +62,11 @@ struct RunContainerSheet: View {
                         }
                         .font(.monoBody)
                     if !form.image.isEmpty && !imageIsLocal {
-                        Label("Not available locally — it will be pulled when the container starts.", systemImage: "arrow.down.circle")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Label(
+                            "Not available locally — it will be pulled when the container starts.",
+                            systemImage: "arrow.down.circle"
+                        )
+                        .font(.caption).foregroundStyle(.secondary)
                     }
                     TextField("Container name", text: $form.name, prompt: Text("Random if empty"))
                     TextField("Command", text: $form.command, prompt: Text("Image default, e.g. sleep 300"))
@@ -163,20 +171,25 @@ struct RunContainerSheet: View {
             defer { suggesting = false }
             do {
                 let image = try await backend.inspectImage(reference)
-                let exposed = (image.variants.first { $0.platform.architecture == architecture } ?? image.variants.first)?
+                let exposed =
+                    (image.variants.first { $0.platform.architecture == architecture } ?? image.variants.first)?
                     .config?.config?.exposedPortList ?? []
                 let mapped = Set(form.ports.map(\.container))
                 var added = 0
                 for entry in exposed {
                     let parts = entry.split(separator: "/")
                     guard let port = parts.first.map(String.init), !mapped.contains(port) else { continue }
-                    form.ports.append(.init(host: port, container: port, proto: parts.count > 1 ? String(parts[1]) : "tcp"))
+                    form.ports.append(
+                        .init(host: port, container: port, proto: parts.count > 1 ? String(parts[1]) : "tcp"))
                     added += 1
                 }
-                suggestMessage = exposed.isEmpty ? "\(ContainerRow.shortImage(reference)) does not declare any EXPOSE ports."
+                suggestMessage =
+                    exposed.isEmpty
+                    ? "\(ContainerRow.shortImage(reference)) does not declare any EXPOSE ports."
                     : (added == 0 ? "All exposed ports are already mapped." : nil)
             } catch {
-                suggestMessage = "Pull the image first to read its exposed ports (\(BackendError(wrapping: error).errorDescription ?? "not found"))."
+                suggestMessage =
+                    "Pull the image first to read its exposed ports (\(BackendError(wrapping: error).errorDescription ?? "not found"))."
             }
         }
     }
@@ -187,15 +200,18 @@ struct RunContainerSheet: View {
         let spec = self.spec.normalizedForRun()
         form.saveAsLastUsed()
         let store = model.containers
-        let task = model.taskCenter.run(title: "Run \(spec.name ?? ContainerRow.shortImage(spec.image))", kind: .run,
-                                        stream: model.backend.runContainer(spec))
+        let task = model.taskCenter.run(
+            title: "Run \(spec.name ?? ContainerRow.shortImage(spec.image))", kind: .run,
+            stream: model.backend.runContainer(spec))
         let launched = onLaunched
         dismiss()
         Task { @MainActor in
             await task.wait()
             guard task.state == .succeeded else { return }
-            let printed = task.buffer.lines.last { $0.stream == .stdout && !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }?
-                .text.trimmingCharacters(in: .whitespaces)
+            let printed = task.buffer.lines.last {
+                $0.stream == .stdout && !$0.text.trimmingCharacters(in: .whitespaces).isEmpty
+            }?
+            .text.trimmingCharacters(in: .whitespaces)
             await store.refresh()
             if let id = spec.name ?? printed, store.container(id: id) != nil { launched(id) }
         }

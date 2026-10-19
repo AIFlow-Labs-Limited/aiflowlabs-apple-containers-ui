@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Live status + output of one or more `LongRunningTask`s, embedded in Pull / Push / Build sheets. The same tasks
 /// also appear in the Activity window.
@@ -39,9 +39,9 @@ struct TaskProgressPanel: View {
                     OutputLogView(lines: mergedLines, follow: true, showsSearchField: false)
                 }
             }
-                .frame(minHeight: 160, maxHeight: 260)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
-                .overlay(RoundedRectangle(cornerRadius: Radius.medium).strokeBorder(.separator))
+            .frame(minHeight: 160, maxHeight: 260)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
+            .overlay(RoundedRectangle(cornerRadius: Radius.medium).strokeBorder(.separator))
             Text("Also shown in the Activity window — closing this sheet does not stop the task.")
                 .font(.caption).foregroundStyle(.secondary)
         }
@@ -55,9 +55,11 @@ struct TaskStateIcon: View {
     var body: some View {
         switch state {
         case .running: ProgressView().controlSize(.small).accessibilityLabel("Running")
-        case .succeeded: Image(systemName: "checkmark.circle.fill").foregroundStyle(.statusRunning).accessibilityLabel("Done")
+        case .succeeded:
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.statusRunning).accessibilityLabel("Done")
         case .failed: Image(systemName: "xmark.octagon.fill").foregroundStyle(.statusError).accessibilityLabel("Failed")
-        case .cancelled: Image(systemName: "minus.circle").foregroundStyle(.statusStopped).accessibilityLabel("Cancelled")
+        case .cancelled:
+            Image(systemName: "minus.circle").foregroundStyle(.statusStopped).accessibilityLabel("Cancelled")
         }
     }
 }
@@ -65,9 +67,12 @@ struct TaskStateIcon: View {
 extension OutputLogView {
     /// Feeds the view from a ring buffer (e.g. `LongRunningTask.buffer`): stable row ids while old lines are
     /// trimmed, and following keyed on `totalAppended` so it keeps working once the buffer is full.
-    init(buffer: LogRingBuffer, follow: Bool = true, filter: String = "", showsSearchField: Bool = true,
-         showsTimestamps: Bool = false) {
-        self.init(lines: buffer.lines, firstLineNumber: buffer.droppedCount, totalAppended: buffer.totalAppended,
-                  follow: follow, filter: filter, showsSearchField: showsSearchField, showsTimestamps: showsTimestamps)
+    init(
+        buffer: LogRingBuffer, follow: Bool = true, filter: String = "", showsSearchField: Bool = true,
+        showsTimestamps: Bool = false
+    ) {
+        self.init(
+            lines: buffer.lines, firstLineNumber: buffer.droppedCount, totalAppended: buffer.totalAppended,
+            follow: follow, filter: filter, showsSearchField: showsSearchField, showsTimestamps: showsTimestamps)
     }
 }

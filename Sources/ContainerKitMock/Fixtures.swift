@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// Recorded `container … --format json` output from CLI 1.5.0 on macOS 26.6.2.
 /// Re-record with `scripts/record-fixtures.sh` when the CLI changes.
@@ -33,5 +33,7 @@ public enum Fixtures {
     public static func builder() throws -> [Container] { try decode([Container].self, "builder.json") }
     public static func diskUsage() throws -> DiskUsage { try decode(DiskUsage.self, "system-df.json") }
     public static func systemStatus() throws -> SystemStatus { try decode(SystemStatus.self, "system-status.json") }
-    public static func systemProperties() throws -> SystemProperties { try decode(SystemProperties.self, "system-properties.json") }
+    public static func systemProperties() throws -> SystemProperties {
+        try decode(SystemProperties.self, "system-properties.json")
+    }
 }

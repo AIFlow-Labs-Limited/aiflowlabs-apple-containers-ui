@@ -1,6 +1,6 @@
-import Foundation
-import ContainerKit
 import AppCore
+import ContainerKit
+import Foundation
 
 /// Editable state of the Run sheet. Rows hold raw text so half-typed values never get lost; `spec` turns
 /// it into a `RunSpec` (the single source of truth for the CLI arguments and the command preview).
@@ -64,8 +64,8 @@ struct RunFormValues: Codable, Equatable {
     var cpus = 4
     var memoryMB: Double = 1024
     var platform: PlatformChoice = .automatic
-    var network = ""                  // "" = default
-    var aliases = ""                  // comma separated
+    var network = ""  // "" = default
+    var aliases = ""  // comma separated
     var macAddress = ""
     var useInit = false
     var readOnly = false
@@ -89,16 +89,21 @@ struct RunFormValues: Codable, Equatable {
         workingDirectory = spec.workingDirectory ?? ""
         user = spec.user ?? ""
         ports = spec.ports.map { p in
-            PortRow(host: (p.hostAddress.map { "\($0):" } ?? "") + String(p.hostPort), container: String(p.containerPort), proto: p.proto)
+            PortRow(
+                host: (p.hostAddress.map { "\($0):" } ?? "") + String(p.hostPort), container: String(p.containerPort),
+                proto: p.proto)
         }
         volumes = spec.mounts.map { m in
             switch m.kind {
             case .bind(let path): return VolumeRow(kind: .bind, source: path, target: m.target, readOnly: m.readOnly)
-            case .volume(let name): return VolumeRow(kind: .volume, source: name, target: m.target, readOnly: m.readOnly)
+            case .volume(let name):
+                return VolumeRow(kind: .volume, source: name, target: m.target, readOnly: m.readOnly)
             case .anonymous: return VolumeRow(kind: .anonymous, target: m.target, readOnly: m.readOnly)
             }
         }
-        environment = EnvironmentVariable.parse(spec.environment).map { KeyValueRow(key: $0.key, value: $0.value ?? "") }
+        environment = EnvironmentVariable.parse(spec.environment).map {
+            KeyValueRow(key: $0.key, value: $0.value ?? "")
+        }
         if spec.cpus != nil || spec.memory != nil {
             customResources = true
             cpus = spec.cpus ?? 4
@@ -150,7 +155,8 @@ struct RunFormValues: Codable, Equatable {
         guard let containerPort = Int(row.container.trimmingCharacters(in: .whitespaces)) else { return nil }
         let hostPort = hostPortText.isEmpty ? containerPort : Int(hostPortText)
         guard let hostPort else { return nil }
-        return RunSpec.PortMapping(hostAddress: address.flatMap(trimmed), hostPort: hostPort, containerPort: containerPort, proto: row.proto)
+        return RunSpec.PortMapping(
+            hostAddress: address.flatMap(trimmed), hostPort: hostPort, containerPort: containerPort, proto: row.proto)
     }
 
     var spec: RunSpec {
@@ -167,10 +173,14 @@ struct RunFormValues: Codable, Equatable {
             let source = row.source.trimmingCharacters(in: .whitespaces)
             switch row.kind {
             case .bind:
-                return source.isEmpty && target.isEmpty ? nil
+                return source.isEmpty && target.isEmpty
+                    ? nil
                     : .init(kind: .bind(hostPath: Self.expandingTilde(source)), target: target, readOnly: row.readOnly)
-            case .volume: return source.isEmpty && target.isEmpty ? nil : .init(kind: .volume(name: source), target: target, readOnly: row.readOnly)
-            case .anonymous: return target.isEmpty ? nil : .init(kind: .anonymous, target: target, readOnly: row.readOnly)
+            case .volume:
+                return source.isEmpty && target.isEmpty
+                    ? nil : .init(kind: .volume(name: source), target: target, readOnly: row.readOnly)
+            case .anonymous:
+                return target.isEmpty ? nil : .init(kind: .anonymous, target: target, readOnly: row.readOnly)
             }
         }
         s.environment = environment.compactMap { row in
@@ -192,10 +202,11 @@ struct RunFormValues: Codable, Equatable {
         s.useInit = useInit
         s.readOnly = readOnly
         s.ssh = ssh
-        s.labels = Dictionary(labels.compactMap { row in
-            let key = row.key.trimmingCharacters(in: .whitespaces)
-            return key.isEmpty ? nil : (key, row.value)
-        }, uniquingKeysWith: { $1 })
+        s.labels = Dictionary(
+            labels.compactMap { row in
+                let key = row.key.trimmingCharacters(in: .whitespaces)
+                return key.isEmpty ? nil : (key, row.value)
+            }, uniquingKeysWith: { $1 })
         s.capAdd = Self.list(capAdd)
         s.capDrop = Self.list(capDrop)
         s.shmSize = Self.trimmed(shmSize).flatMap(MemorySize.init(parsing:))
@@ -214,9 +225,15 @@ struct RunFormValues: Codable, Equatable {
         // Image and host-folder checks (`.invalidImage`, `.relativeMountSource`) live in `RunSpec.issues`.
         var result = spec.issues.map(\.description)
         result += malformedPorts.map { "Port mapping “\($0)” must be numbers, e.g. 8080 → 80." }
-        if let shm = Self.trimmed(shmSize), MemorySize(parsing: shm) == nil { result.append("Shared memory size “\(shm)” is not a size like 64m.") }
-        if volumes.contains(where: { $0.kind != .anonymous && !$0.target.isEmpty && $0.source.trimmingCharacters(in: .whitespaces).isEmpty }) {
-            result.append(volumes.contains { $0.kind == .bind && $0.source.isEmpty } ? "Choose a host folder for every folder mount." : "Name every volume.")
+        if let shm = Self.trimmed(shmSize), MemorySize(parsing: shm) == nil {
+            result.append("Shared memory size “\(shm)” is not a size like 64m.")
+        }
+        if volumes.contains(where: {
+            $0.kind != .anonymous && !$0.target.isEmpty && $0.source.trimmingCharacters(in: .whitespaces).isEmpty
+        }) {
+            result.append(
+                volumes.contains { $0.kind == .bind && $0.source.isEmpty }
+                    ? "Choose a host folder for every folder mount." : "Name every volume.")
         }
         return result
     }
@@ -242,7 +259,9 @@ struct RunFormValues: Codable, Equatable {
         copy.name = ""
         copy.environment = environment.map { row in
             var row = row
-            if EnvironmentVariable.isSensitive(key: row.key.trimmingCharacters(in: .whitespaces), value: row.value) { row.value = "" }
+            if EnvironmentVariable.isSensitive(key: row.key.trimmingCharacters(in: .whitespaces), value: row.value) {
+                row.value = ""
+            }
             return row
         }
         return copy

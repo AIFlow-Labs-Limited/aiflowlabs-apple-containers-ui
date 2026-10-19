@@ -1,5 +1,5 @@
-import AppKit
 import AppCore
+import AppKit
 
 /// Shared wording + an `NSAlert` fallback for confirming `container system stop` from places that cannot host a
 /// SwiftUI alert (menu bar extra, Debug menu). The main window uses `confirmDestructive` with the same text.
@@ -15,7 +15,8 @@ enum EngineStopConfirmation {
         case 0: base = "No containers are running."
         case 1: base = "Stops 1 running container (\(running[0]))."
         default:
-            let names = running.prefix(8).joined(separator: ", ") + (running.count > 8 ? " and \(running.count - 8) more" : "")
+            let names =
+                running.prefix(8).joined(separator: ", ") + (running.count > 8 ? " and \(running.count - 8) more" : "")
             base = "Stops \(running.count) running containers (\(names))."
         }
         return base + " The builder, machines and Kubernetes nodes stop too."
@@ -31,7 +32,7 @@ enum EngineStopConfirmation {
         let stop = alert.addButton(withTitle: actionTitle)
         stop.hasDestructiveAction = true
         alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
-        stop.keyEquivalent = ""   // Return does not stop the engine by accident
+        stop.keyEquivalent = ""  // Return does not stop the engine by accident
         return alert.runModal() == .alertFirstButtonReturn
     }
 }

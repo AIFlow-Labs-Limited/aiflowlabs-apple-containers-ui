@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// ⌘K sheet: fuzzy search over sections, containers, images, volumes, machines and actions.
 struct CommandPaletteView: View {
@@ -55,11 +55,19 @@ struct CommandPaletteView: View {
             .padding(.vertical, Spacing.xs)
         }
         .frame(width: 600, height: 420)
-        .onAppear { palette.query = ""; highlighted = 0; focused = true }
+        .onAppear {
+            palette.query = ""; highlighted = 0; focused = true
+        }
         .onChange(of: palette.query) { highlighted = 0 }
-        .onKeyPress(.downArrow) { highlighted = min(highlighted + 1, max(0, results.count - 1)); return .handled }
-        .onKeyPress(.upArrow) { highlighted = max(highlighted - 1, 0); return .handled }
-        .onKeyPress(.escape) { dismiss(); return .handled }
+        .onKeyPress(.downArrow) {
+            highlighted = min(highlighted + 1, max(0, results.count - 1)); return .handled
+        }
+        .onKeyPress(.upArrow) {
+            highlighted = max(highlighted - 1, 0); return .handled
+        }
+        .onKeyPress(.escape) {
+            dismiss(); return .handled
+        }
     }
 
     private func execute(_ results: [PaletteItem]) {

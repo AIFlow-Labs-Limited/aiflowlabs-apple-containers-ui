@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// BuildKit builder status with Start (sized) / Stop / Reset.
 struct BuilderCard: View {
@@ -20,7 +20,8 @@ struct BuilderCard: View {
 
     private var statusText: String {
         guard let builder else { return "Not created" }
-        return builder.isRunning ? "Running" : builder.state.displayName == "Exited" ? "Stopped" : builder.state.displayName
+        return builder.isRunning
+            ? "Running" : builder.state.displayName == "Exited" ? "Stopped" : builder.state.displayName
     }
     private var statusColor: Color {
         guard let builder else { return .statusStopped }
@@ -31,7 +32,8 @@ struct BuilderCard: View {
         HStack(alignment: .top, spacing: Spacing.m) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack(spacing: Spacing.s) {
-                    Image(systemName: "hammer.circle.fill").font(.title).foregroundStyle(.tint).accessibilityHidden(true)
+                    Image(systemName: "hammer.circle.fill").font(.title).foregroundStyle(.tint).accessibilityHidden(
+                        true)
                     VStack(alignment: .leading, spacing: 0) {
                         Text("Builder").font(.headline)
                         HStack(spacing: Spacing.xs) {
@@ -50,8 +52,11 @@ struct BuilderCard: View {
             .accessibilityLabel("Builder \(statusText)")
             MetricTile(title: "CPUs", value: builder.map { "\($0.configuration.resources.cpus)" } ?? emDash)
                 .frame(width: 100)
-            MetricTile(title: "Memory", value: builder.map { ByteCount.format($0.configuration.resources.memoryInBytes) } ?? emDash)
-                .frame(width: 120)
+            MetricTile(
+                title: "Memory",
+                value: builder.map { ByteCount.format($0.configuration.resources.memoryInBytes) } ?? emDash
+            )
+            .frame(width: 120)
             MetricTile(title: "IP", value: builder?.primaryIPv4 ?? emDash)
                 .frame(width: 150)
             VStack(alignment: .leading, spacing: Spacing.s) {
@@ -65,8 +70,10 @@ struct BuilderCard: View {
                 }
                 Button("Reset…", systemImage: "arrow.counterclockwise", role: .destructive) { confirmReset = true }
                     .disabled(builder == nil || buildRunning)
-                    .help(buildRunning ? "Wait for the running build to finish (or cancel it in Activity) before resetting"
-                                       : "Stop and delete the builder, clearing the layer cache")
+                    .help(
+                        buildRunning
+                            ? "Wait for the running build to finish (or cancel it in Activity) before resetting"
+                            : "Stop and delete the builder, clearing the layer cache")
             }
             .labelStyle(.titleAndIcon)
             .frame(width: 110, alignment: .leading)
@@ -74,11 +81,13 @@ struct BuilderCard: View {
         }
         .padding(Spacing.m)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: Radius.large))
-        .confirmDestructive(title: "Reset the builder?",
-                            message: "Stops and deletes the BuildKit builder container “\(builder?.id ?? "buildkit")”. "
-                                + "This clears the build layer cache; the next build starts from scratch. Images are kept. "
-                                + "Not available while a build is running.",
-                            actionTitle: "Reset", isPresented: $confirmReset) {
+        .confirmDestructive(
+            title: "Reset the builder?",
+            message: "Stops and deletes the BuildKit builder container “\(builder?.id ?? "buildkit")”. "
+                + "This clears the build layer cache; the next build starts from scratch. Images are kept. "
+                + "Not available while a build is running.",
+            actionTitle: "Reset", isPresented: $confirmReset
+        ) {
             guard !buildRunning else { return }
             act {
                 if store.builderRunning { await store.stopBuilder() }
@@ -118,8 +127,11 @@ struct BuilderCard: View {
 
     private func loadDefaults() {
         if let c = builder?.configuration.resources.cpus ?? model.system.properties?.build?.cpus { cpus = c }
-        if let bytes = builder?.configuration.resources.memoryInBytes { memoryGB = max(1, Int(bytes >> 30)) }
-        else if let m = model.system.properties?.build?.memory.flatMap(MemorySize.init(parsing:)) { memoryGB = max(1, Int(m.bytes >> 30)) }
+        if let bytes = builder?.configuration.resources.memoryInBytes {
+            memoryGB = max(1, Int(bytes >> 30))
+        } else if let m = model.system.properties?.build?.memory.flatMap(MemorySize.init(parsing:)) {
+            memoryGB = max(1, Int(m.bytes >> 30))
+        }
     }
 }
 

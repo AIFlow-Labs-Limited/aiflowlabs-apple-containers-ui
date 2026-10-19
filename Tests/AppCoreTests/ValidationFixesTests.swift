@@ -1,6 +1,7 @@
+import ContainerKit
 import Foundation
 import Testing
-import ContainerKit
+
 @testable import AppCore
 @testable import DesignSystem
 
@@ -17,9 +18,11 @@ import ContainerKit
     }
 
     @Test func buildSecretSourcesAreResolved() {
-        #expect(ResourceValidator.resolvedBuildSecret("id=k,src=~/key", contextDirectory: "/ctx", home: "/Users/me")
+        #expect(
+            ResourceValidator.resolvedBuildSecret("id=k,src=~/key", contextDirectory: "/ctx", home: "/Users/me")
                 == "id=k,src=/Users/me/key")
-        #expect(ResourceValidator.resolvedBuildSecret("id=k,src=secrets/k.txt", contextDirectory: "/ctx", home: "/h")
+        #expect(
+            ResourceValidator.resolvedBuildSecret("id=k,src=secrets/k.txt", contextDirectory: "/ctx", home: "/h")
                 == "id=k,src=/ctx/secrets/k.txt")
         #expect(ResourceValidator.resolvedBuildSecret("id=k,src=/abs", contextDirectory: "/ctx") == "id=k,src=/abs")
         #expect(ResourceValidator.resolvedBuildSecret("id=k,env=TOKEN", contextDirectory: "/ctx") == "id=k,env=TOKEN")
@@ -29,13 +32,17 @@ import ContainerKit
         #expect(ResourceValidator.ipv4CIDR("192.168.70.0/24") == nil)
         #expect(ResourceValidator.ipv4CIDR("10.0.0.0/8") == nil)
         #expect(ResourceValidator.ipv4CIDR("10.1.2.0/30") == nil)
-        #expect(ResourceValidator.ipv4CIDR("0.0.0.0/0") != nil)          // prefix out of /8–/30
+        #expect(ResourceValidator.ipv4CIDR("0.0.0.0/0") != nil)  // prefix out of /8–/30
         #expect(ResourceValidator.ipv4CIDR("10.0.0.0/31") != nil)
         #expect(ResourceValidator.ipv4CIDR("10.0.0.0/+8") != nil)
-        #expect(ResourceValidator.ipv4CIDR("192.168.70.5/24") == "Host bits are set; the network address is 192.168.70.0/24.")
+        #expect(
+            ResourceValidator.ipv4CIDR("192.168.70.5/24")
+                == "Host bits are set; the network address is 192.168.70.0/24.")
         #expect(ResourceValidator.ipv4CIDRWarning("192.168.64.0/20")?.contains("default network") == true)
         #expect(ResourceValidator.ipv4CIDRWarning("192.168.70.0/24") == nil)
-        #expect(ResourceValidator.ipv4CIDRWarning("10.0.1.0/24", existing: ["10.0.0.0/16"]) == "Overlaps the existing subnet 10.0.0.0/16.")
+        #expect(
+            ResourceValidator.ipv4CIDRWarning("10.0.1.0/24", existing: ["10.0.0.0/16"])
+                == "Overlaps the existing subnet 10.0.0.0/16.")
         #expect(ResourceValidator.ipv6CIDR("fd00::/+64") != nil)
     }
 
@@ -57,16 +64,23 @@ import ContainerKit
 
     @Test func digestPinnedContainerUsesImage() {
         let digest = "sha256:" + String(repeating: "ab", count: 32)
-        let image = Image(id: digest, configuration: .init(name: "docker.io/library/nginx:1.27", creationDate: .now,
-                                                           descriptor: Descriptor(digest: digest, mediaType: "x", size: 1)),
-                          variants: [])
+        let image = Image(
+            id: digest,
+            configuration: .init(
+                name: "docker.io/library/nginx:1.27", creationDate: .now,
+                descriptor: Descriptor(digest: digest, mediaType: "x", size: 1)),
+            variants: [])
         func container(_ ref: String, digest d: String) -> Container {
-            Container(id: ref, configuration: .init(id: ref, image: ImageReference(reference: ref, descriptor: Descriptor(digest: d, mediaType: "x", size: 1)),
-                                                    creationDate: .now, initProcess: .init(executable: "nginx")))
+            Container(
+                id: ref,
+                configuration: .init(
+                    id: ref,
+                    image: ImageReference(reference: ref, descriptor: Descriptor(digest: d, mediaType: "x", size: 1)),
+                    creationDate: .now, initProcess: .init(executable: "nginx")))
         }
         let pinned = container("nginx@\(digest)", digest: digest)
         let byName = container("nginx:1.27", digest: "sha256:00")
-        let other = container("nginx:1.25", digest: digest)          // same digest, different tag, not pinned
+        let other = container("nginx:1.25", digest: digest)  // same digest, different tag, not pinned
         let users = ResourceUsage.containers(using: image, in: [pinned, byName, other]).map(\.id)
         #expect(users == [pinned.id, byName.id])
     }
@@ -78,7 +92,8 @@ import ContainerKit
         let url = TestSupport.historyURL()
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("{ not json".utf8).write(to: url)
-        let store = BuildsStore(backend: UnavailableBackend(searchedPaths: []), tasks: TaskCenter(), gate: PollingGate(), historyURL: url)
+        let store = BuildsStore(
+            backend: UnavailableBackend(searchedPaths: []), tasks: TaskCenter(), gate: PollingGate(), historyURL: url)
         #expect(store.history.isEmpty)
         #expect(store.lastError?.errorDescription?.contains(".bak") == true)
         let backup = url.appendingPathExtension("bak")
@@ -88,8 +103,13 @@ import ContainerKit
     @Test func legacyArrayAndMissingFieldsStillLoad() throws {
         let url = TestSupport.historyURL()
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data(#"[{"tag":"app:1","status":"succeeded","startedAt":"2026-01-01T00:00:00Z"},{"tag":"x","status":"weird"}]"#.utf8).write(to: url)
-        guard case .success(let records) = BuildsStore.loadHistory(from: url) else { Issue.record("expected success"); return }
+        try Data(
+            #"[{"tag":"app:1","status":"succeeded","startedAt":"2026-01-01T00:00:00Z"},{"tag":"x","status":"weird"}]"#
+                .utf8
+        ).write(to: url)
+        guard case .success(let records) = BuildsStore.loadHistory(from: url) else {
+            Issue.record("expected success"); return
+        }
         #expect(records.map(\.tag) == ["app:1", "x"])
         #expect(records[0].status == .succeeded && records[0].log.isEmpty && records[0].platforms.isEmpty)
         #expect(records[1].status == .failed)
@@ -103,7 +123,9 @@ import ContainerKit
         let url = try #require(Mirror(reflecting: model.builds).descendant("historyURL") as? URL)
         let json = try String(contentsOf: url, encoding: .utf8)
         #expect(json.contains("\"version\" : 1"))
-        guard case .success(let records) = BuildsStore.loadHistory(from: url) else { Issue.record("reload failed"); return }
+        guard case .success(let records) = BuildsStore.loadHistory(from: url) else {
+            Issue.record("reload failed"); return
+        }
         #expect(records.first?.tag == "v:1")
     }
 }
@@ -132,7 +154,10 @@ import ContainerKit
 
     @Test func bindSourcesExpandTilde() {
         var s = RunSpec(image: "alpine")
-        s.mounts = [.init(kind: .bind(hostPath: "~/project"), target: "/src"), .init(kind: .bind(hostPath: "rel/dir"), target: "/x")]
+        s.mounts = [
+            .init(kind: .bind(hostPath: "~/project"), target: "/src"),
+            .init(kind: .bind(hostPath: "rel/dir"), target: "/x"),
+        ]
         #expect(s.issues == [.relativeMountSource("rel/dir")])
         let run = s.normalizedForRun(home: "/Users/me")
         #expect(run.mounts[0].kind == .bind(hostPath: "/Users/me/project"))
@@ -140,11 +165,16 @@ import ContainerKit
 
     @Test func recreateKeepsEveryNetworkAndDNSDomain() {
         let desc = Descriptor(digest: "sha256:00", mediaType: "x", size: 1)
-        let c = Container(id: "web", configuration: .init(
-            id: "web", image: ImageReference(reference: "nginx", descriptor: desc), creationDate: .now,
-            initProcess: .init(executable: "nginx"),
-            networks: [.init(network: "front"), .init(network: "back", options: .init(mac: "02:00:00:00:00:01", aliases: ["db"]))],
-            dns: .init(domain: "test")))
+        let c = Container(
+            id: "web",
+            configuration: .init(
+                id: "web", image: ImageReference(reference: "nginx", descriptor: desc), creationDate: .now,
+                initProcess: .init(executable: "nginx"),
+                networks: [
+                    .init(network: "front"),
+                    .init(network: "back", options: .init(mac: "02:00:00:00:00:01", aliases: ["db"])),
+                ],
+                dns: .init(domain: "test")))
         let spec = RunSpec(recreating: c)
         #expect(spec.network == "front")
         #expect(spec.dnsDomain == "test")
@@ -184,11 +214,11 @@ import ContainerKit
         }
         h.append(sample("a", cpu: 0), at: t0)
         h.append(sample("b", cpu: 0), at: t0)
-        let late = h.append(sample("a", cpu: 50_000_000), at: t0.addingTimeInterval(120))   // gap > 30 s
-        #expect(late.cpuPercent == 0)                                                      // re-primed, no bogus rate
+        let late = h.append(sample("a", cpu: 50_000_000), at: t0.addingTimeInterval(120))  // gap > 30 s
+        #expect(late.cpuPercent == 0)  // re-primed, no bogus rate
         h.retain(only: ["a"], now: t0.addingTimeInterval(120))
         #expect(h.points(for: "b").isEmpty)
-        #expect(h.points(for: "a").count == 1)                                             // t0 point aged out
+        #expect(h.points(for: "a").count == 1)  // t0 point aged out
     }
 
     @Test func launchAtLoginMirrorsSystemStatus() {

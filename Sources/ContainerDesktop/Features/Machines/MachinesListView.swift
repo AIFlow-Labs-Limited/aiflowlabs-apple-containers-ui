@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Machines: table (sortable, searchable), create / resize / terminal / logs / stop / delete / set default,
 /// and an inspector with Overview · Terminal · Logs.
@@ -26,9 +26,11 @@ struct MachinesListView: View {
             .overlay { emptyState }
             .inspector(isPresented: .constant(selected.count == 1)) {
                 if let m = selected.first {
-                    MachineDetailView(machine: m, tab: $detailTab,
-                                      onResize: { resizing = m }, onStop: { pendingStop = [m.name] })
-                        .inspectorColumnWidth(min: 340, ideal: 400, max: 900)
+                    MachineDetailView(
+                        machine: m, tab: $detailTab,
+                        onResize: { resizing = m }, onStop: { pendingStop = [m.name] }
+                    )
+                    .inspectorColumnWidth(min: 340, ideal: 400, max: 900)
                 }
             }
             .toolbar { toolbar }
@@ -36,8 +38,10 @@ struct MachinesListView: View {
             .deepLinkSelection(.machines, navigation: model.navigation, selection: $selection) { $0 }
             .task(id: store.items.map(\.name)) { await loadDetails() }
             .sheet(isPresented: $showCreate) {
-                CreateMachineSheet(localImages: model.images.items.map(\.reference),
-                                   existingNames: store.items.map(\.name)) { spec in
+                CreateMachineSheet(
+                    localImages: model.images.items.map(\.reference),
+                    existingNames: store.items.map(\.name)
+                ) { spec in
                     store.create(spec)
                 }
                 .task { await model.images.refresh() }
@@ -49,20 +53,27 @@ struct MachinesListView: View {
                     await store.stop([m.name])
                 }
             }
-            .confirmDestructive(title: deleteTitle, message: deleteMessage, actionTitle: "Delete",
-                                isPresented: $pendingDelete.isPresent) {
+            .confirmDestructive(
+                title: deleteTitle, message: deleteMessage, actionTitle: "Delete",
+                isPresented: $pendingDelete.isPresent
+            ) {
                 let names = pendingDelete
-                Task { await store.delete(names); selection.subtract(names) }
+                Task {
+                    await store.delete(names); selection.subtract(names)
+                }
             }
-            .confirmDestructive(title: "Stop \(listed(pendingStop))?",
-                                message: "Shuts down \(listed(pendingStop)). Open terminal sessions end; files on its disk and in your home folder stay.",
-                                actionTitle: "Stop", isPresented: $pendingStop.isPresent) {
+            .confirmDestructive(
+                title: "Stop \(listed(pendingStop))?",
+                message:
+                    "Shuts down \(listed(pendingStop)). Open terminal sessions end; files on its disk and in your home folder stay.",
+                actionTitle: "Stop", isPresented: $pendingStop.isPresent
+            ) {
                 let names = pendingStop
                 Task { await store.stop(names) }
             }
             #if DEBUG
-            .debugHook("machine-create") { showCreate = true }
-            .debugHook("machine-select") { selection = Set(store.items.prefix(1).map(\.name)) }
+                .debugHook("machine-create") { showCreate = true }
+                .debugHook("machine-select") { selection = Set(store.items.prefix(1).map(\.name)) }
             #endif
     }
 
@@ -101,7 +112,9 @@ struct MachinesListView: View {
             }
             .width(min: 70, ideal: 90)
         }
-        .contextMenu(forSelectionType: Machine.ID.self) { ids in rowMenu(ids) } primaryAction: { ids in
+        .contextMenu(forSelectionType: Machine.ID.self) { ids in
+            rowMenu(ids)
+        } primaryAction: { ids in
             if let name = ids.first { openTerminal(name) }
         }
     }
@@ -110,7 +123,9 @@ struct MachinesListView: View {
     private func rowMenu(_ ids: Set<Machine.ID>) -> some View {
         if ids.count == 1, let name = ids.first, let m = rows.first(where: { $0.id == name }) {
             Button("Open Terminal") { openTerminal(name) }
-            Button("View Logs") { selection = [name]; detailTab = .logs }
+            Button("View Logs") {
+                selection = [name]; detailTab = .logs
+            }
             Divider()
             Button("Resize…") { resizing = m }
             Button("Set as Default") { Task { await store.setDefault(name) } }
@@ -135,8 +150,10 @@ struct MachinesListView: View {
                 if let name = selected.first?.name { Task { await store.setDefault(name) } }
             }
             .disabled(selected.count != 1 || selected.first?.isDefault == true)
-            ToolbarActionButton("Stop", systemImage: "stop.fill") { pendingStop = selected.filter(\.isRunning).map(\.name) }
-                .disabled(!selected.contains(where: \.isRunning))
+            ToolbarActionButton("Stop", systemImage: "stop.fill") {
+                pendingStop = selected.filter(\.isRunning).map(\.name)
+            }
+            .disabled(!selected.contains(where: \.isRunning))
             ToolbarActionButton("Delete", systemImage: "trash", role: .destructive) { pendingDelete = Array(selection) }
                 .disabled(selection.isEmpty)
         }
@@ -146,9 +163,12 @@ struct MachinesListView: View {
     private var emptyState: some View {
         if store.filtered.isEmpty && !store.isLoading {
             if store.searchText.isEmpty {
-                EmptyStateView(symbol: "desktopcomputer", title: "No machines",
-                               message: "A container machine is a persistent Linux box with your home folder at the same path, your user name and a real init system.",
-                               actionTitle: "New Machine…") { showCreate = true }
+                EmptyStateView(
+                    symbol: "desktopcomputer", title: "No machines",
+                    message:
+                        "A container machine is a persistent Linux box with your home folder at the same path, your user name and a real init system.",
+                    actionTitle: "New Machine…"
+                ) { showCreate = true }
             } else {
                 ContentUnavailableView.search(text: store.searchText)
             }

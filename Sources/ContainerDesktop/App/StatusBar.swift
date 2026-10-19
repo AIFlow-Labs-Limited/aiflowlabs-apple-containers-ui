@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Bottom bar: engine state + version, running count, total CPU/RAM, disk used/reclaimable, "Clean up…".
 struct StatusBar: View {
@@ -31,9 +31,11 @@ struct StatusBar: View {
             Spacer(minLength: Spacing.s)
 
             if model.engine.isRunning, let df = model.system.diskUsage {
-                Label("Disk \(ByteCount.format(df.totalBytes)) · \(ByteCount.format(df.reclaimableBytes)) reclaimable",
-                      systemImage: "internaldrive")
-                    .monospacedDigit()
+                Label(
+                    "Disk \(ByteCount.format(df.totalBytes)) · \(ByteCount.format(df.reclaimableBytes)) reclaimable",
+                    systemImage: "internaldrive"
+                )
+                .monospacedDigit()
                 Button("Clean up…") { model.navigation.isCleanupOpen = true }
                     .controlSize(.small)
                     .help("Remove stopped containers, unused images, volumes and networks")

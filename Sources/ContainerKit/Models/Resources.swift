@@ -19,8 +19,10 @@ public struct Volume: Codable, Identifiable, Hashable, Sendable {
         /// Backing `volume.img` path on the host.
         public var source: String
 
-        public init(name: String, driver: String = "local", format: String = "ext4", creationDate: Date,
-                    labels: [String: String] = [:], options: [String: String] = [:], sizeInBytes: Int64, source: String) {
+        public init(
+            name: String, driver: String = "local", format: String = "ext4", creationDate: Date,
+            labels: [String: String] = [:], options: [String: String] = [:], sizeInBytes: Int64, source: String
+        ) {
             self.name = name; self.driver = driver; self.format = format; self.creationDate = creationDate
             self.labels = labels; self.options = options; self.sizeInBytes = sizeInBytes; self.source = source
         }
@@ -61,8 +63,10 @@ public struct Network: Codable, Identifiable, Hashable, Sendable {
         public var labels: [String: String]
         public var options: [String: String]
 
-        public init(name: String, mode: String = "nat", plugin: String? = "container-network-vmnet", creationDate: Date,
-                    labels: [String: String] = [:], options: [String: String] = [:]) {
+        public init(
+            name: String, mode: String = "nat", plugin: String? = "container-network-vmnet", creationDate: Date,
+            labels: [String: String] = [:], options: [String: String] = [:]
+        ) {
             self.name = name; self.mode = mode; self.plugin = plugin; self.creationDate = creationDate
             self.labels = labels; self.options = options
         }
@@ -117,11 +121,14 @@ public struct ContainerStats: Codable, Identifiable, Hashable, Sendable {
     public var blockWriteBytes: Int64
     public var numProcesses: Int
 
-    public init(id: String, cpuUsageUsec: Int64, memoryUsageBytes: Int64, memoryLimitBytes: Int64,
-                networkRxBytes: Int64 = 0, networkTxBytes: Int64 = 0, blockReadBytes: Int64 = 0,
-                blockWriteBytes: Int64 = 0, numProcesses: Int = 1) {
+    public init(
+        id: String, cpuUsageUsec: Int64, memoryUsageBytes: Int64, memoryLimitBytes: Int64,
+        networkRxBytes: Int64 = 0, networkTxBytes: Int64 = 0, blockReadBytes: Int64 = 0,
+        blockWriteBytes: Int64 = 0, numProcesses: Int = 1
+    ) {
         self.id = id; self.cpuUsageUsec = cpuUsageUsec; self.memoryUsageBytes = memoryUsageBytes
-        self.memoryLimitBytes = memoryLimitBytes; self.networkRxBytes = networkRxBytes; self.networkTxBytes = networkTxBytes
+        self.memoryLimitBytes = memoryLimitBytes; self.networkRxBytes = networkRxBytes;
+        self.networkTxBytes = networkTxBytes
         self.blockReadBytes = blockReadBytes; self.blockWriteBytes = blockWriteBytes; self.numProcesses = numProcesses
     }
 
@@ -195,9 +202,12 @@ public struct SystemStatus: Codable, Hashable, Sendable {
         }
     }
 
-    public init(status: String, client: Component? = nil, server: Component? = nil, host: Host? = nil,
-                paths: Paths? = nil, resources: ResourceCounts? = nil) {
-        self.status = status; self.client = client; self.server = server; self.host = host; self.paths = paths; self.resources = resources
+    public init(
+        status: String, client: Component? = nil, server: Component? = nil, host: Host? = nil,
+        paths: Paths? = nil, resources: ResourceCounts? = nil
+    ) {
+        self.status = status; self.client = client; self.server = server; self.host = host; self.paths = paths;
+        self.resources = resources
     }
 
     public var isRunning: Bool { status == "running" }
@@ -261,12 +271,21 @@ public struct SystemProperties: Codable, Hashable, Sendable {
     public var registry: Registry?
     public var vminit: VMInit?
 
-    public struct Build: Codable, Hashable, Sendable { public var cpus: Int?; public var memory: String?; public var rosetta: Bool?; public var image: String? }
+    public struct Build: Codable, Hashable, Sendable {
+        public var cpus: Int?; public var memory: String?; public var rosetta: Bool?; public var image: String?
+    }
     public struct ContainerDefaults: Codable, Hashable, Sendable { public var cpus: Int?; public var memory: String? }
     public struct DNS: Codable, Hashable, Sendable { public var domain: String? }
-    public struct Kernel: Codable, Hashable, Sendable { public var binaryPath: String?; public var url: String?; public var digest: String? }
-    public struct Machine: Codable, Hashable, Sendable { public var cpus: Int?; public var memory: String?; public var homeMount: String?; public var virtualization: Bool? }
-    public struct NetworkDefaults: Codable, Hashable, Sendable { public var subnet: String?; public var subnetv6: String? }
+    public struct Kernel: Codable, Hashable, Sendable {
+        public var binaryPath: String?; public var url: String?; public var digest: String?
+    }
+    public struct Machine: Codable, Hashable, Sendable {
+        public var cpus: Int?; public var memory: String?; public var homeMount: String?;
+        public var virtualization: Bool?
+    }
+    public struct NetworkDefaults: Codable, Hashable, Sendable {
+        public var subnet: String?; public var subnetv6: String?
+    }
     public struct Registry: Codable, Hashable, Sendable { public var domain: String? }
     public struct VMInit: Codable, Hashable, Sendable { public var image: String? }
 
@@ -279,7 +298,9 @@ public struct DNSDomain: Codable, Identifiable, Hashable, Sendable {
     public var domain: String
     /// Set when created with `--localhost <ip>`.
     public var localhostAddress: String?
-    public init(domain: String, localhostAddress: String? = nil) { self.domain = domain; self.localhostAddress = localhostAddress }
+    public init(domain: String, localhostAddress: String? = nil) {
+        self.domain = domain; self.localhostAddress = localhostAddress
+    }
 }
 
 // MARK: - Registries
@@ -317,12 +338,15 @@ public struct Machine: Codable, Identifiable, Hashable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, status, cpus, memory, diskSize, isDefault = "default", createdDate, image, homeMount, platform, userSetup
+        case id, status, cpus, memory, diskSize, isDefault = "default", createdDate, image, homeMount, platform,
+            userSetup
     }
 
-    public init(id: String, status: MachineState, cpus: Int, memory: Int64, diskSize: Int64, isDefault: Bool,
-                createdDate: Date? = nil, image: ImageReference? = nil, homeMount: String? = "rw",
-                platform: Platform? = .arm64, userSetup: UserSetup? = nil) {
+    public init(
+        id: String, status: MachineState, cpus: Int, memory: Int64, diskSize: Int64, isDefault: Bool,
+        createdDate: Date? = nil, image: ImageReference? = nil, homeMount: String? = "rw",
+        platform: Platform? = .arm64, userSetup: UserSetup? = nil
+    ) {
         self.id = id; self.status = status; self.cpus = cpus; self.memory = memory; self.diskSize = diskSize
         self.isDefault = isDefault; self.createdDate = createdDate; self.image = image; self.homeMount = homeMount
         self.platform = platform; self.userSetup = userSetup
@@ -373,8 +397,12 @@ public struct KubernetesCluster: Codable, Identifiable, Hashable, Sendable {
         public var memoryMB: Int64
         public var address: String?
         public var ports: String?
-        public init(name: String, role: String, state: ContainerState, cpus: Int, memoryMB: Int64, address: String? = nil, ports: String? = nil) {
-            self.name = name; self.role = role; self.state = state; self.cpus = cpus; self.memoryMB = memoryMB; self.address = address; self.ports = ports
+        public init(
+            name: String, role: String, state: ContainerState, cpus: Int, memoryMB: Int64, address: String? = nil,
+            ports: String? = nil
+        ) {
+            self.name = name; self.role = role; self.state = state; self.cpus = cpus; self.memoryMB = memoryMB;
+            self.address = address; self.ports = ports
         }
     }
 

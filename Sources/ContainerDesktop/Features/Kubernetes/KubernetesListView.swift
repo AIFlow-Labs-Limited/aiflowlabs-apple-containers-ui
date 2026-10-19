@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Kubernetes (experimental `container k8s` plugin): clusters with expandable node rows, create / delete /
 /// load image / copy kubectl context, and a detail inspector.
@@ -35,16 +35,22 @@ struct KubernetesListView: View {
                 }
                 .task { await model.images.refresh() }
             }
-            .confirmDestructive(title: deleteTitle,
-                                message: "Deletes \(listed(pendingDelete)) with all \(pendingDelete.count == 1 ? "its" : "their") nodes, workloads and loaded images, and removes the kubectl context.",
-                                actionTitle: "Delete",
-                                isPresented: $pendingDelete.isPresent) {
+            .confirmDestructive(
+                title: deleteTitle,
+                message:
+                    "Deletes \(listed(pendingDelete)) with all \(pendingDelete.count == 1 ? "its" : "their") nodes, workloads and loaded images, and removes the kubectl context.",
+                actionTitle: "Delete",
+                isPresented: $pendingDelete.isPresent
+            ) {
                 let names = pendingDelete
-                Task { await store.delete(names); selection = selection.filter { !names.contains(ClusterRow.clusterName(of: $0)) } }
+                Task {
+                    await store.delete(names);
+                    selection = selection.filter { !names.contains(ClusterRow.clusterName(of: $0)) }
+                }
             }
             #if DEBUG
-            .debugHook("cluster-create") { showCreate = true }
-            .debugHook("cluster-select") { selection = Set(store.items.prefix(1).map(\.name)) }
+                .debugHook("cluster-create") { showCreate = true }
+                .debugHook("cluster-select") { selection = Set(store.items.prefix(1).map(\.name)) }
             #endif
     }
 
@@ -54,7 +60,9 @@ struct KubernetesListView: View {
             ContentUnavailableView {
                 Label("Kubernetes isn't available", systemImage: "helm")
             } description: {
-                Text("The k8s plugin isn't available in this `container` build, or the engine isn't running. It ships as an experimental plugin with recent releases.")
+                Text(
+                    "The k8s plugin isn't available in this `container` build, or the engine isn't running. It ships as an experimental plugin with recent releases."
+                )
             } actions: {
                 Link("Read the container docs", destination: Self.docsURL)
             }
@@ -67,12 +75,14 @@ struct KubernetesListView: View {
                 table
                     .overlay { emptyState }
             }
-                .inspector(isPresented: .constant(selectedCluster != nil)) {
-                    if let c = selectedCluster {
-                        ClusterDetailView(cluster: c, onLoadImage: { loadInto = c.name }, onDelete: { pendingDelete = [c.name] })
-                            .inspectorColumnWidth(min: 340, ideal: 420, max: 700)
-                    }
+            .inspector(isPresented: .constant(selectedCluster != nil)) {
+                if let c = selectedCluster {
+                    ClusterDetailView(
+                        cluster: c, onLoadImage: { loadInto = c.name }, onDelete: { pendingDelete = [c.name] }
+                    )
+                    .inspectorColumnWidth(min: 340, ideal: 420, max: 700)
                 }
+            }
         }
     }
 
@@ -84,7 +94,9 @@ struct KubernetesListView: View {
                     Text(row.title).fontWeight(row.node == nil ? .medium : .regular)
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(row.node == nil ? "Cluster \(row.title), \(row.stateLabel)" : "Node \(row.title), \(row.stateLabel)")
+                .accessibilityLabel(
+                    row.node == nil ? "Cluster \(row.title), \(row.stateLabel)" : "Node \(row.title), \(row.stateLabel)"
+                )
             }
             .width(min: 140, ideal: 200)
             TableColumn("Nodes") { row in
@@ -119,7 +131,9 @@ struct KubernetesListView: View {
             if names.count == 1 {
                 Button("Load Image…") { loadInto = names[0] }
                 Button("Copy kubectl Context") { copyToPasteboard(KubectlCommands.context(names[0])) }
-                Button("Copy “get nodes” Command") { copyToPasteboard("\(KubectlCommands.context(names[0])) get nodes") }
+                Button("Copy “get nodes” Command") {
+                    copyToPasteboard("\(KubectlCommands.context(names[0])) get nodes")
+                }
                 Divider()
             }
             Button("Delete…", role: .destructive) { pendingDelete = names }
@@ -149,9 +163,12 @@ struct KubernetesListView: View {
     private var emptyState: some View {
         if store.filtered.isEmpty && !store.isLoading {
             if store.searchText.isEmpty {
-                EmptyStateView(symbol: "helm", title: "No clusters",
-                               message: "Create a local Kubernetes cluster. The first one downloads the node image (about 1 GB) and takes a few minutes.",
-                               actionTitle: "New Cluster…") { showCreate = true }
+                EmptyStateView(
+                    symbol: "helm", title: "No clusters",
+                    message:
+                        "Create a local Kubernetes cluster. The first one downloads the node image (about 1 GB) and takes a few minutes.",
+                    actionTitle: "New Cluster…"
+                ) { showCreate = true }
             } else {
                 ContentUnavailableView.search(text: store.searchText)
             }
@@ -201,7 +218,9 @@ struct ClusterRow: Identifiable, Hashable {
     }
     var cpus: Int { node?.cpus ?? cluster.nodes.reduce(0) { $0 + $1.cpus } }
     var memoryMB: Int64 { node?.memoryMB ?? cluster.nodes.reduce(0) { $0 + $1.memoryMB } }
-    var address: String? { node?.address ?? cluster.nodes.first { $0.role.contains("control") }?.address ?? cluster.nodes.first?.address }
+    var address: String? {
+        node?.address ?? cluster.nodes.first { $0.role.contains("control") }?.address ?? cluster.nodes.first?.address
+    }
 }
 
 /// Wraps a name so it can drive `.sheet(item:)`.

@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Synchronization
-import ContainerKit
 
 /// A `ContainerBackend` that forwards every call to a replaceable inner backend.
 ///
@@ -85,8 +85,11 @@ public final class SwitchableBackend: ContainerBackend, Sendable {
     public func containerStats(ids: [String]) async throws -> [ContainerStats] {
         try await current.containerStats(ids: ids)
     }
-    public func execCapture(_ id: String, command: [String], workingDirectory: String?) async throws
-        -> (exitCode: Int32, stdout: String, stderr: String) {
+    public func execCapture(
+        _ id: String, command: [String], workingDirectory: String?
+    ) async throws
+        -> (exitCode: Int32, stdout: String, stderr: String)
+    {
         try await current.execCapture(id, command: command, workingDirectory: workingDirectory)
     }
     public func copy(from source: String, to destination: String) async throws {
@@ -218,7 +221,9 @@ public final class SwitchableBackend: ContainerBackend, Sendable {
     public func deleteCluster(_ name: String) async throws {
         try await current.deleteCluster(name)
     }
-    public func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream {
+    public func loadImage(
+        _ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?
+    ) -> LineStream {
         current.loadImage(reference, intoCluster: cluster, nodes: nodes, platform: platform)
     }
 }

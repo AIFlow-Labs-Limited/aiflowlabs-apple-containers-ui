@@ -1,15 +1,15 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Builds: builder card, persisted history (rebuild / log / delete) and the Build sheet.
 struct BuildsListView: View {
     /// Deep-link token: `navigation.open(.builds, select: newBuildToken)` opens the Build sheet.
     static let newBuildToken = "__new-build__"
     #if DEBUG
-    /// DEBUG launch hook: prefill for the next deep-linked Build sheet (screenshots).
-    static var debugPrefill: BuildDraft?
+        /// DEBUG launch hook: prefill for the next deep-linked Build sheet (screenshots).
+        static var debugPrefill: BuildDraft?
     #endif
 
     @Environment(AppModel.self) private var model
@@ -21,7 +21,9 @@ struct BuildsListView: View {
 
     private var store: BuildsStore { model.builds }
     private var rows: [BuildRecord] { store.filteredHistory.sorted(using: sortOrder) }
-    private var selected: BuildRecord? { selection.count == 1 ? store.history.first { selection.contains($0.id) } : nil }
+    private var selected: BuildRecord? {
+        selection.count == 1 ? store.history.first { selection.contains($0.id) } : nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,7 +39,9 @@ struct BuildsListView: View {
         }
         .toolbar {
             ToolbarItemGroup {
-                ToolbarActionButton("Build…", systemImage: "hammer") { buildDraft = BuildSheetRequest(draft: BuildDraft()) }
+                ToolbarActionButton("Build…", systemImage: "hammer") {
+                    buildDraft = BuildSheetRequest(draft: BuildDraft())
+                }
                 ToolbarActionButton("Clear history", systemImage: "clear", role: .destructive) {
                     pendingDelete = Set(store.history.filter { $0.status != .running }.map(\.id))
                 }
@@ -49,10 +53,14 @@ struct BuildsListView: View {
         .onChange(of: deepLinkTarget) { openDeepLink() }
         .onAppear(perform: openDeepLink)
         .sheet(item: $buildDraft) { request in BuildSheet(draft: request.draft) }
-        .confirmDestructive(title: pendingDelete.count == 1 ? "Remove this build from history?" : "Remove \(pendingDelete.count) builds from history?",
-                            message: "Removes \(historyNames(pendingDelete)) and their logs from the local history. Built images are kept.",
-                            actionTitle: "Remove",
-                            isPresented: $pendingDelete.isPresent) {
+        .confirmDestructive(
+            title: pendingDelete.count == 1
+                ? "Remove this build from history?" : "Remove \(pendingDelete.count) builds from history?",
+            message:
+                "Removes \(historyNames(pendingDelete)) and their logs from the local history. Built images are kept.",
+            actionTitle: "Remove",
+            isPresented: $pendingDelete.isPresent
+        ) {
             store.deleteHistory(pendingDelete)
             selection.subtract(pendingDelete)
         }
@@ -60,21 +68,26 @@ struct BuildsListView: View {
 
     private var historyTable: some View {
         Table(rows, selection: $selection, sortOrder: $sortOrder) {
-            TableColumn("Tag", value: \.tag) { r in Text(r.tag).fontWeight(.medium).accessibilityLabel("Build \(r.tag)") }
-                .width(min: 150, ideal: 220)
+            TableColumn("Tag", value: \.tag) { r in Text(r.tag).fontWeight(.medium).accessibilityLabel("Build \(r.tag)")
+            }
+            .width(min: 150, ideal: 220)
             TableColumn("Status", value: \.status.rawValue) { r in BuildStatusLabel(record: r) }
                 .width(min: 90, ideal: 110)
             TableColumn("Duration", value: \.durationSort) { r in
-                Text(r.duration.map { RelativeDate.duration($0) } ?? (r.status == .running ? "…" : emDash)).monospacedDigit()
+                Text(r.duration.map { RelativeDate.duration($0) } ?? (r.status == .running ? "…" : emDash))
+                    .monospacedDigit()
             }
             .width(min: 60, ideal: 70)
             TableColumn("Started", value: \.startedAt) { r in
-                Text(RelativeDate.format(r.startedAt)).foregroundStyle(.secondary).help(RelativeDate.absolute(r.startedAt))
+                Text(RelativeDate.format(r.startedAt)).foregroundStyle(.secondary).help(
+                    RelativeDate.absolute(r.startedAt))
             }
             .width(min: 90, ideal: 120)
             TableColumn("Context", value: \.contextDirectory) { r in
-                Text(r.contextDirectory).font(.monoCaption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
-                    .help(r.contextDirectory)
+                Text(r.contextDirectory).font(.monoCaption).foregroundStyle(.secondary).lineLimit(1).truncationMode(
+                    .head
+                )
+                .help(r.contextDirectory)
             }
         }
         .contextMenu(forSelectionType: BuildRecord.ID.self) { ids in
@@ -94,9 +107,11 @@ struct BuildsListView: View {
         }
         .overlay {
             if rows.isEmpty {
-                EmptyStateView(symbol: "hammer", title: "No builds yet",
-                               message: "Builds you start from Container Desktop are recorded here with their logs.",
-                               actionTitle: "Build an image…") { buildDraft = BuildSheetRequest(draft: BuildDraft()) }
+                EmptyStateView(
+                    symbol: "hammer", title: "No builds yet",
+                    message: "Builds you start from Container Desktop are recorded here with their logs.",
+                    actionTitle: "Build an image…"
+                ) { buildDraft = BuildSheetRequest(draft: BuildDraft()) }
             }
         }
     }
@@ -108,14 +123,15 @@ struct BuildsListView: View {
         deepLinkTarget = []
         var draft = BuildDraft()
         #if DEBUG
-        if let prefill = Self.debugPrefill { draft = prefill; Self.debugPrefill = nil }
+            if let prefill = Self.debugPrefill { draft = prefill; Self.debugPrefill = nil }
         #endif
         buildDraft = BuildSheetRequest(draft: draft)
     }
 
     private func historyNames(_ ids: Set<BuildRecord.ID>) -> String {
         let tags = store.history.filter { ids.contains($0.id) }.map(\.tag)
-        return tags.count <= 5 ? tags.joined(separator: ", ") : tags.prefix(5).joined(separator: ", ") + " and \(tags.count - 5) more"
+        return tags.count <= 5
+            ? tags.joined(separator: ", ") : tags.prefix(5).joined(separator: ", ") + " and \(tags.count - 5) more"
     }
 }
 
@@ -164,8 +180,10 @@ struct BuildRecordDetail: View {
                     BuildStatusLabel(record: record)
                     Spacer()
                     Button("Rebuild…", systemImage: "arrow.clockwise", action: rebuild)
-                    Button("Show image", systemImage: "square.stack.3d.up") { model.navigation.open(.images, select: record.tag) }
-                        .disabled(record.status != .succeeded)
+                    Button("Show image", systemImage: "square.stack.3d.up") {
+                        model.navigation.open(.images, select: record.tag)
+                    }
+                    .disabled(record.status != .succeeded)
                 }
                 .controlSize(.small)
                 KeyValueGrid([

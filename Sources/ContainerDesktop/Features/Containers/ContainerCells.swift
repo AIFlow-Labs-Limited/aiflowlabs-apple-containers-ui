@@ -1,8 +1,8 @@
-import SwiftUI
+import AppCore
 import AppKit
 import ContainerKit
-import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Status dot + name (project rows get a stack icon).
 struct ContainerNameCell: View {
@@ -22,7 +22,8 @@ struct ContainerNameCell: View {
                 .lineLimit(1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(row.isProject ? "Project \(row.name), \(row.statusText)" : "\(row.name), \(row.state.displayName)")
+        .accessibilityLabel(
+            row.isProject ? "Project \(row.name), \(row.statusText)" : "\(row.name), \(row.state.displayName)")
     }
 }
 
@@ -40,8 +41,10 @@ struct MemoryCell: View {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(.quaternary)
-                        Capsule().fill(fraction > 0.9 ? Color.statusError : (fraction > 0.75 ? .statusWarning : .accentColor))
-                            .frame(width: max(2, geo.size.width * fraction))
+                        Capsule().fill(
+                            fraction > 0.9 ? Color.statusError : (fraction > 0.75 ? .statusWarning : .accentColor)
+                        )
+                        .frame(width: max(2, geo.size.width * fraction))
                     }
                 }
                 .frame(height: 3)
@@ -132,8 +135,10 @@ struct ContainerActionsCell: View {
             if row.isProject {
                 let anyStopped = row.members.contains { !$0.isRunning }
                 let anyRunning = row.members.contains(where: \.isRunning)
-                iconButton(anyStopped ? "Start all in \(row.name)" : "Stop all in \(row.name)",
-                           symbol: anyStopped ? "play.fill" : "stop.fill") {
+                iconButton(
+                    anyStopped ? "Start all in \(row.name)" : "Stop all in \(row.name)",
+                    symbol: anyStopped ? "play.fill" : "stop.fill"
+                ) {
                     anyStopped ? actions.start(row.memberIDs) : actions.stop(row.memberIDs)
                 }
                 Menu {
@@ -141,7 +146,9 @@ struct ContainerActionsCell: View {
                     Button("Stop All", systemImage: "stop.fill") { actions.stop(row.memberIDs) }.disabled(!anyRunning)
                     Button("Restart All", systemImage: "arrow.clockwise") { actions.restart(row.memberIDs) }
                     Divider()
-                    Button("Delete All…", systemImage: "trash", role: .destructive) { actions.requestDelete(row.memberIDs) }
+                    Button("Delete All…", systemImage: "trash", role: .destructive) {
+                        actions.requestDelete(row.memberIDs)
+                    }
                 } label: {
                     SwiftUI.Image(systemName: "ellipsis.circle")
                 }
@@ -152,7 +159,9 @@ struct ContainerActionsCell: View {
                 .help("Project actions")
                 .accessibilityLabel("Actions for project \(row.name)")
             } else if let c = row.container {
-                iconButton(c.isRunning ? "Stop \(c.id)" : "Start \(c.id)", symbol: c.isRunning ? "stop.fill" : "play.fill") {
+                iconButton(
+                    c.isRunning ? "Stop \(c.id)" : "Start \(c.id)", symbol: c.isRunning ? "stop.fill" : "play.fill"
+                ) {
                     actions.toggle(c)
                 }
                 Menu {

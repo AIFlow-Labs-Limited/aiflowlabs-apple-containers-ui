@@ -1,7 +1,7 @@
+import AppCore
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
-import AppCore
 
 /// Owns the `container logs` stream for the Logs tab: a managed task (cancelled on stop / re-start),
 /// lines batched into a 20k-line ring buffer every 100 ms so a chatty container does not re-render per line.
@@ -115,7 +115,9 @@ final class ContainerLogsModel {
         let firstNew = buffer.totalAppended
         buffer.append(contentsOf: pending)
         if !query.isEmpty {
-            let added = pending.indices.filter { pending[$0].text.localizedCaseInsensitiveContains(query) }.map { firstNew + $0 }
+            let added = pending.indices.filter { pending[$0].text.localizedCaseInsensitiveContains(query) }.map {
+                firstNew + $0
+            }
             matches.append(contentsOf: added)
             matchSet.formUnion(added)
         }

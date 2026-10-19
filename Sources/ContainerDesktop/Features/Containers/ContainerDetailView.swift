@@ -1,9 +1,9 @@
-import SwiftUI
+import AppCore
 import AppKit
 import ContainerKit
 import ContainerKitMock
-import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Detail pane for one container: header with lifecycle buttons, tab bar, and the selected tab
 /// (persisted per container in `ContainersUIState`).
@@ -30,7 +30,7 @@ struct ContainerDetailView: View {
             .accessibilityLabel("Detail tab")
             Divider()
             content
-                .id(container.id)   // fresh tab state (log stream, sampler, terminal) per container
+                .id(container.id)  // fresh tab state (log stream, sampler, terminal) per container
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -44,9 +44,11 @@ struct ContainerDetailView: View {
                     Text(container.id).font(.headline)
                     // Ticks every second so the uptime matches the table instead of freezing between polls.
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        StateBadge(container.state, detail: container.status?.startedDate.flatMap {
-                            container.isRunning ? RelativeDate.uptime(since: $0, now: context.date) : nil
-                        })
+                        StateBadge(
+                            container.state,
+                            detail: container.status?.startedDate.flatMap {
+                                container.isRunning ? RelativeDate.uptime(since: $0, now: context.date) : nil
+                            })
                     }
                 }
                 Text(container.imageReference)
@@ -83,8 +85,9 @@ struct ContainerDetailView: View {
     }
 
     private var content: some View {
-        DetailTabContent(container: container, tab: tab.wrappedValue, actions: actions,
-                         statsHistory: actions.model.containers.statsHistory)
+        DetailTabContent(
+            container: container, tab: tab.wrappedValue, actions: actions,
+            statsHistory: actions.model.containers.statsHistory)
     }
 
     private func iconButton(_ title: String, _ symbol: String, action: @escaping () -> Void) -> some View {
@@ -142,12 +145,19 @@ private struct DetailTabContent: View {
     let model = AppModel(backend: MockBackend(), observeAppActivation: false)
     let container = Container(
         id: "web",
-        configuration: .init(id: "web", image: ImageReference(reference: "docker.io/library/nginx:alpine",
-                                                               descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
-                             creationDate: .now, initProcess: .init(executable: "nginx", arguments: ["-g", "daemon off;"],
-                                                                    environment: ["PATH=/usr/bin", "API_TOKEN=s3cret"]),
-                             publishedPorts: [.init(hostPort: 8080, containerPort: 80)]),
-        status: .init(state: .running, startedDate: .now.addingTimeInterval(-7200), networks: [.init(ipv4Address: "192.168.64.3/24")]))
+        configuration: .init(
+            id: "web",
+            image: ImageReference(
+                reference: "docker.io/library/nginx:alpine",
+                descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
+            creationDate: .now,
+            initProcess: .init(
+                executable: "nginx", arguments: ["-g", "daemon off;"],
+                environment: ["PATH=/usr/bin", "API_TOKEN=s3cret"]),
+            publishedPorts: [.init(hostPort: 8080, containerPort: 80)]),
+        status: .init(
+            state: .running, startedDate: .now.addingTimeInterval(-7200),
+            networks: [.init(ipv4Address: "192.168.64.3/24")]))
     ContainerDetailView(container: container, ui: ui, actions: ContainerActions(model: model, ui: ui))
         .appModelEnvironment(model)
         .frame(width: 900, height: 480)

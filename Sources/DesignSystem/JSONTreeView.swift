@@ -1,5 +1,5 @@
-import SwiftUI
 import ContainerKit
+import SwiftUI
 
 public extension JSONValue {
     /// Converts any `Encodable` (e.g. a `Container`) into a `JSONValue` tree. Dates become ISO 8601 strings.
@@ -116,7 +116,7 @@ public struct JSONTreeView: View {
     }
 
     struct Row: Identifiable {
-        let id: String          // key path, e.g. `$.configuration.mounts[0]` or `$.labels["a.b"]`
+        let id: String  // key path, e.g. `$.configuration.mounts[0]` or `$.labels["a.b"]`
         let key: String
         let value: JSONValue
         let summary: String
@@ -166,7 +166,8 @@ public struct JSONTreeView: View {
     @discardableResult
     private func flatten(_ node: JSONTreeIndex.Node, depth: Int, query: String, into out: inout [Row]) -> Bool {
         func row(_ match: Bool) -> Row {
-            Row(id: node.path, key: node.key, value: node.value, summary: node.summary, hasChildren: node.hasChildren,
+            Row(
+                id: node.path, key: node.key, value: node.value, summary: node.summary, hasChildren: node.hasChildren,
                 depth: depth, isMatch: match)
         }
         if query.isEmpty {
@@ -175,7 +176,8 @@ public struct JSONTreeView: View {
             for child in children { flatten(child, depth: depth + 1, query: query, into: &out) }
             return false
         }
-        let selfMatch = node.key.localizedCaseInsensitiveContains(query)
+        let selfMatch =
+            node.key.localizedCaseInsensitiveContains(query)
             || (node.children == nil && node.summary.localizedCaseInsensitiveContains(query))
         // Search mode: render into a scratch buffer and keep it only when something below matched.
         var sub: [Row] = []

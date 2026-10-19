@@ -1,9 +1,9 @@
-import SwiftUI
-import AppKit
-import UniformTypeIdentifiers
-import ContainerKit
 import AppCore
+import AppKit
+import ContainerKit
 import DesignSystem
+import SwiftUI
+import UniformTypeIdentifiers
 
 /// Lifecycle + clipboard + export actions shared by the toolbar, row menus, context menus and detail header.
 /// Destructive ones only *request* confirmation through `ui`; `ContainersListView` shows the alert.
@@ -56,10 +56,13 @@ struct ContainerActions {
     private func report(_ result: BulkResult, verb: String, quietOnSuccess: Bool) {
         guard result.total > 0 else { return }
         if result.allSucceeded {
-            if !quietOnSuccess || result.total > 1 { model.toasts.success(result.summary(verb: verb, noun: "containers")) }
+            if !quietOnSuccess || result.total > 1 {
+                model.toasts.success(result.summary(verb: verb, noun: "containers"))
+            }
         } else {
-            model.toasts.error(result.succeeded.isEmpty ? "Action failed" : "Partly completed",
-                               message: result.summary(verb: verb, noun: "containers"))
+            model.toasts.error(
+                result.succeeded.isEmpty ? "Action failed" : "Partly completed",
+                message: result.summary(verb: verb, noun: "containers"))
         }
     }
 
@@ -96,7 +99,9 @@ struct ContainerActions {
         }
     }
 
-    static func imageConfig(for c: Container, backend: any ContainerBackend) async -> ContainerKit.Image.OCIConfig.RuntimeConfig? {
+    static func imageConfig(
+        for c: Container, backend: any ContainerBackend
+    ) async -> ContainerKit.Image.OCIConfig.RuntimeConfig? {
         guard let image = try? await backend.inspectImage(c.imageReference) else { return nil }
         let arch = c.configuration.platform.architecture
         return (image.variants.first { $0.platform.architecture == arch } ?? image.variants.first)?.config?.config
@@ -121,10 +126,12 @@ struct ContainerActions {
         let backend = model.backend
         let id = c.id
         let path = url.path
-        model.taskCenter.run(title: "Export \(id)", kind: .other, stream: .single {
-            try await backend.exportContainer(id, to: path)
-            return "Exported \(id) to \(path)"
-        })
+        model.taskCenter.run(
+            title: "Export \(id)", kind: .other,
+            stream: .single {
+                try await backend.exportContainer(id, to: path)
+                return "Exported \(id) to \(path)"
+            })
     }
 }
 
@@ -182,7 +189,10 @@ struct ContainerMenuItems: View {
             Button("Export…", systemImage: "square.and.arrow.up") { actions.export(c) }
         }
         Divider()
-        Button(containers.count > 1 ? "Delete \(containers.count) Containers…" : "Delete…", systemImage: "trash", role: .destructive) {
+        Button(
+            containers.count > 1 ? "Delete \(containers.count) Containers…" : "Delete…", systemImage: "trash",
+            role: .destructive
+        ) {
             actions.requestDelete(ids)
         }
         .disabled(containers.isEmpty)

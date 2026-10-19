@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Hand-off from other sections ("Run" on an image, a build result…) to the Containers section's run sheet.
 ///

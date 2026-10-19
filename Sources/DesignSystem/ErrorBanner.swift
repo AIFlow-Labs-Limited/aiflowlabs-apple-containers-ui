@@ -1,5 +1,5 @@
-import SwiftUI
 import ContainerKit
+import SwiftUI
 
 /// Inline error with the cleaned CLI message, the exact failing command (copyable), and an optional retry.
 public struct ErrorBanner: View {
@@ -61,7 +61,9 @@ public struct ErrorBanner: View {
 
 #Preview("ErrorBanner") {
     VStack {
-        ErrorBanner(.commandFailed(command: "container image pull nope:latest", exitCode: 1, message: "Error: image not found"), retry: {}, dismiss: {})
+        ErrorBanner(
+            .commandFailed(command: "container image pull nope:latest", exitCode: 1, message: "Error: image not found"),
+            retry: {}, dismiss: {})
         ErrorBanner(.unsupported(feature: "listContainers()", reason: "CLIBackend not implemented yet"), retry: {})
     }
     .padding()

@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// One entry of the local build history (persisted as JSON).
 public struct BuildRecord: Codable, Identifiable, Hashable, Sendable {
@@ -18,9 +18,11 @@ public struct BuildRecord: Codable, Identifiable, Hashable, Sendable {
     /// `LongRunningTask.id` of the build that produced this record (`nil` for history saved before it existed).
     public var taskID: UUID?
 
-    public init(id: UUID = UUID(), tag: String, contextDirectory: String, platforms: [String] = [], startedAt: Date = .now,
-                finishedAt: Date? = nil, status: Status = .running, log: [String] = [], errorMessage: String? = nil,
-                taskID: UUID? = nil) {
+    public init(
+        id: UUID = UUID(), tag: String, contextDirectory: String, platforms: [String] = [], startedAt: Date = .now,
+        finishedAt: Date? = nil, status: Status = .running, log: [String] = [], errorMessage: String? = nil,
+        taskID: UUID? = nil
+    ) {
         self.id = id; self.tag = tag; self.contextDirectory = contextDirectory; self.platforms = platforms
         self.startedAt = startedAt; self.finishedAt = finishedAt; self.status = status; self.log = log
         self.errorMessage = errorMessage; self.taskID = taskID
@@ -42,7 +44,9 @@ public struct BuildRecord: Codable, Identifiable, Hashable, Sendable {
         platforms = try c.decodeIfPresent([String].self, forKey: .platforms) ?? []
         startedAt = try c.decodeIfPresent(Date.self, forKey: .startedAt) ?? Date(timeIntervalSince1970: 0)
         finishedAt = try c.decodeIfPresent(Date.self, forKey: .finishedAt)
-        status = (try? c.decodeIfPresent(String.self, forKey: .status)).flatMap { $0.flatMap(Status.init(rawValue:)) } ?? .failed
+        status =
+            (try? c.decodeIfPresent(String.self, forKey: .status)).flatMap { $0.flatMap(Status.init(rawValue:)) }
+            ?? .failed
         log = try c.decodeIfPresent([String].self, forKey: .log) ?? []
         errorMessage = try c.decodeIfPresent(String.self, forKey: .errorMessage)
         taskID = try c.decodeIfPresent(UUID.self, forKey: .taskID)
@@ -91,7 +95,10 @@ public final class BuildsStore: PollingStore {
     }
     @ObservationIgnored private let gate: PollingGate
 
-    public init(backend: any ContainerBackend, tasks: TaskCenter, gate: PollingGate, historyURL: URL = BuildsStore.defaultHistoryURL) {
+    public init(
+        backend: any ContainerBackend, tasks: TaskCenter, gate: PollingGate,
+        historyURL: URL = BuildsStore.defaultHistoryURL
+    ) {
         self.backend = backend
         self.tasks = tasks
         self.gate = gate
@@ -107,7 +114,9 @@ public final class BuildsStore: PollingStore {
     public var filteredHistory: [BuildRecord] {
         let q = searchText.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return history }
-        return history.filter { $0.tag.localizedCaseInsensitiveContains(q) || $0.contextDirectory.localizedCaseInsensitiveContains(q) }
+        return history.filter {
+            $0.tag.localizedCaseInsensitiveContains(q) || $0.contextDirectory.localizedCaseInsensitiveContains(q)
+        }
     }
 
     public func refresh() async {
@@ -134,11 +143,13 @@ public final class BuildsStore: PollingStore {
     /// every caller is safe even though the CLI resolves them against its own working directory (`/` from Finder).
     public func build(_ spec: BuildSpec) -> LongRunningTask {
         let spec = spec.contextDirectory.isEmpty ? spec : spec.resolvingPaths()
-        let task = tasks.run(title: "Build \(spec.tag)", kind: .build, stream: backend.buildImage(spec)) { [weak self] _ in
+        let task = tasks.run(title: "Build \(spec.tag)", kind: .build, stream: backend.buildImage(spec)) {
+            [weak self] _ in
             await self?.refresh()
         }
-        let record = BuildRecord(tag: spec.tag, contextDirectory: spec.contextDirectory, platforms: spec.platforms.map(\.slug),
-                                 startedAt: task.startedAt, taskID: task.id)
+        let record = BuildRecord(
+            tag: spec.tag, contextDirectory: spec.contextDirectory, platforms: spec.platforms.map(\.slug),
+            startedAt: task.startedAt, taskID: task.id)
         history.insert(record, at: 0)
         Task { [weak self, task] in
             await task.wait()
@@ -175,11 +186,13 @@ public final class BuildsStore: PollingStore {
     private func saveHistory() {
         if history.count > Self.maxHistory { history.removeLast(history.count - Self.maxHistory) }
         do {
-            try FileManager.default.createDirectory(at: historyURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                at: historyURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let file = BuildHistoryFile(version: BuildHistoryFile.currentVersion, records: history.filter { $0.status != .running })
+            let file = BuildHistoryFile(
+                version: BuildHistoryFile.currentVersion, records: history.filter { $0.status != .running })
             try encoder.encode(file).write(to: historyURL, options: .atomic)
         } catch {
             actionError = .other("Could not save build history: \(error.localizedDescription)")
@@ -192,7 +205,9 @@ public final class BuildsStore: PollingStore {
         guard let data = try? Data(contentsOf: url) else { return .success([]) }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        if let file = try? decoder.decode(BuildHistoryFile.self, from: data), file.version <= BuildHistoryFile.currentVersion {
+        if let file = try? decoder.decode(BuildHistoryFile.self, from: data),
+            file.version <= BuildHistoryFile.currentVersion
+        {
             return .success(file.records)
         }
         if let legacy = try? decoder.decode([BuildRecord].self, from: data) { return .success(legacy) }
@@ -201,7 +216,9 @@ public final class BuildsStore: PollingStore {
         try? fm.removeItem(at: backup)
         do {
             try fm.moveItem(at: url, to: backup)
-            return .failure(.other("The build history could not be read and was moved to \(backup.path). A new history was started."))
+            return .failure(
+                .other(
+                    "The build history could not be read and was moved to \(backup.path). A new history was started."))
         } catch {
             return .failure(.other("The build history at \(url.path) could not be read: \(error.localizedDescription)"))
         }

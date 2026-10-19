@@ -1,7 +1,8 @@
-import Foundation
-import Testing
 import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
 @testable import AppCore
 
 /// Behaviour introduced when the parallel fix branches were stitched together.
@@ -9,8 +10,9 @@ import ContainerKitMock
 @Suite struct MergeWiringTests {
     @Test func buildStoreResolvesPathsAndRecordsTaskID() async throws {
         let home = FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
-        let store = BuildsStore(backend: MockBackend(), tasks: TaskCenter(), gate: PollingGate(engineRunning: true),
-                                historyURL: TestSupport.historyURL())
+        let store = BuildsStore(
+            backend: MockBackend(), tasks: TaskCenter(), gate: PollingGate(engineRunning: true),
+            historyURL: TestSupport.historyURL())
         var spec = BuildSpec(contextDirectory: "~/src/app", tag: "app:dev")
         spec.secrets = ["id=cfg,src=config/secret.txt"]
         let task = store.build(spec)
@@ -35,14 +37,15 @@ import ContainerKitMock
         await store.refresh()
         await store.refreshStats()
         #expect(!store.statsHistory.points(for: "db").isEmpty)
-        try await backend.deleteContainer("db", force: true)    // removed outside the app
+        try await backend.deleteContainer("db", force: true)  // removed outside the app
         await store.refresh()
         #expect(store.statsHistory.points(for: "db").isEmpty)
     }
 
     @Test func bulkSummaryNamesTheResource() {
         #expect(BulkResult(succeeded: ["web"]).summary(verb: "Deleted", noun: "containers") == "Deleted web")
-        #expect(BulkResult(succeeded: ["a", "b"]).summary(verb: "Deleted", noun: "containers") == "Deleted 2 containers")
+        #expect(
+            BulkResult(succeeded: ["a", "b"]).summary(verb: "Deleted", noun: "containers") == "Deleted 2 containers")
         let partial = BulkResult(succeeded: ["a"], failed: [("b", .other("boom"))])
         #expect(partial.summary(verb: "Stopped", noun: "containers") == "Stopped 1 of 2 containers; failed: b (boom)")
     }

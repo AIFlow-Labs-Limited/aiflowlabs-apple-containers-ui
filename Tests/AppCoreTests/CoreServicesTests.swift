@@ -1,7 +1,8 @@
-import Foundation
-import Testing
 import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
 @testable import AppCore
 
 @MainActor
@@ -28,17 +29,22 @@ import ContainerKitMock
 
     @Test func recordsFailure() async {
         let center = TaskCenter()
-        let task = center.run(title: "Bad", kind: .pull, stream: LineStream { c in
-            c.yield(OutputLine("start"))
-            c.finish(throwing: BackendError.commandFailed(command: "container image pull x", exitCode: 1, message: "nope"))
-        })
+        let task = center.run(
+            title: "Bad", kind: .pull,
+            stream: LineStream { c in
+                c.yield(OutputLine("start"))
+                c.finish(
+                    throwing: BackendError.commandFailed(
+                        command: "container image pull x", exitCode: 1, message: "nope"))
+            })
         await task.wait()
         #expect(task.state == .failed(.commandFailed(command: "container image pull x", exitCode: 1, message: "nope")))
     }
 
     @Test func cancelStopsTask() async {
         let center = TaskCenter()
-        let task = center.run(title: "Slow", kind: .build, stream: MockBackend().buildImage(BuildSpec(contextDirectory: "/", tag: "x")))
+        let task = center.run(
+            title: "Slow", kind: .build, stream: MockBackend().buildImage(BuildSpec(contextDirectory: "/", tag: "x")))
         try? await Task.sleep(for: .milliseconds(50))
         task.cancel()
         await task.wait()
@@ -107,7 +113,7 @@ import ContainerKitMock
         #expect(CommandPalette.score("xyz", "postgres") == nil)
         #expect(CommandPalette.score("post", "postgres")! > CommandPalette.score("pst", "postgres")!)
         #expect(CommandPalette.score("db", "db")! > CommandPalette.score("db", "dbx")!)
-        #expect(CommandPalette.score("se", "Start engine")! > CommandPalette.score("se", "Images")  ?? Int.min)
+        #expect(CommandPalette.score("se", "Start engine")! > CommandPalette.score("se", "Images") ?? Int.min)
     }
 
     @Test func resultsAndRecents() async {
@@ -131,18 +137,18 @@ import ContainerKitMock
 @Suite struct SettingsAndTOMLTests {
     @Test func validatorAcceptsValidConfig() {
         let text = """
-        # comment
-        [container]
-        cpus = 4
-        memory = "8g"   # trailing comment
+            # comment
+            [container]
+            cpus = 4
+            memory = "8g"   # trailing comment
 
-        [dns]
-        domain = "test"
-        list = [
-          "a",
-          "b",
-        ]
-        """
+            [dns]
+            domain = "test"
+            list = [
+              "a",
+              "b",
+            ]
+            """
         #expect(TOMLValidator.validate(text).isEmpty)
     }
 

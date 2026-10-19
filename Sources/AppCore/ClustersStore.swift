@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Local Kubernetes clusters (`container k8s`). `available` is false when the CLI lacks the plugin.
 @MainActor
@@ -70,16 +70,20 @@ public final class ClustersStore: PollingStore {
 
     @discardableResult
     public func create(_ spec: ClusterSpec) -> LongRunningTask {
-        tasks.run(title: "Create cluster \(spec.name)", kind: .cluster, stream: backend.createCluster(spec)) { [weak self] _ in
+        tasks.run(title: "Create cluster \(spec.name)", kind: .cluster, stream: backend.createCluster(spec)) {
+            [weak self] _ in
             await self?.refresh()
         }
     }
 
-    public func delete(_ names: [String]) async { await perform { for n in names { try await backend.deleteCluster(n) } } }
+    public func delete(_ names: [String]) async {
+        await perform { for n in names { try await backend.deleteCluster(n) } }
+    }
 
     @discardableResult
     public func loadImage(_ reference: String, into cluster: String?, platform: Platform? = nil) -> LongRunningTask {
-        tasks.run(title: "Load \(reference) into \(cluster ?? "cluster")", kind: .load,
-                  stream: backend.loadImage(reference, intoCluster: cluster, nodes: [], platform: platform))
+        tasks.run(
+            title: "Load \(reference) into \(cluster ?? "cluster")", kind: .load,
+            stream: backend.loadImage(reference, intoCluster: cluster, nodes: [], platform: platform))
     }
 }

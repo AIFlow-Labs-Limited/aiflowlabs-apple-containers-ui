@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Full-content engine states (not installed / stopped / starting / error). Renders `content` only when running.
 struct EngineGateView<Content: View>: View {
@@ -51,11 +51,13 @@ struct EngineGateView<Content: View>: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             Text("Install Apple’s container runtime").font(.title.bold())
-            Text("Container Desktop is a dashboard for the `container` command-line tool. Install it from the official "
-                 + "GitHub releases (a signed .pkg), then check again.")
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 480)
-                .foregroundStyle(.secondary)
+            Text(
+                "Container Desktop is a dashboard for the `container` command-line tool. Install it from the official "
+                    + "GitHub releases (a signed .pkg), then check again."
+            )
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 480)
+            .foregroundStyle(.secondary)
             HStack(spacing: Spacing.m) {
                 Link(destination: URL(string: "https://github.com/apple/container/releases")!) {
                     Label("Download container", systemImage: "arrow.down.circle")

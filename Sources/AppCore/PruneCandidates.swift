@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// What a prune is expected to remove. `container volume|network|image prune` ignores the UI's search field, so
 /// candidates are always computed from the store's full `items`, never from `filtered`.
@@ -16,7 +16,9 @@ public enum PruneCandidates {
 
     /// Images no container uses; with `all == false` only untagged (dangling) ones.
     public static func images(_ images: [Image], containers: [Container], all: Bool) -> [Image] {
-        images.filter { ResourceUsage.containers(using: $0, in: containers).isEmpty && (all || ResourceUsage.isUntagged($0)) }
+        images.filter {
+            ResourceUsage.containers(using: $0, in: containers).isEmpty && (all || ResourceUsage.isUntagged($0))
+        }
     }
 
     /// How many candidates the current search hides.

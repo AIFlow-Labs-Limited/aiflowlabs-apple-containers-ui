@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Registry logins (`container registry ls`): log in / log out / copy server / push an image.
 struct RegistriesListView: View {
@@ -72,15 +72,20 @@ struct RegistriesListView: View {
                 return error ?? .other("Login to \(server) failed.")
             }
         }
-        .confirmDestructive(title: "Log out of \(pendingLogout.joined(separator: ", "))?",
-                            message: "Removes the saved credentials for \(pendingLogout.joined(separator: ", ")) from your macOS Keychain. Pushes and private pulls from \(pendingLogout.count == 1 ? "it" : "them") will fail until you log in again.",
-                            actionTitle: "Log Out",
-                            isPresented: $pendingLogout.isPresent) {
+        .confirmDestructive(
+            title: "Log out of \(pendingLogout.joined(separator: ", "))?",
+            message:
+                "Removes the saved credentials for \(pendingLogout.joined(separator: ", ")) from your macOS Keychain. Pushes and private pulls from \(pendingLogout.count == 1 ? "it" : "them") will fail until you log in again.",
+            actionTitle: "Log Out",
+            isPresented: $pendingLogout.isPresent
+        ) {
             let servers = pendingLogout
-            Task { await store.logout(servers); selection.subtract(servers) }
+            Task {
+                await store.logout(servers); selection.subtract(servers)
+            }
         }
         #if DEBUG
-        .debugHook("registry-login") { login = LoginRequest(server: nil) }
+            .debugHook("registry-login") { login = LoginRequest(server: nil) }
         #endif
     }
 
@@ -88,9 +93,12 @@ struct RegistriesListView: View {
     private var emptyState: some View {
         if store.filtered.isEmpty && !store.isLoading {
             if store.searchText.isEmpty {
-                EmptyStateView(symbol: "server.rack", title: "No registry logins",
-                               message: "Log in to push your images to Docker Hub, GHCR or a private registry, and to pull private images. Credentials stay in your macOS Keychain.",
-                               actionTitle: "Log In…") { login = LoginRequest(server: nil) }
+                EmptyStateView(
+                    symbol: "server.rack", title: "No registry logins",
+                    message:
+                        "Log in to push your images to Docker Hub, GHCR or a private registry, and to pull private images. Credentials stay in your macOS Keychain.",
+                    actionTitle: "Log In…"
+                ) { login = LoginRequest(server: nil) }
             } else {
                 ContentUnavailableView.search(text: store.searchText)
             }

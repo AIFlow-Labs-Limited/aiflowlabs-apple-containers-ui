@@ -1,7 +1,8 @@
-import Foundation
-import Testing
 import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
 @testable import AppCore
 
 @MainActor
@@ -53,10 +54,13 @@ import ContainerKitMock
         #expect(attached.contains("api") && attached.contains("db"))
         let custom = Network(id: "backend", configuration: .init(name: "backend", creationDate: .now))
         let desc = Descriptor(digest: "sha256:00", mediaType: "", size: 0)
-        let onBackend = Container(id: "w", configuration: .init(id: "w", image: ImageReference(reference: "nginx", descriptor: desc),
-                                                                creationDate: .now, initProcess: .init(executable: "nginx"),
-                                                                networks: [.init(network: "backend")]),
-                                  status: .init(state: .stopped))
+        let onBackend = Container(
+            id: "w",
+            configuration: .init(
+                id: "w", image: ImageReference(reference: "nginx", descriptor: desc),
+                creationDate: .now, initProcess: .init(executable: "nginx"),
+                networks: [.init(network: "backend")]),
+            status: .init(state: .stopped))
         // Stopped containers have no runtime networks; the configured attachment counts.
         #expect(ResourceUsage.containers(attachedTo: custom, in: [onBackend]).map(\.id) == ["w"])
         #expect(ResourceUsage.containers(attachedTo: def, in: [onBackend]).isEmpty)
@@ -87,8 +91,10 @@ import ContainerKitMock
     }
 
     @Test func referenceAndTagValidators() {
-        for ok in ["alpine", "alpine:3.22", "cd-ui-test:1", "ghcr.io/you/app:1.0", "localhost:5000/a/b:c",
-                   "redis@sha256:" + String(repeating: "a", count: 64)] {
+        for ok in [
+            "alpine", "alpine:3.22", "cd-ui-test:1", "ghcr.io/you/app:1.0", "localhost:5000/a/b:c",
+            "redis@sha256:" + String(repeating: "a", count: 64),
+        ] {
             #expect(ResourceValidator.imageReference(ok) == nil, "\(ok)")
         }
         for bad in ["", "Alpine", "alpine:", "a b", "app:-x", "ghcr.io//x", "x@sha256:12"] {
@@ -111,7 +117,8 @@ import ContainerKitMock
     }
 
     @Test func environmentMasking() {
-        #expect(EnvironmentVariable.masked(["POSTGRES_PASSWORD=hunter2", "GITHUB_TOKEN=abc", "PATH=/usr/bin", "LANG"])
+        #expect(
+            EnvironmentVariable.masked(["POSTGRES_PASSWORD=hunter2", "GITHUB_TOKEN=abc", "PATH=/usr/bin", "LANG"])
                 == ["POSTGRES_PASSWORD=…", "GITHUB_TOKEN=…", "PATH=/usr/bin", "LANG"])
         #expect(EnvironmentVariable(parsing: "LANG").key == "LANG")
     }
@@ -127,7 +134,9 @@ import ContainerKitMock
         spec.noCache = true
         spec.secrets = ["id=npm,env=NPM_TOKEN"]
         spec.forwardSSH = true
-        #expect(spec.commandPreview == "container build -t app:dev --progress plain -f Containerfile --platform linux/arm64 "
+        #expect(
+            spec.commandPreview
+                == "container build -t app:dev --progress plain -f Containerfile --platform linux/arm64 "
                 + "--platform linux/amd64 --build-arg VERSION=1.2 --target runtime --no-cache --secret id=npm,env=NPM_TOKEN "
                 + "--ssh default '/Users/me/my app'")
         #expect(spec.commandPreview.hasSuffix(spec.cliArguments.last.map { "'\($0)'" } ?? ""))
@@ -137,11 +146,13 @@ import ContainerKitMock
         let dir = FileManager.default.temporaryDirectory.appending(path: "cd-ctx-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
-        try "FROM python:3.11 AS base\nRUN true\nFROM base as runtime\nCOPY . .\n".write(to: dir.appending(path: "Containerfile"), atomically: true, encoding: .utf8)
+        try "FROM python:3.11 AS base\nRUN true\nFROM base as runtime\nCOPY . .\n".write(
+            to: dir.appending(path: "Containerfile"), atomically: true, encoding: .utf8)
         try "FROM alpine\n".write(to: dir.appending(path: "Dockerfile"), atomically: true, encoding: .utf8)
         try "".write(to: dir.appending(path: "dev.Dockerfile"), atomically: true, encoding: .utf8)
         try "".write(to: dir.appending(path: "README.md"), atomically: true, encoding: .utf8)
-        try "node_modules\n".write(to: dir.appending(path: "Dockerfile.dockerignore"), atomically: true, encoding: .utf8)
+        try "node_modules\n".write(
+            to: dir.appending(path: "Dockerfile.dockerignore"), atomically: true, encoding: .utf8)
         #expect(BuildContextInspector.dockerfiles(in: dir) == ["Dockerfile", "Containerfile", "dev.Dockerfile"])
         #expect(BuildContextInspector.stages(dockerfile: "Containerfile", in: dir) == ["base", "runtime"])
         #expect(BuildContextInspector.stages(dockerfile: "Dockerfile", in: dir).isEmpty)
@@ -160,8 +171,11 @@ import ContainerKitMock
         #expect(args[f + 1] == context + "/Dockerfile.dev")
         #expect(args[f + 1].hasPrefix("/"))
         #expect(args.last == context)
-        #expect(resolved.secrets == ["id=key,src=" + (home as NSString).appendingPathComponent(".ssh/id_ed25519"),
-                                     "id=cfg,src=\(context)/config/secret.txt", "id=npm,env=NPM_TOKEN"])
+        #expect(
+            resolved.secrets == [
+                "id=key,src=" + (home as NSString).appendingPathComponent(".ssh/id_ed25519"),
+                "id=cfg,src=\(context)/config/secret.txt", "id=npm,env=NPM_TOKEN",
+            ])
         // Absolute paths are kept (normalized), and an already-resolved spec is unchanged.
         var abs = BuildSpec(contextDirectory: "/work/app/", tag: "t")
         abs.dockerfile = "/work/other/../app/ci.Dockerfile"
@@ -191,9 +205,13 @@ import ContainerKitMock
         #expect(model.networks.filtered.isEmpty)
         #expect(PruneCandidates.volumes(model.volumes.items, containers: containers).map(\.name) == allVolumes)
         #expect(PruneCandidates.networks(model.networks.items, containers: containers).map(\.name) == allNetworks)
-        #expect(allVolumes.contains("zz-unused-a") && allVolumes.contains("zz-unused-b") && !allVolumes.contains("probevol"))
+        #expect(
+            allVolumes.contains("zz-unused-a") && allVolumes.contains("zz-unused-b") && !allVolumes.contains("probevol")
+        )
         #expect(allNetworks.contains("zz-net") && !allNetworks.contains("default"))
-        #expect(PruneCandidates.hiddenCount(candidates: allVolumes, visible: model.volumes.filtered.map(\.name)) == allVolumes.count - 1)
+        #expect(
+            PruneCandidates.hiddenCount(candidates: allVolumes, visible: model.volumes.filtered.map(\.name))
+                == allVolumes.count - 1)
     }
 
     @Test func pruneOutcomeIsADiff() {
@@ -226,7 +244,9 @@ import ContainerKitMock
 
     @Test func layerHistoryShortening() {
         #expect(LayerHistoryText.shorten("/bin/sh -c #(nop)  CMD [\"python3\"]") == "CMD [\"python3\"]")
-        #expect(LayerHistoryText.shorten("RUN /bin/sh -c apk add  --no-cache curl # buildkit") == "RUN apk add --no-cache curl")
+        #expect(
+            LayerHistoryText.shorten("RUN /bin/sh -c apk add  --no-cache curl # buildkit")
+                == "RUN apk add --no-cache curl")
         #expect(LayerHistoryText.shorten(String(repeating: "x", count: 300)).count == 140)
     }
 }

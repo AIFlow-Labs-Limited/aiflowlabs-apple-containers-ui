@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// "Clean up…" — prune per resource type with sizes, behind a destructive confirmation.
 struct CleanupSheet: View {
@@ -26,7 +26,10 @@ struct CleanupSheet: View {
                     row("Stopped containers", detail: "\(df.stoppedContainers) stopped", bytes: df.containerBytes)
                 }
                 Toggle(isOn: $images) {
-                    row("Unused images", detail: allImages ? "All images without containers" : "Dangling (untagged) only", bytes: df.imageBytes)
+                    row(
+                        "Unused images",
+                        detail: allImages ? "All images without containers" : "Dangling (untagged) only",
+                        bytes: df.imageBytes)
                 }
                 if images {
                     Toggle("Include tagged images not used by any container", isOn: $allImages)
@@ -53,8 +56,10 @@ struct CleanupSheet: View {
         }
         .padding(Spacing.xl)
         .frame(width: 520)
-        .confirmDestructive(title: "Remove unused resources?", message: summary, actionTitle: "Remove",
-                            isPresented: $confirming) { Task { await run() } }
+        .confirmDestructive(
+            title: "Remove unused resources?", message: summary, actionTitle: "Remove",
+            isPresented: $confirming
+        ) { Task { await run() } }
         .task { await model.system.refreshDiskUsage() }
     }
 
@@ -78,12 +83,16 @@ struct CleanupSheet: View {
         if containers {
             let ids = containerIDs
             let names = ids.prefix(8).joined(separator: ", ") + (ids.count > 8 ? " and \(ids.count - 8) more" : "")
-            parts.append(ids.isEmpty ? "no containers (none are stopped)" : "\(ids.count) stopped container\(ids.count == 1 ? "" : "s") (\(names))")
+            parts.append(
+                ids.isEmpty
+                    ? "no containers (none are stopped)"
+                    : "\(ids.count) stopped container\(ids.count == 1 ? "" : "s") (\(names))")
         }
         if images { parts.append(allImages ? "all images not used by a container" : "dangling images") }
         if volumes { parts.append("volumes not mounted by any container (their data is deleted)") }
         if networks { parts.append("networks with no containers") }
-        return "This removes " + parts.joined(separator: ", ") + ". Builder and Kubernetes node containers are kept. It cannot be undone."
+        return "This removes " + parts.joined(separator: ", ")
+            + ". Builder and Kubernetes node containers are kept. It cannot be undone."
     }
 
     private func run() async {

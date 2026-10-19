@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 // Shared scaffolding for the feature list views (shell-owned so phase-2 feature agents can reuse it).
 
@@ -11,8 +11,10 @@ extension View {
     }
 
     /// Picks up a deep-link selection (`NavigationModel.open(_:select:)`) for `section`.
-    func deepLinkSelection<ID: Hashable>(_ section: SidebarSection, navigation: NavigationModel,
-                                         selection: Binding<Set<ID>>, map: @escaping (String) -> ID?) -> some View {
+    func deepLinkSelection<ID: Hashable>(
+        _ section: SidebarSection, navigation: NavigationModel,
+        selection: Binding<Set<ID>>, map: @escaping (String) -> ID?
+    ) -> some View {
         modifier(DeepLinkSelection(section: section, navigation: navigation, selection: selection, map: map))
     }
 }
@@ -69,9 +71,11 @@ struct FormSheet<Content: View>: View {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button(actionTitle) { submit(); dismiss() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!canSubmit)
+                Button(actionTitle) {
+                    submit(); dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canSubmit)
             }
         }
         .padding(Spacing.xl)

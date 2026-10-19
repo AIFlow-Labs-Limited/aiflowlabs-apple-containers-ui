@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Default CPUs/memory for containers, the builder and machines → `config.toml` `[container]`, `[build]`, `[machine]`.
 struct ResourcesSettingsTab: View {
@@ -17,7 +17,8 @@ struct ResourcesSettingsTab: View {
 
     var body: some View {
         Form {
-            resourceSection("Containers", section: "container", note: "Applies to new containers without --cpus/--memory.")
+            resourceSection(
+                "Containers", section: "container", note: "Applies to new containers without --cpus/--memory.")
             resourceSection("Builder", section: "build", note: "BuildKit builder VM. Restart the builder to apply.")
             resourceSection("Machines", section: "machine", note: "Default for new container machines.")
             Section {
@@ -26,7 +27,9 @@ struct ResourcesSettingsTab: View {
                         Label("Restart the engine to apply", systemImage: "arrow.clockwise.circle")
                             .foregroundStyle(.statusWarning)
                         Button("Restart engine") {
-                            Task { await model.stopEngine(); await model.startEngine(); savedNeedsRestart = false }
+                            Task {
+                                await model.stopEngine(); await model.startEngine(); savedNeedsRestart = false
+                            }
                         }
                     }
                     Spacer()
@@ -82,7 +85,8 @@ struct ResourcesSettingsTab: View {
 
     private func memoryValue(_ section: String) -> Int? {
         guard let raw = TOMLEditor.stringValue("memory", section: section, in: text),
-              let size = MemorySize(parsing: raw) else { return nil }
+            let size = MemorySize(parsing: raw)
+        else { return nil }
         return Int(size.bytes >> 30)
     }
 

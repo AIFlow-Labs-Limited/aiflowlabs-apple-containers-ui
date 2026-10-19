@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Networks: table with attached containers, create/delete/prune, detail with the DNS caveat.
 struct NetworksListView: View {
@@ -16,8 +16,10 @@ struct NetworksListView: View {
 
     private var rows: [NetworkRow] {
         let containers = model.containers.items
-        return store.filtered.map { NetworkRow(network: $0, attached: ResourceUsage.containers(attachedTo: $0, in: containers)) }
-            .sorted(using: sortOrder)
+        return store.filtered.map {
+            NetworkRow(network: $0, attached: ResourceUsage.containers(attachedTo: $0, in: containers))
+        }
+        .sorted(using: sortOrder)
     }
 
     private var selectedRows: [NetworkRow] { rows.filter { selection.contains($0.id) } }
@@ -37,10 +39,13 @@ struct NetworksListView: View {
                 .accessibilityElement(children: .combine)
             }
             .width(min: 170, ideal: 220)
-            TableColumn("Subnet", value: \.subnet) { r in Text(r.subnet.isEmpty ? emDash : r.subnet).font(.monoCaption) }
-                .width(min: 110, ideal: 140)
-            TableColumn("Gateway", value: \.gateway) { r in Text(r.gateway.isEmpty ? emDash : r.gateway).font(.monoCaption) }
-                .width(min: 100, ideal: 120)
+            TableColumn("Subnet", value: \.subnet) { r in Text(r.subnet.isEmpty ? emDash : r.subnet).font(.monoCaption)
+            }
+            .width(min: 110, ideal: 140)
+            TableColumn("Gateway", value: \.gateway) { r in
+                Text(r.gateway.isEmpty ? emDash : r.gateway).font(.monoCaption)
+            }
+            .width(min: 100, ideal: 120)
             TableColumn("IPv6 subnet", value: \.subnetV6) { r in
                 Text(r.subnetV6.isEmpty ? emDash : r.subnetV6).font(.monoCaption).lineLimit(1).truncationMode(.middle)
             }
@@ -55,16 +60,19 @@ struct NetworksListView: View {
                     }
                     .help(r.attached.map(\.id).joined(separator: ", "))
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(r.attached.count) containers: \(r.attached.map(\.id).joined(separator: ", "))")
+                    .accessibilityLabel(
+                        "\(r.attached.count) containers: \(r.attached.map(\.id).joined(separator: ", "))")
                 }
             }
         }
         .contextMenu(forSelectionType: Network.ID.self) { ids in contextMenu(ids) }
         .overlay {
             if rows.isEmpty && !store.isLoading {
-                EmptyStateView(symbol: "network", title: store.items.isEmpty ? "No networks" : "No matching networks",
-                               message: "The default network appears once the engine runs.",
-                               actionTitle: "Create network…") { showCreate = true }
+                EmptyStateView(
+                    symbol: "network", title: store.items.isEmpty ? "No networks" : "No matching networks",
+                    message: "The default network appears once the engine runs.",
+                    actionTitle: "Create network…"
+                ) { showCreate = true }
             }
         }
         .inspector(isPresented: .constant(selectedRows.count == 1)) {
@@ -85,17 +93,24 @@ struct NetworksListView: View {
         .storeChrome(store)
         .deepLinkSelection(.networks, navigation: model.navigation, selection: $selection) { $0 }
         .sheet(isPresented: $showCreate) { CreateNetworkSheet { name in selection = [name] } }
-        .confirmDestructive(title: pendingDelete.count == 1 ? "Delete network “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) networks?",
-                            message: "Deletes \(pendingDelete.joined(separator: ", ")). No containers are attached.",
-                            actionTitle: "Delete",
-                            isPresented: $pendingDelete.isPresent) {
+        .confirmDestructive(
+            title: pendingDelete.count == 1
+                ? "Delete network “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) networks?",
+            message: "Deletes \(pendingDelete.joined(separator: ", ")). No containers are attached.",
+            actionTitle: "Delete",
+            isPresented: $pendingDelete.isPresent
+        ) {
             let names = pendingDelete
-            Task { await store.delete(names); selection.subtract(names) }
+            Task {
+                await store.delete(names); selection.subtract(names)
+            }
         }
-        .confirmDestructive(title: PruneText.title(count: pruneCandidates.count, noun: "network"),
-                            message: PruneText.message(candidates: pruneCandidates, visible: rows.map(\.name), noun: "network")
-                                + " The default network is kept.",
-                            actionTitle: "Prune", isPresented: $confirmPrune) {
+        .confirmDestructive(
+            title: PruneText.title(count: pruneCandidates.count, noun: "network"),
+            message: PruneText.message(candidates: pruneCandidates, visible: rows.map(\.name), noun: "network")
+                + " The default network is kept.",
+            actionTitle: "Prune", isPresented: $confirmPrune
+        ) {
             Task { await prune() }
         }
     }
@@ -104,7 +119,9 @@ struct NetworksListView: View {
     private func contextMenu(_ ids: Set<String>) -> some View {
         let picked = rows.filter { ids.contains($0.id) }
         if !picked.isEmpty {
-            Button(picked.count == 1 ? "Copy name" : "Copy names") { copyToPasteboard(picked.map(\.name).joined(separator: "\n")) }
+            Button(picked.count == 1 ? "Copy name" : "Copy names") {
+                copyToPasteboard(picked.map(\.name).joined(separator: "\n"))
+            }
             if let row = picked.first, picked.count == 1, !row.subnet.isEmpty {
                 Button("Copy subnet") { copyToPasteboard(row.subnet) }
                 Button("Copy --network flag") { copyToPasteboard("--network \(row.name)") }
@@ -128,7 +145,9 @@ struct NetworksListView: View {
         let before = store.items.map(\.name)
         let backend = model.backend
         guard await store.perform({ try await backend.pruneNetworks() }) else { return }
-        PruneText.toast(model.toasts, removed: PruneCandidates.removed(before: before, after: store.items.map(\.name)), noun: "network")
+        PruneText.toast(
+            model.toasts, removed: PruneCandidates.removed(before: before, after: store.items.map(\.name)),
+            noun: "network")
     }
 }
 

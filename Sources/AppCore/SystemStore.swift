@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// System-wide data: status, disk usage, merged properties, DNS domains, raw config.toml.
 @MainActor
@@ -23,7 +23,8 @@ public final class SystemStore: PollingStore {
     @ObservationIgnored private let backend: any ContainerBackend
     /// Status-bar lane: disk usage every 10 s (it shells out to `system df`, so not at the 2 s list rate).
     public static let diskUsageInterval: Duration = .seconds(10)
-    @ObservationIgnored public private(set) lazy var poller = Poller(gate: gate, interval: Self.diskUsageInterval) { [weak self] in
+    @ObservationIgnored public private(set) lazy var poller = Poller(gate: gate, interval: Self.diskUsageInterval) {
+        [weak self] in
         guard let self else { return }
         await self.refreshDiskUsage()
         if let error = self.loadError { throw error }
@@ -38,8 +39,10 @@ public final class SystemStore: PollingStore {
     /// Loads status, disk usage, properties and DNS domains.
     public func refresh() async {
         let result = await load { () async throws -> (SystemStatus, DiskUsage, SystemProperties, [DNSDomain]) in
-            (try await backend.systemStatus(), try await backend.diskUsage(), try await backend.systemProperties(),
-             try await backend.listDNSDomains())
+            (
+                try await backend.systemStatus(), try await backend.diskUsage(), try await backend.systemProperties(),
+                try await backend.listDNSDomains()
+            )
         }
         guard let (status, diskUsage, properties, dnsDomains) = result else { return }
         self.status = status

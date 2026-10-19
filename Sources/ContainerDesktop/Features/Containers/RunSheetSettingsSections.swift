@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Resources: CPUs stepper (1…host CPUs), memory slider (256 MB…host RAM) with presets, platform.
 struct RunResourcesSection: View {
@@ -80,7 +80,8 @@ struct RunAdvancedSection: View {
                     Toggle("Read-only root filesystem", isOn: $form.readOnly)
                     Toggle("Forward SSH agent", isOn: $form.ssh)
                     Toggle("Remove when stopped (--rm)", isOn: $form.removeOnExit)
-                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.m, verticalSpacing: Spacing.s) {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.m, verticalSpacing: Spacing.s)
+                    {
                         row("Entrypoint", $form.entrypoint, "Image default")
                         row("Working dir", $form.workingDirectory, "Image default")
                         row("User", $form.user, "uid[:gid] or name")

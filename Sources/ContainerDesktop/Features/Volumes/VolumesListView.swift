@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Volumes: table with users, create/delete/prune, reveal backing file, copy `-v` flag, detail inspector.
 struct VolumesListView: View {
@@ -16,8 +16,10 @@ struct VolumesListView: View {
 
     private var rows: [VolumeRow] {
         let containers = model.containers.items
-        return store.filtered.map { VolumeRow(volume: $0, usedBy: ResourceUsage.containers(mounting: $0, in: containers)) }
-            .sorted(using: sortOrder)
+        return store.filtered.map {
+            VolumeRow(volume: $0, usedBy: ResourceUsage.containers(mounting: $0, in: containers))
+        }
+        .sorted(using: sortOrder)
     }
 
     private var selectedRows: [VolumeRow] { rows.filter { selection.contains($0.id) } }
@@ -64,8 +66,10 @@ struct VolumesListView: View {
         .contextMenu(forSelectionType: Volume.ID.self) { ids in contextMenu(ids) }
         .overlay {
             if rows.isEmpty && !store.isLoading {
-                EmptyStateView(symbol: "externaldrive", title: store.items.isEmpty ? "No volumes" : "No matching volumes",
-                               message: "Volumes keep data across container restarts.", actionTitle: "Create volume…") { showCreate = true }
+                EmptyStateView(
+                    symbol: "externaldrive", title: store.items.isEmpty ? "No volumes" : "No matching volumes",
+                    message: "Volumes keep data across container restarts.", actionTitle: "Create volume…"
+                ) { showCreate = true }
             }
         }
         .inspector(isPresented: .constant(selectedRows.count == 1)) {
@@ -86,17 +90,25 @@ struct VolumesListView: View {
         .storeChrome(store)
         .deepLinkSelection(.volumes, navigation: model.navigation, selection: $selection) { $0 }
         .sheet(isPresented: $showCreate) { CreateVolumeSheet { name in selection = [name] } }
-        .confirmDestructive(title: pendingDelete.count == 1 ? "Delete volume “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) volumes?",
-                            message: "Deletes \(pendingDelete.joined(separator: ", ")) and all data stored in it. This cannot be undone.",
-                            actionTitle: "Delete",
-                            isPresented: $pendingDelete.isPresent) {
+        .confirmDestructive(
+            title: pendingDelete.count == 1
+                ? "Delete volume “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) volumes?",
+            message:
+                "Deletes \(pendingDelete.joined(separator: ", ")) and all data stored in it. This cannot be undone.",
+            actionTitle: "Delete",
+            isPresented: $pendingDelete.isPresent
+        ) {
             let names = pendingDelete
-            Task { await store.delete(names); selection.subtract(names) }
+            Task {
+                await store.delete(names); selection.subtract(names)
+            }
         }
-        .confirmDestructive(title: PruneText.title(count: pruneCandidates.count, noun: "volume"),
-                            message: PruneText.message(candidates: pruneCandidates, visible: rows.map(\.name), noun: "volume")
-                                + " Data in pruned volumes is unrecoverable.",
-                            actionTitle: "Prune", isPresented: $confirmPrune) {
+        .confirmDestructive(
+            title: PruneText.title(count: pruneCandidates.count, noun: "volume"),
+            message: PruneText.message(candidates: pruneCandidates, visible: rows.map(\.name), noun: "volume")
+                + " Data in pruned volumes is unrecoverable.",
+            actionTitle: "Prune", isPresented: $confirmPrune
+        ) {
             Task { await prune() }
         }
     }
@@ -106,7 +118,9 @@ struct VolumesListView: View {
         let picked = rows.filter { ids.contains($0.id) }
         if let row = picked.first, picked.count == 1 {
             Button("Reveal backing file in Finder") { FilePanels.reveal([row.volume.configuration.source]) }
-            Button("Copy mount flag (\(VolumeRow.mountFlag(row.name)))") { copyToPasteboard(VolumeRow.mountFlag(row.name)) }
+            Button("Copy mount flag (\(VolumeRow.mountFlag(row.name)))") {
+                copyToPasteboard(VolumeRow.mountFlag(row.name))
+            }
             Button("Copy name") { copyToPasteboard(row.name) }
         } else if !picked.isEmpty {
             Button("Reveal backing files in Finder") { FilePanels.reveal(picked.map(\.volume.configuration.source)) }
@@ -133,7 +147,9 @@ struct VolumesListView: View {
         let before = store.items.map(\.name)
         let backend = model.backend
         guard await store.perform({ try await backend.pruneVolumes() }) else { return }
-        PruneText.toast(model.toasts, removed: PruneCandidates.removed(before: before, after: store.items.map(\.name)), noun: "volume")
+        PruneText.toast(
+            model.toasts, removed: PruneCandidates.removed(before: before, after: store.items.map(\.name)),
+            noun: "volume")
     }
 }
 

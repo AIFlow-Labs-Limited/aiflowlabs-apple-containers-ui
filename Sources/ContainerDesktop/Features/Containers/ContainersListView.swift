@@ -1,9 +1,9 @@
-import SwiftUI
+import AppCore
 import AppKit
 import ContainerKit
 import ContainerKitMock
-import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Containers section: table (top) + tabbed detail pane (bottom, resizable) for a single selection.
 ///
@@ -57,19 +57,25 @@ struct ContainersListView: View {
                 ui.open(newID, tab: .logs)
             }
         }
-        .confirmDestructive(title: deleteTitle, message: deleteMessage, actionTitle: "Delete",
-                            isPresented: $ui.pendingDelete.isPresent) {
+        .confirmDestructive(
+            title: deleteTitle, message: deleteMessage, actionTitle: "Delete",
+            isPresented: $ui.pendingDelete.isPresent
+        ) {
             actions.confirmDelete()
         }
-        .confirmDestructive(title: ui.pendingKill.count == 1 ? "Kill “\(ui.pendingKill[0])”?" : "Kill \(ui.pendingKill.count) containers?",
-                            message: "Sends SIGKILL to \(ui.pendingKill.joined(separator: ", ")) immediately, without a graceful shutdown. "
-                                + "Unsaved data inside the container may be lost.",
-                            actionTitle: "Kill",
-                            isPresented: $ui.pendingKill.isPresent) {
+        .confirmDestructive(
+            title: ui.pendingKill.count == 1
+                ? "Kill “\(ui.pendingKill[0])”?" : "Kill \(ui.pendingKill.count) containers?",
+            message:
+                "Sends SIGKILL to \(ui.pendingKill.joined(separator: ", ")) immediately, without a graceful shutdown. "
+                + "Unsaved data inside the container may be lost.",
+            actionTitle: "Kill",
+            isPresented: $ui.pendingKill.isPresent
+        ) {
             actions.confirmKill()
         }
         #if DEBUG
-        .task { await ContainersDebugHooks.apply(to: ui) }
+            .task { await ContainersDebugHooks.apply(to: ui) }
         #endif
     }
 
@@ -79,31 +85,40 @@ struct ContainersListView: View {
             ProgressView("Loading containers…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if store.visibleCount == 0 {
-            EmptyStateView(symbol: "shippingbox", title: "No containers yet",
-                           message: "Containers you run appear here with live CPU, memory and ports.",
-                           actionTitle: "Run a container…") { actions.run() }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if store.filtered.isEmpty, store.searchText.trimmingCharacters(in: .whitespaces).isEmpty, !store.showStopped {
+            EmptyStateView(
+                symbol: "shippingbox", title: "No containers yet",
+                message: "Containers you run appear here with live CPU, memory and ports.",
+                actionTitle: "Run a container…"
+            ) { actions.run() }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if store.filtered.isEmpty, store.searchText.trimmingCharacters(in: .whitespaces).isEmpty,
+            !store.showStopped
+        {
             let hidden = store.items.count { !$0.isRunning && (!store.hideSystemManaged || !$0.isSystemManaged) }
-            EmptyStateView(symbol: "stop.circle", title: "No running containers",
-                           message: "\(hidden) stopped container\(hidden == 1 ? " is" : "s are") hidden.",
-                           actionTitle: "Show stopped containers") {
+            EmptyStateView(
+                symbol: "stop.circle", title: "No running containers",
+                message: "\(hidden) stopped container\(hidden == 1 ? " is" : "s are") hidden.",
+                actionTitle: "Show stopped containers"
+            ) {
                 store.showStopped = true
                 model.settings.showStoppedContainers = true
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if store.filtered.isEmpty {
-            EmptyStateView(symbol: "line.3.horizontal.decrease.circle", title: "No matches",
-                           message: "No container matches the current search or filters.",
-                           actionTitle: "Clear filters") {
+            EmptyStateView(
+                symbol: "line.3.horizontal.decrease.circle", title: "No matches",
+                message: "No container matches the current search or filters.",
+                actionTitle: "Clear filters"
+            ) {
                 store.searchText = ""
                 store.showStopped = true
                 model.settings.showStoppedContainers = true
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            ContainersTable(ui: ui, rows: ContainerRow.build(store: store, grouped: groupByProject, sortOrder: ui.sortOrder),
-                            actions: actions)
+            ContainersTable(
+                ui: ui, rows: ContainerRow.build(store: store, grouped: groupByProject, sortOrder: ui.sortOrder),
+                actions: actions)
         }
     }
 
@@ -114,7 +129,8 @@ struct ContainersListView: View {
     }
 
     private var deleteTitle: String {
-        ui.pendingDelete.count == 1 ? "Delete container “\(ui.pendingDelete[0])”?" : "Delete \(ui.pendingDelete.count) containers?"
+        ui.pendingDelete.count == 1
+            ? "Delete container “\(ui.pendingDelete[0])”?" : "Delete \(ui.pendingDelete.count) containers?"
     }
 
     private var deleteMessage: String {
@@ -137,14 +153,16 @@ private struct SplitHandle: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 3)
             .contentShape(Rectangle())
-            .pointerStyle(.rowResize)   // balanced by SwiftUI, unlike NSCursor.push/pop on hover
-            .gesture(DragGesture(minimumDistance: 1)
-                .onChanged { value in
-                    let base = start ?? height
-                    start = base
-                    height = min(max(base + value.translation.height, range.lowerBound), range.upperBound)
-                }
-                .onEnded { _ in start = nil })
+            .pointerStyle(.rowResize)  // balanced by SwiftUI, unlike NSCursor.push/pop on hover
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        let base = start ?? height
+                        start = base
+                        height = min(max(base + value.translation.height, range.lowerBound), range.upperBound)
+                    }
+                    .onEnded { _ in start = nil }
+            )
             .accessibilityLabel("Resize list and details")
             .accessibilityAdjustableAction { direction in
                 height = min(max(height + (direction == .increment ? 40 : -40), range.lowerBound), range.upperBound)

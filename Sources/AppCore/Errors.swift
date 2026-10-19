@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 public extension BackendError {
     /// Normalizes any thrown error into a `BackendError` so the UI only ever renders one error type.

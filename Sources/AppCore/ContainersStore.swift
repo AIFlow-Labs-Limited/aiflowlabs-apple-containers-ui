@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Containers list, filters, live stats and lifecycle actions.
 @MainActor
@@ -60,7 +60,8 @@ public final class ContainersStore: PollingStore {
         return items.filter { c in
             (showStopped || c.isRunning)
                 && (!hideSystemManaged || !c.isSystemManaged)
-                && (q.isEmpty || c.id.localizedCaseInsensitiveContains(q) || c.imageReference.localizedCaseInsensitiveContains(q)
+                && (q.isEmpty || c.id.localizedCaseInsensitiveContains(q)
+                    || c.imageReference.localizedCaseInsensitiveContains(q)
                     || (c.labels[AppLabel.project]?.localizedCaseInsensitiveContains(q) ?? false))
         }
     }
@@ -100,7 +101,8 @@ public final class ContainersStore: PollingStore {
             let interval = date.timeIntervalSince(last)
             for sample in samples {
                 if let previous = stats[sample.id] {
-                    percent[sample.id] = ContainerStats.cpuPercent(previous: previous, current: sample, interval: interval)
+                    percent[sample.id] = ContainerStats.cpuPercent(
+                        previous: previous, current: sample, interval: interval)
                 }
             }
         }
@@ -146,7 +148,9 @@ public final class ContainersStore: PollingStore {
     @discardableResult
     public func stop(_ ids: [String], timeoutSeconds: Int? = nil) async -> BulkResult {
         expectStops(ids)
-        return await performEach(ids: ids) { try await backend.stopContainer($0, timeoutSeconds: timeoutSeconds, signal: nil) }
+        return await performEach(ids: ids) {
+            try await backend.stopContainer($0, timeoutSeconds: timeoutSeconds, signal: nil)
+        }
     }
 
     @discardableResult
@@ -164,7 +168,7 @@ public final class ContainersStore: PollingStore {
             if running.contains(id) || container(id: id) == nil {
                 try await backend.stopContainer(id, timeoutSeconds: nil, signal: nil)
             }
-            statsHistory.reset(id)   // counters restart with the process
+            statsHistory.reset(id)  // counters restart with the process
             try await backend.startContainer(id)
         }
     }

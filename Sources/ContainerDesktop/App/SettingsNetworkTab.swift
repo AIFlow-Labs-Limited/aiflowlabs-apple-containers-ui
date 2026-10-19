@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// DNS domains (admin prompt happens in the backend), host.container.internal helper, VPN fake-IP warning.
 struct NetworkSettingsTab: View {
@@ -19,9 +19,11 @@ struct NetworkSettingsTab: View {
                         .disabled(domain.trimmingCharacters(in: .whitespaces).isEmpty || working)
                     if working { ProgressView().controlSize(.small) }
                 }
-                Text("Containers become reachable as <name>.\(domain.isEmpty ? "test" : domain) from your Mac. "
-                     + "macOS asks for an administrator password once.")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(
+                    "Containers become reachable as <name>.\(domain.isEmpty ? "test" : domain) from your Mac. "
+                        + "macOS asks for an administrator password once."
+                )
+                .font(.caption).foregroundStyle(.secondary)
             } header: {
                 Text("DNS names for containers")
             }
@@ -34,10 +36,14 @@ struct NetworkSettingsTab: View {
                         Text(d.domain).font(.monoBody)
                         if let lh = d.localhostAddress { Text("→ \(lh)").foregroundStyle(.secondary) }
                         Spacer()
-                        Button(role: .destructive) { pendingDelete = d.domain } label: { Image(systemName: "trash") }
-                            .buttonStyle(.borderless)
-                            .help("Remove domain \(d.domain)")
-                            .accessibilityLabel("Remove domain \(d.domain)")
+                        Button(role: .destructive) {
+                            pendingDelete = d.domain
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove domain \(d.domain)")
+                        .accessibilityLabel("Remove domain \(d.domain)")
                     }
                 }
             }
@@ -47,15 +53,19 @@ struct NetworkSettingsTab: View {
                     CopyButton("host.container.internal", label: "Copy host name")
                     Spacer()
                 }
-                Text("Use this host name inside a container to reach services listening on your Mac "
-                     + "(for example a database on localhost:5432).")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(
+                    "Use this host name inside a container to reach services listening on your Mac "
+                        + "(for example a database on localhost:5432)."
+                )
+                .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 Label {
-                    Text("VPNs and proxies with “fake IP” DNS (addresses in 198.18.0.0/15) break container DNS and image pulls. "
-                         + "Exclude the container subnet (192.168.64.0/24) or switch the VPN to real-IP mode.")
-                        .font(.callout)
+                    Text(
+                        "VPNs and proxies with “fake IP” DNS (addresses in 198.18.0.0/15) break container DNS and image pulls. "
+                            + "Exclude the container subnet (192.168.64.0/24) or switch the VPN to real-IP mode."
+                    )
+                    .font(.callout)
                 } icon: {
                     Image(systemName: "exclamationmark.shield").foregroundStyle(.statusWarning)
                 }
@@ -66,10 +76,12 @@ struct NetworkSettingsTab: View {
         }
         .formStyle(.grouped)
         .task { await model.system.refresh() }
-        .confirmDestructive(title: "Remove DNS domain?",
-                            message: "Removes the “\(pendingDelete ?? "")” resolver. Requires an administrator password.",
-                            actionTitle: "Remove",
-                            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })) {
+        .confirmDestructive(
+            title: "Remove DNS domain?",
+            message: "Removes the “\(pendingDelete ?? "")” resolver. Requires an administrator password.",
+            actionTitle: "Remove",
+            isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
+        ) {
             if let d = pendingDelete { Task { await model.system.deleteDNSDomain(d) } }
         }
     }

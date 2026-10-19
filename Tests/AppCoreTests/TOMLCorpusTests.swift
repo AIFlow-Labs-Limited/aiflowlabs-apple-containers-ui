@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import AppCore
 
 @Suite struct TOMLCorpusTests {
@@ -40,15 +41,19 @@ import Testing
         #expect(TOMLEditor.value("cpus", section: "container", in: text) == "2")
         #expect(TOMLEditor.setting("cpus", to: "6", section: "container", in: text) == "container.cpus = 6\n")
         let added = TOMLEditor.setting("memory", to: "\"8g\"", section: "container", in: text)
-        #expect(added == "container.cpus = 2\ncontainer.memory = \"8g\"\n")     // no `[container]` redefinition
+        #expect(added == "container.cpus = 2\ncontainer.memory = \"8g\"\n")  // no `[container]` redefinition
         #expect(TOMLValidator.validate(added).isEmpty)
-        #expect(TOMLValidator.validate("container.cpus = 2\n[container]\nmemory = 1").first?.message == "Duplicate section [container]")
+        #expect(
+            TOMLValidator.validate("container.cpus = 2\n[container]\nmemory = 1").first?.message
+                == "Duplicate section [container]")
         #expect(TOMLValidator.validate("a.b = 1\na.b = 2").first?.message == "Duplicate key “a.b”")
     }
 
     @Test func inlineCommentAndIndentationSurviveReplace() {
         let text = "[container]\n  cpus = 4  # four cores\n"
-        #expect(TOMLEditor.setting("cpus", to: "8", section: "container", in: text) == "[container]\n  cpus = 8  # four cores\n")
+        #expect(
+            TOMLEditor.setting("cpus", to: "8", section: "container", in: text)
+                == "[container]\n  cpus = 8  # four cores\n")
     }
 
     @Test func multiLineArrayRemovalLeavesNoOrphans() {

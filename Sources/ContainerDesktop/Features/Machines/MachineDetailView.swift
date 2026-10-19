@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 enum MachineDetailTab: String, CaseIterable, Identifiable {
     case overview = "Overview", terminal = "Terminal", logs = "Logs"
@@ -134,7 +134,9 @@ struct MachineTroubleshootingCard: View {
     var body: some View {
         InfoCard(title: "Image doesn't boot?", symbol: "wrench.and.screwdriver", tint: .secondary) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("The image needs a real `/sbin/init`, `/bin/sh` and `getent`. Docker Hub's `alpine` reboots instantly (“Operation not supported by device”) because its init looks for a missing OpenRC.")
+                Text(
+                    "The image needs a real `/sbin/init`, `/bin/sh` and `getent`. Docker Hub's `alpine` reboots instantly (“Operation not supported by device”) because its init looks for a missing OpenRC."
+                )
                 Bullet("Known good: `ghcr.io/linuxcontainers/alpine:3.20`.")
                 Bullet("Ubuntu: build the systemd image from Apple's machine docs, then create from it.")
                 Bullet("Check the boot log in the **Logs** tab or with `container machine logs \(name ?? "NAME")`.")
@@ -160,7 +162,8 @@ private struct MachineTerminalTab: View {
                 .padding(Spacing.xs)
                 if let exitCode {
                     HStack {
-                        Text("Session ended\(exitCode.map { " (exit \($0))" } ?? "").").font(.caption).foregroundStyle(.secondary)
+                        Text("Session ended\(exitCode.map { " (exit \($0))" } ?? "").").font(.caption).foregroundStyle(
+                            .secondary)
                         Spacer()
                         Button("Reconnect") { connect() }
                     }
@@ -171,9 +174,10 @@ private struct MachineTerminalTab: View {
                 ContentUnavailableView {
                     Label("Terminal", systemImage: "apple.terminal")
                 } description: {
-                    Text(machine.isRunning
-                         ? "Opens a login shell as your user in \(machine.name), in the same folder as on your Mac."
-                         : "\(machine.name) is stopped. Connecting boots it first, which can take a few seconds.")
+                    Text(
+                        machine.isRunning
+                            ? "Opens a login shell as your user in \(machine.name), in the same folder as on your Mac."
+                            : "\(machine.name) is stopped. Connecting boots it first, which can take a few seconds.")
                 } actions: {
                     Button(machine.isRunning ? "Open Terminal" : "Boot and Open Terminal") { connect() }
                         .buttonStyle(.borderedProminent)
@@ -209,8 +213,9 @@ private struct MachineLogsTab: View {
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.xs)
             if lines.isEmpty && !loading {
-                ContentUnavailableView("No log output", systemImage: "doc.plaintext",
-                                       description: Text("The machine hasn't written anything yet."))
+                ContentUnavailableView(
+                    "No log output", systemImage: "doc.plaintext",
+                    description: Text("The machine hasn't written anything yet."))
             } else {
                 OutputLogView(lines: lines, follow: false)
             }
@@ -227,9 +232,12 @@ private struct MachineLogsTab: View {
 
 #Preview("Machine detail") {
     @Previewable @State var tab = MachineDetailTab.overview
-    MachineDetailView(machine: Machine(id: "dev", status: .running, cpus: 4, memory: 8 << 30, diskSize: 1 << 30, isDefault: true,
-                                       createdDate: .now),
-                      tab: $tab, onResize: {}, onStop: {})
-        .appModelEnvironment(ResourcePreview.model())
-        .frame(width: 460, height: 700)
+    MachineDetailView(
+        machine: Machine(
+            id: "dev", status: .running, cpus: 4, memory: 8 << 30, diskSize: 1 << 30, isDefault: true,
+            createdDate: .now),
+        tab: $tab, onResize: {}, onStop: {}
+    )
+    .appModelEnvironment(ResourcePreview.model())
+    .frame(width: 460, height: 700)
 }

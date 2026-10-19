@@ -1,6 +1,7 @@
+import ContainerKit
 import Foundation
 import Testing
-import ContainerKit
+
 @testable import AppCore
 @testable import DesignSystem
 
@@ -46,18 +47,21 @@ import ContainerKit
         var spec = RunSpec(image: "alpine")
         spec.environment = [entry]
         #expect(spec.commandLineString().contains(passwordPart(value)) == !secret, "\(key)")
-        #expect(spec.commandLineString.contains(passwordPart(value)))   // legacy property is unmasked
+        #expect(spec.commandLineString.contains(passwordPart(value)))  // legacy property is unmasked
         // 4. Recreate copy
         // (RunSpec(recreating:) feeds the same commandLineString; covered by 3.)
         // 5. ErrorBanner failedCommand: masks every -e value, secret or not.
-        let failed = BackendError.commandFailed(command: spec.commandLineString(maskSecrets: false), exitCode: 1, message: "x")
+        let failed = BackendError.commandFailed(
+            command: spec.commandLineString(maskSecrets: false), exitCode: 1, message: "x")
         if secret { #expect(!(failed.maskedFailedCommand ?? "").contains(passwordPart(value)), "\(key)") }
         #expect(failed.maskedFailedCommand?.contains(key) == true)
     }
 
     /// The part of `value` that must disappear when masked (the password for credential URLs).
     private func passwordPart(_ value: String) -> String {
-        if value.contains("://"), let range = EnvironmentVariable.urlCredentialRange(in: value) { return String(value[range]) }
+        if value.contains("://"), let range = EnvironmentVariable.urlCredentialRange(in: value) {
+            return String(value[range])
+        }
         return value
     }
 
@@ -71,7 +75,8 @@ import ContainerKit
         let cmd = #"container run -d -e 'A_TOKEN=x y' -e "B=two words" --env C=plain -e D='q v' alpine"#
         let masked = BackendError.commandFailed(command: cmd, exitCode: 1, message: "").maskedFailedCommand ?? ""
         #expect(masked == #"container run -d -e 'A_TOKEN=…' -e "B=…" --env C=… -e D=… alpine"#)
-        let login = BackendError.commandFailed(command: "container image pull https://u:pw@reg/x", exitCode: 1, message: "")
+        let login = BackendError.commandFailed(
+            command: "container image pull https://u:pw@reg/x", exitCode: 1, message: "")
         #expect(login.maskedFailedCommand == "container image pull https://u:••••@reg/x")
     }
 
@@ -79,7 +84,7 @@ import ContainerKit
         let vars = EnvironmentVariable.parse(["A=1", "B=2", "A=3"])
         #expect(vars.map(\.ordinal) == [0, 1, 2])
         #expect(Set(vars.map(\.id)).count == 3)
-        #expect(vars[0].id == "A")          // first occurrence keeps the plain key
+        #expect(vars[0].id == "A")  // first occurrence keeps the plain key
         #expect(vars[2].id == "A#2")
     }
 
@@ -100,15 +105,21 @@ import ContainerKit
         #expect(ShellWords.splitIfValid("echo 'oops") == nil)
         #expect(throws: ShellWords.ParseError.unterminatedQuote("\"")) { try ShellWords.parse(#"echo "oops"#) }
         #expect(ShellWords.splitIfValid("echo 'fine'") == ["echo", "fine"])
-        #expect(ShellWords.split("echo 'oops") == ["echo", "oops"])     // lenient form still splits
+        #expect(ShellWords.split("echo 'oops") == ["echo", "oops"])  // lenient form still splits
     }
 
     @Test func joinQuotesEveryMetacharacterAndRoundTrips() {
-        for word in ["|", ";", "&", "<", ">", "*", "?", "~", "#", "(", ")", "'", "a b", "$HOME", "`id`", "[x]", "{a,b}",
-                     "!", "^", "sh|id", "sh>~/.zshrc", "/bin/a*", "it's", "", "plain-word_1.2/x:y=z@w%"] {
+        for word in [
+            "|", ";", "&", "<", ">", "*", "?", "~", "#", "(", ")", "'", "a b", "$HOME", "`id`", "[x]", "{a,b}",
+            "!", "^", "sh|id", "sh>~/.zshrc", "/bin/a*", "it's", "", "plain-word_1.2/x:y=z@w%",
+        ] {
             let joined = ShellWords.join([word])
             #expect(ShellWords.split(joined) == [word], "\(word) → \(joined)")
-            if word == "plain-word_1.2/x:y=z@w%" { #expect(joined == word) } else { #expect(joined.hasPrefix("'"), "\(word)") }
+            if word == "plain-word_1.2/x:y=z@w%" {
+                #expect(joined == word)
+            } else {
+                #expect(joined.hasPrefix("'"), "\(word)")
+            }
         }
     }
 }

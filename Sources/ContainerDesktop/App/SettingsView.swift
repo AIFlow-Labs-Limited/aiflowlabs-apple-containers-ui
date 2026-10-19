@@ -1,7 +1,7 @@
-import SwiftUI
-import ServiceManagement
 import AppCore
 import DesignSystem
+import ServiceManagement
+import SwiftUI
 
 /// Settings scene (⌘,): General · Resources · Engine · Network · Updates · About.
 struct SettingsView: View {
@@ -32,9 +32,11 @@ struct GeneralSettingsTab: View {
                 Toggle("Launch Container Desktop at login", isOn: $settings.launchAtLogin)
                 if settings.launchAtLoginRequiresApproval {
                     HStack {
-                        Label("Waiting for approval: allow Container Desktop in System Settings → General → Login Items.",
-                              systemImage: "exclamationmark.triangle")
-                            .font(.caption).foregroundStyle(.statusWarning)
+                        Label(
+                            "Waiting for approval: allow Container Desktop in System Settings → General → Login Items.",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .font(.caption).foregroundStyle(.statusWarning)
                         Spacer()
                         Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
                             .controlSize(.small)
@@ -47,14 +49,19 @@ struct GeneralSettingsTab: View {
             }
             Section("Containers") {
                 Toggle("Show stopped containers", isOn: $settings.showStoppedContainers)
-                    .onChange(of: settings.showStoppedContainers) { model.containers.showStopped = settings.showStoppedContainers }
+                    .onChange(of: settings.showStoppedContainers) {
+                        model.containers.showStopped = settings.showStoppedContainers
+                    }
                 Toggle("Hide system containers (builder, Kubernetes nodes)", isOn: $settings.hideSystemContainers)
-                    .onChange(of: settings.hideSystemContainers) { model.containers.hideSystemManaged = settings.hideSystemContainers }
+                    .onChange(of: settings.hideSystemContainers) {
+                        model.containers.hideSystemManaged = settings.hideSystemContainers
+                    }
                 LabeledContent("Refresh every") {
                     HStack {
                         Slider(value: $settings.pollingInterval, in: SettingsStore.pollingRange, step: 1)
                             .frame(width: 200)
-                        Text("\(Int(settings.pollingInterval)) s").monospacedDigit().frame(width: 36, alignment: .trailing)
+                        Text("\(Int(settings.pollingInterval)) s").monospacedDigit().frame(
+                            width: 36, alignment: .trailing)
                     }
                 }
             }
@@ -77,7 +84,10 @@ struct UpdatesSettingsTab: View {
         Form {
             Section("Container Desktop") {
                 LabeledContent("Installed version", value: Diagnostics.appVersion)
-                Link(destination: URL(string: "https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/releases")!) {
+                Link(
+                    destination: URL(
+                        string: "https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/releases")!
+                ) {
                     Label("Check on GitHub", systemImage: "arrow.up.right.square")
                 }
                 Text("Automatic update checks arrive in a later release.").font(.caption).foregroundStyle(.secondary)

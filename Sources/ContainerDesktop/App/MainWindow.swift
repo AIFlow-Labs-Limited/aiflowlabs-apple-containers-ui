@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Main window: sidebar · section content (gated on engine state) · terminal panel · status bar.
 struct MainWindow: View {
@@ -37,11 +37,15 @@ struct MainWindow: View {
         .sheet(isPresented: $nav.isPaletteOpen) {
             CommandPaletteView {
                 // Present after the palette sheet has gone so the alert attaches to the window.
-                Task { try? await Task.sleep(for: .milliseconds(250)); confirmingEngineStop = true }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(250)); confirmingEngineStop = true
+                }
             }
         }
-        .confirmDestructive(title: EngineStopConfirmation.title, message: EngineStopConfirmation.message(for: model),
-                            actionTitle: EngineStopConfirmation.actionTitle, isPresented: $confirmingEngineStop) {
+        .confirmDestructive(
+            title: EngineStopConfirmation.title, message: EngineStopConfirmation.message(for: model),
+            actionTitle: EngineStopConfirmation.actionTitle, isPresented: $confirmingEngineStop
+        ) {
             Task { await model.stopEngine() }
         }
         .sheet(isPresented: $nav.isCleanupOpen) { CleanupSheet() }
@@ -58,7 +62,7 @@ struct MainWindow: View {
             model.containers.startPolling()
             model.system.startPolling()
             #if DEBUG
-            await DebugLaunchActions.run(model: model, openWindow: openWindow, openSettings: openSettings)
+                await DebugLaunchActions.run(model: model, openWindow: openWindow, openSettings: openSettings)
             #endif
         }
         .onDisappear {
@@ -87,12 +91,16 @@ struct MainWindow: View {
             }
             .help("Toggle terminal (⌘T)")
 
-            Button { model.navigation.isPaletteOpen = true } label: {
+            Button {
+                model.navigation.isPaletteOpen = true
+            } label: {
                 Label("Command Palette", systemImage: "command")
             }
             .help("Command palette (⌘K)")
 
-            Button { openWindow(id: SceneID.activity) } label: {
+            Button {
+                openWindow(id: SceneID.activity)
+            } label: {
                 Label("Activity", systemImage: "list.bullet.rectangle")
                     .overlay(alignment: .topTrailing) { ActivityBadge(count: model.taskCenter.activeCount) }
             }

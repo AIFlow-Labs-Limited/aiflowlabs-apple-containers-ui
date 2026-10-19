@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Tag an image with a new `repo[:tag]`.
 struct TagImageSheet: View {
@@ -19,7 +19,8 @@ struct TagImageSheet: View {
     private var trimmed: String { newReference.trimmingCharacters(in: .whitespaces) }
     private var problem: String? {
         if let p = ResourceValidator.imageReference(trimmed) { return p }
-        return model.images.items.contains { ImageReferenceName.same($0.reference, trimmed) } ? "That reference already exists." : nil
+        return model.images.items.contains { ImageReferenceName.same($0.reference, trimmed) }
+            ? "That reference already exists." : nil
     }
 
     var body: some View {
@@ -37,7 +38,11 @@ struct TagImageSheet: View {
         Task {
             if await model.images.perform({ try await backend.tagImage(source, newReference: target) }) {
                 model.toasts.success("Tagged \(target)")
-                if let ref = model.images.items.first(where: { ImageReferenceName.same($0.reference, target) })?.reference { didTag(ref) }
+                if let ref = model.images.items.first(where: { ImageReferenceName.same($0.reference, target) })?
+                    .reference
+                {
+                    didTag(ref)
+                }
             }
         }
     }
@@ -69,9 +74,11 @@ struct SaveImageSheet: View {
                 LabeledContent("Destination") {
                     HStack {
                         Text(destination?.path(percentEncoded: false) ?? "Not chosen").font(.monoCaption)
-                            .lineLimit(1).truncationMode(.middle).foregroundStyle(destination == nil ? .secondary : .primary)
+                            .lineLimit(1).truncationMode(.middle).foregroundStyle(
+                                destination == nil ? .secondary : .primary)
                         Button("Choose…") {
-                            destination = FilePanels.save(title: "Save image", suggestedName: suggestedName, type: "tar")
+                            destination = FilePanels.save(
+                                title: "Save image", suggestedName: suggestedName, type: "tar")
                         }
                     }
                 }
@@ -127,11 +134,14 @@ struct PruneImagesSheet: View {
             }
             .pickerStyle(.radioGroup)
             if let reclaimable = model.system.diskUsage?.images.reclaimable {
-                LabeledContent("Reclaimable (engine estimate)") { Text(ByteCount.format(reclaimable)).monospacedDigit() }
+                LabeledContent("Reclaimable (engine estimate)") {
+                    Text(ByteCount.format(reclaimable)).monospacedDigit()
+                }
             }
             GroupBox {
                 if candidates.isEmpty {
-                    Text("Nothing to remove.").foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Nothing to remove.").foregroundStyle(.secondary).frame(
+                        maxWidth: .infinity, alignment: .leading)
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -147,8 +157,9 @@ struct PruneImagesSheet: View {
                     .frame(maxHeight: 180)
                 }
             } label: {
-                Text("Expected to remove \(PruneText.plural(candidates.count, "image")) "
-                     + "(\(ByteCount.format(candidates.reduce(0) { $0 + $1.totalSize })))")
+                Text(
+                    "Expected to remove \(PruneText.plural(candidates.count, "image")) "
+                        + "(\(ByteCount.format(candidates.reduce(0) { $0 + $1.totalSize })))")
             }
             Text("Computed by Container Desktop from the containers it can see; the engine makes the final decision.")
                 .font(.caption).foregroundStyle(.secondary)
@@ -173,8 +184,10 @@ struct PruneImagesSheet: View {
         working = false
         await model.system.refreshDiskUsage()
         if ok {
-            PruneText.toast(model.toasts, removed: PruneCandidates.removed(before: before, after: model.images.items.map(\.reference)),
-                            noun: "image")
+            PruneText.toast(
+                model.toasts,
+                removed: PruneCandidates.removed(before: before, after: model.images.items.map(\.reference)),
+                noun: "image")
             dismiss()
         }
     }

@@ -1,7 +1,8 @@
+import ContainerKitMock
 import Foundation
 import Testing
+
 @testable import ContainerKit
-import ContainerKitMock
 
 @Suite("Lenient decoding")
 struct LenientDecodingTests {
@@ -62,16 +63,18 @@ struct LenientDecodingTests {
 
     @Test func imageWithBadDateAndCorruptVariantDecodes() throws {
         let json = #"""
-        {"id":"abc","configuration":{"name":"x:1","creationDate":"nope","descriptor":{"digest":"sha256:abc","mediaType":"m","size":1}},
-         "variants":[{"platform":{"architecture":"arm64","os":"linux"},"digest":"d","size":2},{"bad":true}]}
-        """#
+            {"id":"abc","configuration":{"name":"x:1","creationDate":"nope","descriptor":{"digest":"sha256:abc","mediaType":"m","size":1}},
+             "variants":[{"platform":{"architecture":"arm64","os":"linux"},"digest":"d","size":2},{"bad":true}]}
+            """#
         let image = try CLIJSON.decode(Image.self, from: Data(json.utf8))
         #expect(image.variants.count == 1)
         #expect(image.configuration.creationDate == Date(timeIntervalSince1970: 0))
     }
 
     @Test func fixturesStillDecodeCompletely() throws {
-        #expect(try Fixtures.volumes().count == (try CLIJSON.decode(LossyArray<Volume>.self, from: Fixtures.data("volumes.json"))).elements.count)
+        #expect(
+            try Fixtures.volumes().count
+                == (try CLIJSON.decode(LossyArray<Volume>.self, from: Fixtures.data("volumes.json"))).elements.count)
         let images = try CLIJSON.decode(LossyArray<Image>.self, from: Fixtures.data("images.json"))
         #expect(images.droppedCount == 0)
         #expect(images.elements.count == (try Fixtures.images()).count)

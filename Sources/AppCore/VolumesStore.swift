@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Volumes + which containers mount them.
 @MainActor
@@ -48,7 +48,9 @@ public final class VolumesStore: PollingStore {
         items = list.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    public func create(name: String, size: MemorySize? = nil, journal: String? = nil, labels: [String: String] = [:]) async -> Bool {
+    public func create(
+        name: String, size: MemorySize? = nil, journal: String? = nil, labels: [String: String] = [:]
+    ) async -> Bool {
         await perform { try await backend.createVolume(name: name, size: size, journal: journal, labels: labels) }
     }
 

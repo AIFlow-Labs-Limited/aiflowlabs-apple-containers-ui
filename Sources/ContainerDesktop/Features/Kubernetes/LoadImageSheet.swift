@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// "Load image…": `container k8s load-image --name CLUSTER [--platform P] REF`, streamed via TaskCenter.
 struct LoadImageSheet: View {
@@ -16,9 +16,11 @@ struct LoadImageSheet: View {
     @State private var platform = PlatformChoice.native
 
     var body: some View {
-        FormSheet(title: "Load an image into “\(cluster)”", actionTitle: "Load",
-                  canSubmit: !reference.trimmingCharacters(in: .whitespaces).isEmpty,
-                  submit: { load(reference.trimmingCharacters(in: .whitespaces), platform.single) }) {
+        FormSheet(
+            title: "Load an image into “\(cluster)”", actionTitle: "Load",
+            canSubmit: !reference.trimmingCharacters(in: .whitespaces).isEmpty,
+            submit: { load(reference.trimmingCharacters(in: .whitespaces), platform.single) }
+        ) {
             if localImages.isEmpty {
                 TextField("Image", text: $reference, prompt: Text("my-svc:v1"))
                 Text("No images on this Mac yet — build or pull one first.").font(.caption).foregroundStyle(.secondary)

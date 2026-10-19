@@ -37,7 +37,9 @@ public enum CLIJSON {
         if let d = plain.date(from: raw) { return d }
         if let d = fractional.date(from: raw) { return d }
         // Truncate long fractions: 2026-10-17T18:58:22.245285014Z -> .245Z
-        if let dot = raw.firstIndex(of: "."), let tz = raw[dot...].firstIndex(where: { $0 == "Z" || $0 == "+" || $0 == "-" }) {
+        if let dot = raw.firstIndex(of: "."),
+            let tz = raw[dot...].firstIndex(where: { $0 == "Z" || $0 == "+" || $0 == "-" })
+        {
             let frac = raw[raw.index(after: dot)..<tz]
             let ms = String(frac.prefix(3)).padding(toLength: 3, withPad: "0", startingAt: 0)
             let rebuilt = String(raw[..<dot]) + "." + ms + String(raw[tz...])

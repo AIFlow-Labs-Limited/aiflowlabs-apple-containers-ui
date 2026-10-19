@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Image inspector: Overview · Variants · Config · Layers.
 struct ImageDetailView: View {
@@ -101,8 +101,11 @@ struct ImageDetailView: View {
                     KeyValueGrid([
                         ("Digest", v.digest),
                         ("Size", ByteCount.format(v.size)),
-                        ("OS / arch", "\(v.config?.os ?? v.platform.os) / \(v.config?.architecture ?? v.platform.architecture)"
-                            + (v.platform.variant.map { " (\($0))" } ?? "")),
+                        (
+                            "OS / arch",
+                            "\(v.config?.os ?? v.platform.os) / \(v.config?.architecture ?? v.platform.architecture)"
+                                + (v.platform.variant.map { " (\($0))" } ?? "")
+                        ),
                         ("Created", v.config?.created.map(RelativeDate.absolute) ?? ""),
                     ])
                 }
@@ -150,10 +153,17 @@ struct ContainerLinks: View {
 @MainActor
 enum MockPreviewImage {
     static var first: ContainerKit.Image {
-        let desc = Descriptor(digest: "sha256:" + String(repeating: "ab", count: 32), mediaType: "application/vnd.oci.image.index.v1+json", size: 500)
-        return ContainerKit.Image(id: String(repeating: "ab", count: 32), configuration: .init(name: "docker.io/library/alpine:3.22",
-                                  creationDate: .now, descriptor: desc),
-                                  variants: [.init(platform: .arm64, digest: desc.digest, size: 4_000_000),
-                                             .init(platform: .amd64, digest: desc.digest, size: 4_100_000)])
+        let desc = Descriptor(
+            digest: "sha256:" + String(repeating: "ab", count: 32),
+            mediaType: "application/vnd.oci.image.index.v1+json", size: 500)
+        return ContainerKit.Image(
+            id: String(repeating: "ab", count: 32),
+            configuration: .init(
+                name: "docker.io/library/alpine:3.22",
+                creationDate: .now, descriptor: desc),
+            variants: [
+                .init(platform: .arm64, digest: desc.digest, size: 4_000_000),
+                .init(platform: .amd64, digest: desc.digest, size: 4_100_000),
+            ])
     }
 }

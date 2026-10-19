@@ -74,8 +74,12 @@ public struct CopyButton: View {
 
 #Preview("KeyValueGrid") {
     VStack(alignment: .leading) {
-        KeyValueGrid([("ID", "web-test"), ("Image", "docker.io/library/python:alpine"), ("IP", "192.168.64.3"), ("Empty", "")])
-        HStack { Text("container run …").font(.monoCaption); CopyButton("container run python:alpine") }
+        KeyValueGrid([
+            ("ID", "web-test"), ("Image", "docker.io/library/python:alpine"), ("IP", "192.168.64.3"), ("Empty", ""),
+        ])
+        HStack {
+            Text("container run …").font(.monoCaption); CopyButton("container run python:alpine")
+        }
     }
     .padding()
     .frame(width: 420)

@@ -1,7 +1,7 @@
-import Foundation
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import Foundation
 
 /// One table row: a container, or a compose-style project group whose children are containers.
 /// Flat sortable fields so `KeyPathComparator` works for every column.
@@ -103,9 +103,13 @@ struct ContainerRow: Identifiable, Hashable {
     }
 
     /// Builds the visible rows: flat, or grouped by `AppLabel.project` (projects first), each level sorted.
-    @MainActor static func build(store: ContainersStore, grouped: Bool, sortOrder: [KeyPathComparator<ContainerRow>],
-                      now: Date = .now) -> [ContainerRow] {
-        let rows = store.filtered.map { ContainerRow(container: $0, stats: store.stats[$0.id], cpu: store.cpuPercent[$0.id], now: now) }
+    @MainActor static func build(
+        store: ContainersStore, grouped: Bool, sortOrder: [KeyPathComparator<ContainerRow>],
+        now: Date = .now
+    ) -> [ContainerRow] {
+        let rows = store.filtered.map {
+            ContainerRow(container: $0, stats: store.stats[$0.id], cpu: store.cpuPercent[$0.id], now: now)
+        }
         guard grouped else { return rows.sorted(using: sortOrder) }
         let byProject = Dictionary(grouping: rows) { $0.container?.labels[AppLabel.project] }
         let projects = byProject.compactMap { key, value in

@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Container machines (Apple-only Linux dev boxes).
 @MainActor
@@ -35,7 +35,10 @@ public final class MachinesStore: PollingStore {
     public var filtered: [Machine] {
         let q = searchText.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return items }
-        return items.filter { $0.name.localizedCaseInsensitiveContains(q) || ($0.image?.reference.localizedCaseInsensitiveContains(q) ?? false) }
+        return items.filter {
+            $0.name.localizedCaseInsensitiveContains(q)
+                || ($0.image?.reference.localizedCaseInsensitiveContains(q) ?? false)
+        }
     }
 
     public var defaultMachine: Machine? { items.first(where: \.isDefault) }
@@ -47,13 +50,16 @@ public final class MachinesStore: PollingStore {
 
     @discardableResult
     public func create(_ spec: MachineSpec) -> LongRunningTask {
-        tasks.run(title: "Create machine \(spec.name)", kind: .machine, stream: backend.createMachine(spec)) { [weak self] _ in
+        tasks.run(title: "Create machine \(spec.name)", kind: .machine, stream: backend.createMachine(spec)) {
+            [weak self] _ in
             await self?.refresh()
         }
     }
 
     public func stop(_ names: [String]) async { await perform { for n in names { try await backend.stopMachine(n) } } }
-    public func delete(_ names: [String]) async { await perform { for n in names { try await backend.deleteMachine(n) } } }
+    public func delete(_ names: [String]) async {
+        await perform { for n in names { try await backend.deleteMachine(n) } }
+    }
     public func setDefault(_ name: String) async { await perform { try await backend.setDefaultMachine(name) } }
 
     /// e.g. `["cpus": "8", "memory": "16g"]` — applies after the next boot.
@@ -71,5 +77,7 @@ public final class MachinesStore: PollingStore {
         (try? await backend.machineLogs(name)) ?? []
     }
 
-    public func terminalCommand(for name: String) -> ContainerKit.CommandLine { backend.terminalCommand(for: .machine(name: name)) }
+    public func terminalCommand(for name: String) -> ContainerKit.CommandLine {
+        backend.terminalCommand(for: .machine(name: name))
+    }
 }

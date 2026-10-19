@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 /// Image reference parsing/normalization (the one parser; `ResourceValidator.imageReference` uses its host rule).
 /// The CLI reports local builds as `name:tag` in `image ls` but containers created from them as
@@ -52,7 +52,8 @@ public enum ResourceUsage {
         return containers.filter { c in
             if ImageReferenceName.canonical(c.imageReference) == target { return true }
             guard c.imageReference.contains("@") else { return false }
-            let pinned = String(c.imageReference[c.imageReference.index(after: c.imageReference.firstIndex(of: "@")!)...])
+            let pinned = String(
+                c.imageReference[c.imageReference.index(after: c.imageReference.firstIndex(of: "@")!)...])
             return digests.contains(pinned) || digests.contains(c.configuration.image.descriptor.digest)
         }
     }

@@ -1,5 +1,5 @@
-import Foundation
 import ContainerKit
+import Foundation
 
 public extension RunSpec {
     /// Rebuilds the `container run` parameters that would recreate `container` ("Copy `container run`").
@@ -45,13 +45,16 @@ public extension RunSpec {
 
         // Ports, mounts
         ports = cfg.publishedPorts.map {
-            PortMapping(hostAddress: $0.hostAddress == "0.0.0.0" ? nil : $0.hostAddress,
-                        hostPort: $0.hostPort, containerPort: $0.containerPort, proto: $0.proto)
+            PortMapping(
+                hostAddress: $0.hostAddress == "0.0.0.0" ? nil : $0.hostAddress,
+                hostPort: $0.hostPort, containerPort: $0.containerPort, proto: $0.proto)
         }
         for m in cfg.mounts {
             switch m.type {
-            case .bind: mounts.append(MountSpec(kind: .bind(hostPath: m.source), target: m.destination, readOnly: m.isReadOnly))
-            case .volume(let name, _): mounts.append(MountSpec(kind: .volume(name: name), target: m.destination, readOnly: m.isReadOnly))
+            case .bind:
+                mounts.append(MountSpec(kind: .bind(hostPath: m.source), target: m.destination, readOnly: m.isReadOnly))
+            case .volume(let name, _):
+                mounts.append(MountSpec(kind: .volume(name: name), target: m.destination, readOnly: m.isReadOnly))
             case .tmpfs: tmpfs.append(m.destination)
             case .other: break
             }
@@ -127,13 +130,15 @@ public enum RunSpecIssue: Hashable, Sendable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .missingImage: return "Choose an image."
-        case .invalidName(let n): return "“\(n)” is not a valid name: use letters, digits, '.', '_' or '-', starting with a letter or digit."
+        case .invalidName(let n):
+            return "“\(n)” is not a valid name: use letters, digits, '.', '_' or '-', starting with a letter or digit."
         case .portOutOfRange(let p): return "Port \(p) is out of range (1–65535)."
         case .duplicateHostPort(let p): return "Host port \(p) is published more than once."
         case .memoryTooSmall: return "Memory must be at least 64 MB."
         case .missingMountTarget: return "Every volume needs a container path."
         case .relativeMountTarget(let t): return "Container path “\(t)” must be absolute."
-        case .invalidImage(let i): return "“\(i)” is not an image reference (it cannot start with “-” or contain spaces)."
+        case .invalidImage(let i):
+            return "“\(i)” is not an image reference (it cannot start with “-” or contain spaces)."
         case .relativeMountSource(let p): return "Host path “\(p)” must be absolute (or start with ~)."
         }
     }
@@ -168,12 +173,16 @@ public extension RunSpec {
             let host = Self.normalizedHostAddress(p.hostAddress)
             let existing = bound[slot, default: []]
             let clashes = existing.contains(host) || (!existing.isEmpty && (host == "*" || existing.contains("*")))
-            if clashes, !result.contains(.duplicateHostPort(p.hostPort)) { result.append(.duplicateHostPort(p.hostPort)) }
+            if clashes, !result.contains(.duplicateHostPort(p.hostPort)) {
+                result.append(.duplicateHostPort(p.hostPort))
+            }
             bound[slot, default: []].insert(host)
         }
         if let memory, memory.bytes < Self.minimumMemoryBytes { result.append(.memoryTooSmall(memory.bytes)) }
         for m in mounts {
-            if m.target.isEmpty { result.append(.missingMountTarget) } else if !m.target.hasPrefix("/") {
+            if m.target.isEmpty {
+                result.append(.missingMountTarget)
+            } else if !m.target.hasPrefix("/") {
                 result.append(.relativeMountTarget(m.target))
             }
             if case .bind(let source) = m.kind, !source.isEmpty, !source.hasPrefix("/"), !source.hasPrefix("~") {

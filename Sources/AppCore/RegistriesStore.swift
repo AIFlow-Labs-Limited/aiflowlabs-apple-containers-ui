@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Registry logins. Passwords are handed to the backend (which pipes them via stdin) and never stored here.
 @MainActor
@@ -33,7 +33,9 @@ public final class RegistriesStore: PollingStore {
     public var filtered: [RegistryLogin] {
         let q = searchText.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return items }
-        return items.filter { $0.server.localizedCaseInsensitiveContains(q) || ($0.username?.localizedCaseInsensitiveContains(q) ?? false) }
+        return items.filter {
+            $0.server.localizedCaseInsensitiveContains(q) || ($0.username?.localizedCaseInsensitiveContains(q) ?? false)
+        }
     }
 
     public func refresh() async {
@@ -42,7 +44,9 @@ public final class RegistriesStore: PollingStore {
     }
 
     public func login(server: String, username: String, password: String, scheme: String? = nil) async -> Bool {
-        await perform { try await backend.registryLogin(server: server, username: username, password: password, scheme: scheme) }
+        await perform {
+            try await backend.registryLogin(server: server, username: username, password: password, scheme: scheme)
+        }
     }
 
     public func logout(_ servers: [String]) async {

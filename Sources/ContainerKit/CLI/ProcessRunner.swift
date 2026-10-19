@@ -35,7 +35,9 @@ public protocol CommandRunning: Sendable {
     /// Runs a command to completion and captures its output. A non-zero exit is *not* an error here;
     /// callers inspect `exitCode`. Throws `BackendError.cancelled` on task cancellation and
     /// `BackendError.commandFailed` on timeout or launch failure.
-    func run(_ arguments: [String], stdin: Data?, timeout: Duration?, environment: [String: String]) async throws -> ProcessResult
+    func run(
+        _ arguments: [String], stdin: Data?, timeout: Duration?, environment: [String: String]
+    ) async throws -> ProcessResult
 
     /// Streams stdout/stderr line by line while the command runs. The stream finishes by throwing
     /// `BackendError.commandFailed` on a non-zero exit; cancelling the consumer kills the process.
@@ -113,7 +115,8 @@ public struct ProcessRunner: CommandRunning {
         _ arguments: [String], stdin: Data?, timeout: Duration?, environment: [String: String]
     ) async throws -> ProcessResult {
         if Task.isCancelled { throw BackendError.cancelled }
-        let child = try ChildProcess.launch(arguments, stdin: stdin, environment: Self.childEnvironment(overrides: environment))
+        let child = try ChildProcess.launch(
+            arguments, stdin: stdin, environment: Self.childEnvironment(overrides: environment))
         let grace = killGracePeriod
         let drain = drainGracePeriod
 
@@ -184,7 +187,9 @@ public struct ProcessRunner: CommandRunning {
                         continuation.finish(throwing: BackendError.cancelled)
                     } else if code != 0 {
                         let message = CLIErrorMapper.cleanMessage(stderrTail.joined(separator: "\n"))
-                        continuation.finish(throwing: BackendError.commandFailed(command: child.display, exitCode: code, message: message))
+                        continuation.finish(
+                            throwing: BackendError.commandFailed(
+                                command: child.display, exitCode: code, message: message))
                     } else {
                         continuation.finish()
                     }

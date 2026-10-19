@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Network inspector: key facts, attached containers, DNS caveat + DNS setup state.
 struct NetworkDetailView: View {
@@ -29,7 +29,9 @@ struct NetworkDetailView: View {
                 }
                 let labels = network.configuration.labels.filter { $0.key != ResourceLabel.role }
                 if !labels.isEmpty {
-                    InspectorSection("Labels") { KeyValueGrid(labels.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }) }
+                    InspectorSection("Labels") {
+                        KeyValueGrid(labels.sorted { $0.key < $1.key }.map { ($0.key, $0.value) })
+                    }
                 }
                 InspectorSection("Attached containers (\(attached.count))") {
                     if attached.isEmpty {
@@ -49,8 +51,9 @@ struct NetworkDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             if !network.isBuiltin {
                 Label {
-                    Text("Containers on custom networks can't resolve each other by name (apple/container#1809); "
-                         + "use the default network for DNS names.")
+                    Text(
+                        "Containers on custom networks can't resolve each other by name (apple/container#1809); "
+                            + "use the default network for DNS names.")
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.statusWarning)
                 }
@@ -62,10 +65,15 @@ struct NetworkDetailView: View {
             }
             let domains = model.system.dnsDomains
             HStack(spacing: Spacing.s) {
-                StatusDot(domains.isEmpty ? .statusWarning : .statusRunning, label: domains.isEmpty ? "No DNS domain" : "DNS configured")
-                Text(domains.isEmpty ? "No DNS domain configured"
-                                     : "DNS domain\(domains.count == 1 ? "" : "s"): \(domains.map(\.domain).joined(separator: ", "))")
-                    .font(.callout)
+                StatusDot(
+                    domains.isEmpty ? .statusWarning : .statusRunning,
+                    label: domains.isEmpty ? "No DNS domain" : "DNS configured")
+                Text(
+                    domains.isEmpty
+                        ? "No DNS domain configured"
+                        : "DNS domain\(domains.count == 1 ? "" : "s"): \(domains.map(\.domain).joined(separator: ", "))"
+                )
+                .font(.callout)
                 Spacer()
                 Button(domains.isEmpty ? "Set up DNS…" : "DNS settings…") {
                     UserDefaults.standard.set("network", forKey: SettingsView.selectedTabKey)
@@ -75,7 +83,8 @@ struct NetworkDetailView: View {
                 .accessibilityHint("Opens Settings, Network")
             }
             if let domain = domains.first?.domain, let name = attached.first?.id, network.isBuiltin {
-                Text("Example: \(name).\(domain)").font(.monoCaption).foregroundStyle(.secondary).textSelection(.enabled)
+                Text("Example: \(name).\(domain)").font(.monoCaption).foregroundStyle(.secondary).textSelection(
+                    .enabled)
             }
         }
     }
@@ -114,7 +123,10 @@ struct CreateNetworkSheet: View {
             if !name.isEmpty, let nameProblem { Text(nameProblem).font(.caption).foregroundStyle(.statusError) }
             TextField("IPv4 subnet", text: $subnet, prompt: Text("automatic, e.g. 192.168.70.0/24"))
             if let subnetProblem { Text(subnetProblem).font(.caption).foregroundStyle(.statusError) }
-            if let subnetWarning { Label(subnetWarning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.statusWarning) }
+            if let subnetWarning {
+                Label(subnetWarning, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(
+                    .statusWarning)
+            }
             TextField("IPv6 subnet", text: $subnetV6, prompt: Text("optional, e.g. fd00:70::/64"))
             if let subnetV6Problem { Text(subnetV6Problem).font(.caption).foregroundStyle(.statusError) }
             LabeledContent("Labels") {
@@ -122,8 +134,10 @@ struct CreateNetworkSheet: View {
                     ResourceValidator.keyValue($0)
                 }
             }
-            Text("Containers on a separate network are isolated from the default network and can't resolve each other by name yet.")
-                .font(.caption).foregroundStyle(.secondary)
+            Text(
+                "Containers on a separate network are isolated from the default network and can't resolve each other by name yet."
+            )
+            .font(.caption).foregroundStyle(.secondary)
         }
     }
 

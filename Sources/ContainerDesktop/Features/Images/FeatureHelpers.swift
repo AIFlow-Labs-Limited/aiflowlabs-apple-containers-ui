@@ -1,5 +1,5 @@
-import SwiftUI
 import AppCore
+import SwiftUI
 
 // Small helpers shared by the Images / Volumes / Networks / Builds / Machines / Kubernetes / Registries features.
 // (`Binding.isPresent` lives in DesignSystem/Bindings.swift.)
@@ -16,8 +16,10 @@ enum PruneText {
     /// Names the candidates and says when some are hidden by the current search, because prune ignores it.
     static func message(candidates: [String], visible: [String], noun: String) -> String {
         let hidden = PruneCandidates.hiddenCount(candidates: candidates, visible: visible)
-        let names = candidates.count <= 8 ? candidates.joined(separator: ", ")
-                                          : candidates.prefix(8).joined(separator: ", ") + " and \(candidates.count - 8) more"
+        let names =
+            candidates.count <= 8
+            ? candidates.joined(separator: ", ")
+            : candidates.prefix(8).joined(separator: ", ") + " and \(candidates.count - 8) more"
         let scope = hidden > 0 ? " (including \(hidden) hidden by your search)" : ""
         return "Permanently deletes \(plural(candidates.count, "unused " + noun))\(scope): \(names)."
     }
@@ -28,8 +30,10 @@ enum PruneText {
         if removed.isEmpty {
             toasts.info("Nothing pruned", message: "No unused \(noun)s were removed.")
         } else {
-            toasts.success("Pruned \(plural(removed.count, noun))", message: removed.prefix(5).joined(separator: ", ")
-                           + (removed.count > 5 ? " and \(removed.count - 5) more" : ""))
+            toasts.success(
+                "Pruned \(plural(removed.count, noun))",
+                message: removed.prefix(5).joined(separator: ", ")
+                    + (removed.count > 5 ? " and \(removed.count - 5) more" : ""))
         }
     }
 }

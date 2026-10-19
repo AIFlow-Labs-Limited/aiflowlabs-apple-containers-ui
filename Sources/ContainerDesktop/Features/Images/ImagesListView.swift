@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Images: sortable table, toolbar (Pull · Load · Build · Prune), row actions and a tabbed detail inspector.
 struct ImagesListView: View {
@@ -53,16 +53,21 @@ struct ImagesListView: View {
             }
             .width(min: 90, ideal: 110)
         }
-        .contextMenu(forSelectionType: String.self) { refs in contextMenu(refs) } primaryAction: { refs in
+        .contextMenu(forSelectionType: String.self) { refs in
+            contextMenu(refs)
+        } primaryAction: { refs in
             if let ref = refs.first, refs.count == 1 { run(ref) }
         }
         .overlay {
             if rows.isEmpty && !store.isLoading {
-                EmptyStateView(symbol: "square.stack.3d.up",
-                               title: store.items.isEmpty ? "No images" : "No matching images",
-                               message: store.items.isEmpty ? "Pull an image from a registry or build one to get started."
-                                                            : "Clear the search or show untagged images.",
-                               actionTitle: "Pull image…") { sheet = .pull(nil) }
+                EmptyStateView(
+                    symbol: "square.stack.3d.up",
+                    title: store.items.isEmpty ? "No images" : "No matching images",
+                    message: store.items.isEmpty
+                        ? "Pull an image from a registry or build one to get started."
+                        : "Clear the search or show untagged images.",
+                    actionTitle: "Pull image…"
+                ) { sheet = .pull(nil) }
             }
         }
         .inspector(isPresented: .constant(selectedRows.count == 1)) {
@@ -77,12 +82,17 @@ struct ImagesListView: View {
             store.items.first { ImageReferenceName.same($0.reference, key) || $0.id == key }?.reference
         }
         .sheet(item: $sheet) { sheet in sheetView(sheet) }
-        .confirmDestructive(title: deleteTitle, message: "Deletes \(pendingDelete.joined(separator: ", ")). "
-                                + "Layers shared with other tags are kept.",
-                            actionTitle: "Delete",
-                            isPresented: $pendingDelete.isPresent) {
+        .confirmDestructive(
+            title: deleteTitle,
+            message: "Deletes \(pendingDelete.joined(separator: ", ")). "
+                + "Layers shared with other tags are kept.",
+            actionTitle: "Delete",
+            isPresented: $pendingDelete.isPresent
+        ) {
             let refs = pendingDelete
-            Task { await store.delete(refs); selection.subtract(refs) }
+            Task {
+                await store.delete(refs); selection.subtract(refs)
+            }
         }
     }
 
@@ -93,11 +103,15 @@ struct ImagesListView: View {
         ToolbarItemGroup {
             ToolbarActionButton("Pull…", systemImage: "arrow.down.circle") { sheet = .pull(nil) }
             ToolbarActionButton("Load from tar…", systemImage: "square.and.arrow.down.on.square") { loadFromTar() }
-            ToolbarActionButton("Build…", systemImage: "hammer") { model.navigation.open(.builds, select: BuildsListView.newBuildToken) }
+            ToolbarActionButton("Build…", systemImage: "hammer") {
+                model.navigation.open(.builds, select: BuildsListView.newBuildToken)
+            }
             ToolbarActionButton("Prune…", systemImage: "scissors") { sheet = .prune }
             ToolbarActionButton("Delete", systemImage: "trash", role: .destructive) { requestDelete(selection) }
                 .disabled(selection.isEmpty || selectedRows.contains { !$0.usedBy.isEmpty })
-                .help(selectedRows.contains { !$0.usedBy.isEmpty } ? "An image in use by a container cannot be deleted" : "Delete")
+                .help(
+                    selectedRows.contains { !$0.usedBy.isEmpty }
+                        ? "An image in use by a container cannot be deleted" : "Delete")
             Menu {
                 Toggle("Hide untagged images", isOn: $hideUntagged)
             } label: {

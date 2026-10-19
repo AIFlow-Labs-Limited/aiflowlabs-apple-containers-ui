@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Activity window: long-running tasks (pull/push/build/create) with live output and cancel.
 struct ActivityView: View {
@@ -21,8 +21,9 @@ struct ActivityView: View {
             .frame(minWidth: 240, idealWidth: 280, maxWidth: 360)
             .overlay {
                 if model.taskCenter.tasks.isEmpty {
-                    EmptyStateView(symbol: "list.bullet.rectangle", title: "No activity",
-                                   message: "Pulls, pushes, builds and machine/cluster creation show up here with live output.")
+                    EmptyStateView(
+                        symbol: "list.bullet.rectangle", title: "No activity",
+                        message: "Pulls, pushes, builds and machine/cluster creation show up here with live output.")
                 }
             }
             detail
@@ -46,8 +47,10 @@ struct ActivityView: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading) {
                         Text(task.title).font(.headline)
-                        Text("\(task.state.label) · \(RelativeDate.duration(task.duration)) · started \(RelativeDate.format(task.startedAt))")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text(
+                            "\(task.state.label) · \(RelativeDate.duration(task.duration)) · started \(RelativeDate.format(task.startedAt))"
+                        )
+                        .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if task.state == .running {

@@ -8,7 +8,8 @@ public struct EmptyStateView: View {
     let actionTitle: String?
     let action: (() -> Void)?
 
-    public init(symbol: String, title: String, message: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
+    public init(symbol: String, title: String, message: String, actionTitle: String? = nil, action: (() -> Void)? = nil)
+    {
         self.symbol = symbol
         self.title = title
         self.message = message
@@ -32,7 +33,9 @@ public struct EmptyStateView: View {
 }
 
 #Preview("EmptyStateView") {
-    EmptyStateView(symbol: "shippingbox", title: "No containers", message: "Run an image to create your first container.",
-                   actionTitle: "Run a container") {}
-        .frame(width: 500, height: 320)
+    EmptyStateView(
+        symbol: "shippingbox", title: "No containers", message: "Run an image to create your first container.",
+        actionTitle: "Run a container"
+    ) {}
+    .frame(width: 500, height: 320)
 }

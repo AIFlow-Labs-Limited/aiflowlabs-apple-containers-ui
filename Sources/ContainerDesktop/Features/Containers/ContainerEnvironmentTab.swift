@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// Environment tab: searchable key/value table of the init process environment. Values whose key looks
 /// secret (PASSWORD/SECRET/TOKEN/KEY) are masked until revealed (per row, or all at once).
@@ -19,7 +19,8 @@ struct ContainerEnvironmentTab: View {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return all }
         return all.filter { v in
-            v.key.localizedCaseInsensitiveContains(q) || (!v.isSensitive && (v.value ?? "").localizedCaseInsensitiveContains(q))
+            v.key.localizedCaseInsensitiveContains(q)
+                || (!v.isSensitive && (v.value ?? "").localizedCaseInsensitiveContains(q))
         }
     }
 
@@ -32,8 +33,10 @@ struct ContainerEnvironmentTab: View {
                 SearchField(text: $query, prompt: "Filter variables")
                 Text("\(variables.count) variables").font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 Spacer()
-                Toggle(isOn: $revealAll) { Label(revealAll ? "Hide Secrets" : "Reveal Secrets", systemImage: revealAll ? "eye.slash" : "eye") }
-                    .toggleStyle(.button)
+                Toggle(isOn: $revealAll) {
+                    Label(revealAll ? "Hide Secrets" : "Reveal Secrets", systemImage: revealAll ? "eye.slash" : "eye")
+                }
+                .toggleStyle(.button)
                 Button("Copy All", systemImage: "doc.on.doc") {
                     copyToPasteboard(variables.map(\.entry).joined(separator: "\n"))
                 }
@@ -81,11 +84,19 @@ struct ContainerEnvironmentTab: View {
 }
 
 #Preview("Environment") {
-    let c = Container(id: "db", configuration: .init(
-        id: "db", image: ImageReference(reference: "postgres", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
-        creationDate: .now, initProcess: .init(executable: "postgres", environment: [
-            "PATH=/usr/local/bin:/usr/bin", "POSTGRES_PASSWORD=hunter2", "PGDATA=/var/lib/postgresql/data", "API_TOKEN=abc123",
-        ])))
+    let c = Container(
+        id: "db",
+        configuration: .init(
+            id: "db",
+            image: ImageReference(
+                reference: "postgres", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
+            creationDate: .now,
+            initProcess: .init(
+                executable: "postgres",
+                environment: [
+                    "PATH=/usr/local/bin:/usr/bin", "POSTGRES_PASSWORD=hunter2", "PGDATA=/var/lib/postgresql/data",
+                    "API_TOKEN=abc123",
+                ])))
     ContainerEnvironmentTab(container: c)
         .frame(width: 800, height: 300)
 }

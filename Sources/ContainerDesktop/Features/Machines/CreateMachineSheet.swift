@@ -1,7 +1,7 @@
-import SwiftUI
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import SwiftUI
 
 /// "New machine" sheet built on `MachineForm`; the preview is `MachineSpec.cliArguments`, exactly what runs.
 struct CreateMachineSheet: View {
@@ -18,9 +18,13 @@ struct CreateMachineSheet: View {
         self.create = create
         var form = MachineForm(existingNames: existingNames)
         // Don't propose a name that's taken: dev, dev-2, dev-3…
-        if form.nameError != nil, let free = (2...99).lazy.map({ "dev-\($0)" }).first(where: { n in
-            !existingNames.contains { $0.caseInsensitiveCompare(n) == .orderedSame }
-        }) { form.name = free }
+        if form.nameError != nil,
+            let free = (2...99).lazy.map({ "dev-\($0)" }).first(where: { n in
+                !existingNames.contains { $0.caseInsensitiveCompare(n) == .orderedSame }
+            })
+        {
+            form.name = free
+        }
         _form = State(initialValue: form)
     }
     @State private var showAdvanced = false
@@ -45,8 +49,10 @@ struct CreateMachineSheet: View {
                         Slider(value: memoryBinding, in: 1...Double(host.memoryGB), step: 1)
                             .accessibilityLabel("Memory")
                             .accessibilityValue("\(form.memoryGB) gigabytes")
-                        Text("Default is half your Mac's memory (\(host.machineDefaultMemoryGB) GB). Memory is only used as the machine needs it.")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text(
+                            "Default is half your Mac's memory (\(host.machineDefaultMemoryGB) GB). Memory is only used as the machine needs it."
+                        )
+                        .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Section("Home folder") {
@@ -67,18 +73,24 @@ struct CreateMachineSheet: View {
             }
             .formStyle(.grouped)
             CommandPreview(command: form.previewCommand())
-            InfoCard(title: "A machine can read and change your home folder", symbol: "exclamationmark.shield",
-                     tint: .statusWarning) {
-                Text("It also gets your SSH agent, all Linux capabilities and passwordless sudo. Only use images you trust.")
+            InfoCard(
+                title: "A machine can read and change your home folder", symbol: "exclamationmark.shield",
+                tint: .statusWarning
+            ) {
+                Text(
+                    "It also gets your SSH agent, all Linux capabilities and passwordless sudo. Only use images you trust."
+                )
             }
             HStack {
                 Text("Creation streams into the Activity window.").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Create") { create(form.spec); dismiss() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!form.isValid)
+                Button("Create") {
+                    create(form.spec); dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!form.isValid)
             }
         }
         .padding(Spacing.xl)
@@ -120,8 +132,10 @@ struct CreateMachineSheet: View {
         } else if let error = form.imageError, !form.imageReference.isEmpty {
             FieldError(message: error)
         } else if !form.imageReference.isEmpty {
-            Text("Unverified image: it needs /sbin/init, /bin/sh and getent. If it doesn't boot, check the machine's Logs tab.")
-                .font(.caption).foregroundStyle(.secondary)
+            Text(
+                "Unverified image: it needs /sbin/init, /bin/sh and getent. If it doesn't boot, check the machine's Logs tab."
+            )
+            .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -129,9 +143,11 @@ struct CreateMachineSheet: View {
     private var brokenImageNotice: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             FieldError(message: form.imageError)
-            Text("Blocked: \(MachineImageOption.knownBrokenPatterns.joined(separator: ", ")). "
-                 + "Apple's test image \(MachineImageOption.verified.reference) is the same distribution with a working init.")
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Blocked: \(MachineImageOption.knownBrokenPatterns.joined(separator: ", ")). "
+                    + "Apple's test image \(MachineImageOption.verified.reference) is the same distribution with a working init."
+            )
+            .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Button("Use \(MachineImageOption.verified.reference)") {
                 imageChoice = MachineImageOption.verified.reference
                 form.image = MachineImageOption.verified.reference
@@ -169,6 +185,8 @@ struct CreateMachineSheet: View {
 }
 
 #Preview("Create machine") {
-    CreateMachineSheet(localImages: ["ghcr.io/linuxcontainers/alpine:3.20", "docker.io/library/postgres:16-alpine"],
-                       existingNames: ["dev"]) { _ in }
+    CreateMachineSheet(
+        localImages: ["ghcr.io/linuxcontainers/alpine:3.20", "docker.io/library/postgres:16-alpine"],
+        existingNames: ["dev"]
+    ) { _ in }
 }

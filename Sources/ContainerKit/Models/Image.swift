@@ -29,8 +29,11 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
         var ref = reference
         if let at = ref.firstIndex(of: "@") { ref = String(ref[..<at]) }
         if let colon = ref.lastIndex(of: ":"), !ref[colon...].contains("/") { ref = String(ref[..<colon]) }
-        if ref.hasPrefix("docker.io/library/") { ref = String(ref.dropFirst("docker.io/library/".count)) }
-        else if ref.hasPrefix("docker.io/") { ref = String(ref.dropFirst("docker.io/".count)) }
+        if ref.hasPrefix("docker.io/library/") {
+            ref = String(ref.dropFirst("docker.io/library/".count))
+        } else if ref.hasPrefix("docker.io/") {
+            ref = String(ref.dropFirst("docker.io/".count))
+        }
         return ref
     }
     /// `alpine` for `python:alpine`; `nil` when untagged or digest-only (`x@sha256:…`). For `x:1@sha256:…` it is `1`.

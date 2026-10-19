@@ -33,7 +33,9 @@ public actor CLIBackend: ContainerBackend {
     ///   - runner: process runner (inject a fake in tests).
     ///   - configPath: `config.toml` override (tests); defaults to `$CONTAINER_CONFIG_PATH` / `~/.config/container/config.toml`.
     /// - Throws: `BackendError.cliNotInstalled` when no executable is found.
-    public init(executable: String? = nil, runner: any CommandRunning = ProcessRunner(), configPath: String? = nil) throws {
+    public init(
+        executable: String? = nil, runner: any CommandRunning = ProcessRunner(), configPath: String? = nil
+    ) throws {
         self.runner = runner
         self.configPath = configPath
         if let executable { self.executable = executable; return }
@@ -45,14 +47,19 @@ public actor CLIBackend: ContainerBackend {
 
     /// `$CONTAINER_CLI` if executable, else the first executable entry of `defaultSearchPaths`.
     public static func locateExecutable() -> String? {
-        if let env = ProcessInfo.processInfo.environment["CONTAINER_CLI"], FileManager.default.isExecutableFile(atPath: env) { return env }
+        if let env = ProcessInfo.processInfo.environment["CONTAINER_CLI"],
+            FileManager.default.isExecutableFile(atPath: env)
+        {
+            return env
+        }
         return defaultSearchPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
     /// Command line an embedded terminal should spawn for an interactive session.
     public nonisolated func terminalCommand(for target: TerminalTarget) -> CommandLine {
         switch target {
-        case .container(let id, let command): return CommandLine(executable: executable, arguments: ["exec", "-it", "--", id] + command)
+        case .container(let id, let command):
+            return CommandLine(executable: executable, arguments: ["exec", "-it", "--", id] + command)
         case .machine(let name): return CommandLine(executable: executable, arguments: ["machine", "run", "-n", name])
         case .shell: return CommandLine(executable: "/bin/zsh", arguments: ["-l"])
         }
@@ -66,7 +73,9 @@ public actor CLIBackend: ContainerBackend {
     }
 
     /// Runs `container <arguments>` and returns the raw result without interpreting the exit code.
-    nonisolated func runRaw(_ arguments: [String], stdin: Data? = nil, timeout: Duration? = queryTimeout) async throws -> ProcessResult {
+    nonisolated func runRaw(
+        _ arguments: [String], stdin: Data? = nil, timeout: Duration? = queryTimeout
+    ) async throws -> ProcessResult {
         do {
             return try await runner.run([executable] + arguments, stdin: stdin, timeout: timeout, environment: [:])
         } catch let error as BackendError {
@@ -80,7 +89,9 @@ public actor CLIBackend: ContainerBackend {
 
     /// Runs `container <arguments>`; a non-zero exit throws the mapped `BackendError`.
     @discardableResult
-    nonisolated func execute(_ arguments: [String], stdin: Data? = nil, timeout: Duration? = queryTimeout) async throws -> ProcessResult {
+    nonisolated func execute(
+        _ arguments: [String], stdin: Data? = nil, timeout: Duration? = queryTimeout
+    ) async throws -> ProcessResult {
         let result = try await runRaw(arguments, stdin: stdin, timeout: timeout)
         guard result.exitCode == 0 else { throw await failure(arguments, result) }
         return result
@@ -102,7 +113,9 @@ public actor CLIBackend: ContainerBackend {
         if list.droppedCount > 0 {
             let command = display(arguments)
             let reasons = list.errors.prefix(3).joined(separator: " | ")
-            Self.log.error("Skipped \(list.droppedCount, privacy: .public) undecodable element(s) from `\(command, privacy: .public)`: \(reasons, privacy: .public)")
+            Self.log.error(
+                "Skipped \(list.droppedCount, privacy: .public) undecodable element(s) from `\(command, privacy: .public)`: \(reasons, privacy: .public)"
+            )
         }
         return list.elements
     }
@@ -110,23 +123,30 @@ public actor CLIBackend: ContainerBackend {
     static let log = Logger(subsystem: "io.aiflowlabs.containerdesktop", category: "CLIBackend")
 
     /// Decodes an `inspect`-style JSON array and returns its first element (`notFound` when empty).
-    nonisolated func inspectFirst<T: Decodable>(_ type: T.Type, kind: String, id: String, _ arguments: [String]) async throws -> T {
-        guard let first = try await decode([T].self, arguments).first else { throw BackendError.notFound(kind: kind, id: id) }
+    nonisolated func inspectFirst<T: Decodable>(
+        _ type: T.Type, kind: String, id: String, _ arguments: [String]
+    ) async throws -> T {
+        guard let first = try await decode([T].self, arguments).first else {
+            throw BackendError.notFound(kind: kind, id: id)
+        }
         return first
     }
 
     /// Maps a failed result, probing `system status` to disambiguate `Plugins are unavailable`.
     nonisolated func failure(_ arguments: [String], _ result: ProcessResult) async -> BackendError {
         let mapped = CLIErrorMapper.map(
-            command: display(arguments), exitCode: result.exitCode, stderr: result.stderrText, stdout: result.stdoutText)
+            command: display(arguments), exitCode: result.exitCode, stderr: result.stderrText, stdout: result.stdoutText
+        )
         return await refine(mapped, arguments: arguments, rawOutput: result.stderrText + result.stdoutText)
     }
 
     /// Upgrades an ambiguous `commandFailed` to `.systemNotRunning` when `system status` also fails.
     nonisolated func refine(_ error: BackendError, arguments: [String], rawOutput: String) async -> BackendError {
         guard case .commandFailed = error, CLIErrorMapper.isPluginsUnavailable(rawOutput),
-              Array(arguments.prefix(2)) != ["system", "status"] else { return error }
-        let status = try? await runner.run([executable, "system", "status"], stdin: nil, timeout: .seconds(15), environment: [:])
+            Array(arguments.prefix(2)) != ["system", "status"]
+        else { return error }
+        let status = try? await runner.run(
+            [executable, "system", "status"], stdin: nil, timeout: .seconds(15), environment: [:])
         return status?.exitCode == 0 ? error : .systemNotRunning
     }
 
@@ -183,6 +203,8 @@ public actor CLIBackend: ContainerBackend {
 
     /// Splits stdout into non-empty lines.
     static func lines(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        text.split(whereSeparator: \.isNewline).map(String.init).filter {
+            !$0.trimmingCharacters(in: .whitespaces).isEmpty
+        }
     }
 }

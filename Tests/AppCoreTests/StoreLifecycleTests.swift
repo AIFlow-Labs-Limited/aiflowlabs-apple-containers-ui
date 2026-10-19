@@ -1,7 +1,8 @@
-import Foundation
-import Testing
 import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
 @testable import AppCore
 
 /// A store whose refresh result is scripted, to test error ownership and load sequencing without a backend.
@@ -22,15 +23,22 @@ final class ScriptedStore: BackendStore {
         if let v = await load({ () async throws -> Int in
             if let failure { throw failure }
             return 1
-        }) { value = v }
+        }) {
+            value = v
+        }
     }
 
     /// Loads `result` after `delay` through the shared `load` sequencing (same call site every time).
     func delayedLoad(_ result: Int, after delay: Duration) async {
-        if let v = await load(site: "delayed", { () async throws -> Int in
-            try await Task.sleep(for: delay)
-            return result
-        }) { value = v }
+        if let v = await load(
+            site: "delayed",
+            { () async throws -> Int in
+                try await Task.sleep(for: delay)
+                return result
+            })
+        {
+            value = v
+        }
     }
 }
 
@@ -41,8 +49,8 @@ final class ScriptedStore: BackendStore {
         let ok = await store.perform { throw BackendError.other("delete failed") }
         #expect(!ok)
         #expect(store.actionError == .other("delete failed"))
-        await store.refresh()                       // a poll tick succeeds…
-        #expect(store.lastError == .other("delete failed"))   // …and the action error is still shown
+        await store.refresh()  // a poll tick succeeds…
+        #expect(store.lastError == .other("delete failed"))  // …and the action error is still shown
         #expect(store.loadError == nil)
         store.clearError()
         #expect(store.lastError == nil)
@@ -84,7 +92,7 @@ final class ScriptedStore: BackendStore {
         let store = ScriptedStore()
         async let slow: Void = store.delayedLoad(1, after: .milliseconds(150))
         try? await Task.sleep(for: .milliseconds(20))
-        await store.delayedLoad(2, after: .milliseconds(10))   // newer, finishes first
+        await store.delayedLoad(2, after: .milliseconds(10))  // newer, finishes first
         await slow
         #expect(store.value == 2)
         #expect(!store.isLoading)
@@ -118,7 +126,7 @@ final class ScriptedStore: BackendStore {
         #expect(await model.system.saveConfigTOML("[container\ncpus = 4") == false)
         let shown = model.system.lastError
         #expect(shown != nil)
-        await model.system.refreshDiskUsage()     // what the status-bar poller runs
+        await model.system.refreshDiskUsage()  // what the status-bar poller runs
         #expect(model.system.lastError == shown)
     }
 }
@@ -164,7 +172,7 @@ func eventually(timeout: Duration = .seconds(3), _ condition: () -> Bool) async 
         poller.start()
         #expect(await eventually { fired >= 2 })
         poller.stopAll()
-        #expect(poller.currentInterval() == nil)   // no clients left
+        #expect(poller.currentInterval() == nil)  // no clients left
     }
 
     @Test func backgroundClientAloneUsesSlowInterval() {
@@ -179,7 +187,7 @@ func eventually(timeout: Duration = .seconds(3), _ condition: () -> Bool) async 
         gate.engineRunning = false
         #expect(poller.currentInterval() == nil)
         poller.stop()
-        #expect(poller.isRunning)                  // background client keeps it alive
+        #expect(poller.isRunning)  // background client keeps it alive
         poller.stopBackground()
         #expect(!poller.isRunning)
     }
@@ -200,9 +208,9 @@ func eventually(timeout: Duration = .seconds(3), _ condition: () -> Bool) async 
         let volumes = VolumesStore(backend: switchable, containers: containers, gate: gate)
         volumes.startPolling()
         #expect(await eventually { volumes.loadError != nil })
-        switchable.replace(with: mock)          // what AppModel.replaceBackend does
+        switchable.replace(with: mock)  // what AppModel.replaceBackend does
         #expect(await eventually { !volumes.items.isEmpty })
-        #expect(volumes.poller.isRunning)        // same store, same poller, still polling
+        #expect(volumes.poller.isRunning)  // same store, same poller, still polling
         #expect(volumes.loadError == nil)
         volumes.stopPolling()
         let model = TestSupport.model()

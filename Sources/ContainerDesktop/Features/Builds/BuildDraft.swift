@@ -1,7 +1,7 @@
-import Foundation
-import ContainerKit
 import AppCore
+import ContainerKit
 import DesignSystem
+import Foundation
 
 /// Editable state of the Build sheet. Converts to `BuildSpec` (whose `cliArguments` is the single source of truth
 /// for the command preview) and is remembered per tag + context so "Rebuild" reopens with the same options.
@@ -50,8 +50,9 @@ struct BuildDraft: Codable, Hashable {
     /// resolves relative paths against its own working directory — `/` for an app launched from Finder.
     var spec: BuildSpec {
         let trimmedTag = tag.trimmingCharacters(in: .whitespaces)
-        var spec = BuildSpec(contextDirectory: contextDirectory.isEmpty ? "<context>" : contextDirectory,
-                             tag: trimmedTag.isEmpty ? "<tag>" : trimmedTag)
+        var spec = BuildSpec(
+            contextDirectory: contextDirectory.isEmpty ? "<context>" : contextDirectory,
+            tag: trimmedTag.isEmpty ? "<tag>" : trimmedTag)
         spec.dockerfile = dockerfile
         spec.platforms = platforms
         spec.buildArgs = Self.clean(buildArgs)
@@ -69,13 +70,18 @@ struct BuildDraft: Codable, Hashable {
     var problems: [String] {
         var p: [String] = []
         if contextDirectory.isEmpty { p.append("Choose a context folder.") }
-        if tag.trimmingCharacters(in: .whitespaces).isEmpty { p.append("Enter a tag.") }
-        else if let t = ResourceValidator.imageReference(tag) { p.append("Tag: \(t)") }
+        if tag.trimmingCharacters(in: .whitespaces).isEmpty {
+            p.append("Enter a tag.")
+        } else if let t = ResourceValidator.imageReference(tag) {
+            p.append("Tag: \(t)")
+        }
         if !arm64 && !amd64 { p.append("Pick at least one platform.") }
         if !StringRowsEditor.allValid(buildArgs, validate: { ResourceValidator.keyValue($0, allowBareKey: true) }) {
             p.append("Fix the build args.")
         }
-        if !StringRowsEditor.allValid(labels, validate: { ResourceValidator.keyValue($0) }) { p.append("Fix the labels.") }
+        if !StringRowsEditor.allValid(labels, validate: { ResourceValidator.keyValue($0) }) {
+            p.append("Fix the labels.")
+        }
         if !StringRowsEditor.allValid(secrets, validate: ResourceValidator.buildSecret) { p.append("Fix the secrets.") }
         return p
     }
@@ -92,7 +98,9 @@ struct BuildDraft: Codable, Hashable {
     }
 
     /// Keyed on the expanded context so `~/app` and `/Users/me/app` are the same draft.
-    private static func key(tag: String, context: String) -> String { "\(BuildContextInspector.expandTilde(context))|\(tag)" }
+    private static func key(tag: String, context: String) -> String {
+        "\(BuildContextInspector.expandTilde(context))|\(tag)"
+    }
 
     private static func load(_ defaults: UserDefaults) -> [Entry] {
         guard let data = defaults.data(forKey: defaultsKey) else { return [] }

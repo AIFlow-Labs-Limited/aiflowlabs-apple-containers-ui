@@ -11,8 +11,10 @@ public struct StringRowsEditor: View {
     /// Stable identity per row so focus does not jump to a neighbour when a row above is removed.
     @State private var rowIDs: [UUID] = []
 
-    public init(_ title: String, rows: Binding<[String]>, placeholder: String, addTitle: String = "Add",
-                validate: @escaping (String) -> String? = { _ in nil }) {
+    public init(
+        _ title: String, rows: Binding<[String]>, placeholder: String, addTitle: String = "Add",
+        validate: @escaping (String) -> String? = { _ in nil }
+    ) {
         self.title = title
         _rows = rows
         self.placeholder = placeholder
@@ -30,20 +32,28 @@ public struct StringRowsEditor: View {
                             .multilineTextAlignment(.leading)
                             .font(.monoCaption)
                             .textFieldStyle(.roundedBorder)
-                        Button { remove(index) } label: { Image(systemName: "minus.circle.fill") }
-                            .buttonStyle(.borderless)
-                            .foregroundStyle(.secondary)
-                            .help("Remove")
-                            .accessibilityLabel("Remove \(title.lowercased()) \(index + 1)")
+                        Button {
+                            remove(index)
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        .help("Remove")
+                        .accessibilityLabel("Remove \(title.lowercased()) \(index + 1)")
                     }
                     if let problem = validate(rows[index]) {
                         Text(problem).font(.caption).foregroundStyle(.statusError)
                     }
                 }
             }
-            Button { rowIDs = ids + [UUID()]; rows.append("") } label: { Label(addTitle, systemImage: "plus.circle") }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("\(addTitle) \(title.lowercased())")
+            Button {
+                rowIDs = ids + [UUID()]; rows.append("")
+            } label: {
+                Label(addTitle, systemImage: "plus.circle")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("\(addTitle) \(title.lowercased())")
         }
         .onAppear { rowIDs = ids }
         .onChange(of: rows.count) { rowIDs = ids }
@@ -55,8 +65,9 @@ public struct StringRowsEditor: View {
     }
 
     private func binding(_ index: Int) -> Binding<String> {
-        Binding(get: { index < rows.count ? rows[index] : "" },
-                set: { if index < rows.count { rows[index] = $0 } })
+        Binding(
+            get: { index < rows.count ? rows[index] : "" },
+            set: { if index < rows.count { rows[index] = $0 } })
     }
 
     /// `rowIDs` padded/trimmed to the current row count (rows can also change from outside).
@@ -78,7 +89,9 @@ public struct StringRowsEditor: View {
     @Previewable @State var rows = ["VERSION=1.2", "bad"]
     Form {
         LabeledContent("Build args") {
-            StringRowsEditor("Build arg", rows: $rows, placeholder: "KEY=VALUE") { $0.contains("=") ? nil : "Use KEY=VALUE." }
+            StringRowsEditor("Build arg", rows: $rows, placeholder: "KEY=VALUE") {
+                $0.contains("=") ? nil : "Use KEY=VALUE."
+            }
         }
     }
     .formStyle(.grouped)

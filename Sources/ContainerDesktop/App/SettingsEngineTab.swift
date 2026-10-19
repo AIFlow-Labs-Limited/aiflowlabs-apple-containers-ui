@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Raw `~/.config/container/config.toml` editor with validation, save and engine restart.
 struct EngineSettingsTab: View {
@@ -19,8 +19,10 @@ struct EngineSettingsTab: View {
                 if issues.isEmpty {
                     Label("Valid", systemImage: "checkmark.circle").foregroundStyle(.statusRunning).font(.caption)
                 } else {
-                    Label("\(issues.count) issue\(issues.count == 1 ? "" : "s")", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.statusWarning).font(.caption)
+                    Label(
+                        "\(issues.count) issue\(issues.count == 1 ? "" : "s")", systemImage: "exclamationmark.triangle"
+                    )
+                    .foregroundStyle(.statusWarning).font(.caption)
                 }
             }
             TextEditor(text: $text)
@@ -50,10 +52,14 @@ struct EngineSettingsTab: View {
         }
         .padding(Spacing.l)
         .task { await load() }
-        .confirmDestructive(title: "Restart the container system?",
-                            message: "All running containers are stopped while the engine restarts.",
-                            actionTitle: "Restart", isPresented: $restartPrompt) {
-            Task { await model.stopEngine(); await model.startEngine() }
+        .confirmDestructive(
+            title: "Restart the container system?",
+            message: "All running containers are stopped while the engine restarts.",
+            actionTitle: "Restart", isPresented: $restartPrompt
+        ) {
+            Task {
+                await model.stopEngine(); await model.startEngine()
+            }
         }
     }
 

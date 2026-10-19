@@ -14,7 +14,8 @@ enum CLIErrorMapper {
 
     /// Strips ANSI codes, progress lines, blank lines and the `Error: ` prefix from CLI stderr.
     static func cleanMessage(_ stderr: String) -> String {
-        let lines = stderr
+        let lines =
+            stderr
             .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
             .map { LineSplitter.stripANSI(String($0)).trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !isProgressLine($0) }

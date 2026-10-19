@@ -14,7 +14,8 @@ extension CLIBackend {
         if CLIErrorMapper.indicatesSystemNotRunning(raw) { throw BackendError.systemNotRunning }
         if raw.localizedCaseInsensitiveContains("unknown command") || CLIErrorMapper.isPluginsUnavailable(raw) {
             // Both messages are also printed when services are down; ask `system status` to tell them apart.
-            let status = try? await runner.run([executable, "system", "status"], stdin: nil, timeout: .seconds(15), environment: [:])
+            let status = try? await runner.run(
+                [executable, "system", "status"], stdin: nil, timeout: .seconds(15), environment: [:])
             if status?.exitCode == 0 { return false }
             throw BackendError.systemNotRunning
         }
@@ -36,8 +37,10 @@ extension CLIBackend {
     /// Worker nodes are not supported by CLI 1.5.0.
     public nonisolated func createCluster(_ spec: ClusterSpec) -> LineStream {
         if let workers = spec.workers, workers > 0 {
-            return failedStream(.unsupported(feature: "Kubernetes worker nodes",
-                                             reason: "`container k8s create` has no --workers option in this CLI version."))
+            return failedStream(
+                .unsupported(
+                    feature: "Kubernetes worker nodes",
+                    reason: "`container k8s create` has no --workers option in this CLI version."))
         }
         return validatedStream {
             try Self.validateOperand(spec.name, "Cluster name")
@@ -53,10 +56,14 @@ extension CLIBackend {
 
     /// `container k8s load-image [--name CLUSTER] [--platform P] -- REF`. Per-node targeting is not supported
     /// by CLI 1.5.0 (the image is loaded into every node).
-    public nonisolated func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream {
+    public nonisolated func loadImage(
+        _ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?
+    ) -> LineStream {
         guard nodes.isEmpty else {
-            return failedStream(.unsupported(feature: "Loading an image into specific nodes",
-                                             reason: "`container k8s load-image` has no --node option in this CLI version."))
+            return failedStream(
+                .unsupported(
+                    feature: "Loading an image into specific nodes",
+                    reason: "`container k8s load-image` has no --node option in this CLI version."))
         }
         return validatedStream {
             try Self.validateOperand(reference, "Image reference")

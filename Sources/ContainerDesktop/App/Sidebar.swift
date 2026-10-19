@@ -1,6 +1,6 @@
-import SwiftUI
 import AppCore
 import DesignSystem
+import SwiftUI
 
 /// Sidebar in Docker Desktop order with live counts; footer shows engine state + CLI version.
 struct Sidebar: View {

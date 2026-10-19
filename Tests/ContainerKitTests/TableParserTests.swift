@@ -1,7 +1,8 @@
+import ContainerKitMock
 import Foundation
 import Testing
+
 @testable import ContainerKit
-import ContainerKitMock
 
 @Suite("TableParser and CLI output parsing")
 struct TableParserTests {
@@ -25,11 +26,11 @@ struct TableParserTests {
     /// Two lone control-plane rows with blank CLUSTER must not merge; a blank worker row joins the cluster above it.
     @Test func k8sListBlankClusterControlPlanesStartNewClusters() {
         let text = """
-        CLUSTER  NODE         ROLE           STATE    CPUS  MEMORY   ADDR           PORTS
-                 alpha        control-plane  running  2     4096 MB  192.168.64.10
-                 alpha-w1     worker         running  2     2048 MB  192.168.64.11
-                 beta         control-plane  stopped  2     4096 MB
-        """
+            CLUSTER  NODE         ROLE           STATE    CPUS  MEMORY   ADDR           PORTS
+                     alpha        control-plane  running  2     4096 MB  192.168.64.10
+                     alpha-w1     worker         running  2     2048 MB  192.168.64.11
+                     beta         control-plane  stopped  2     4096 MB
+            """
         let clusters = CLIOutputParsing.clusters(text)
         #expect(clusters.map(\.name) == ["alpha", "beta"])
         #expect(clusters[0].nodes.map(\.name) == ["alpha", "alpha-w1"])
@@ -38,9 +39,9 @@ struct TableParserTests {
 
     @Test func k8sListLeadingBlankWorkerBecomesItsOwnCluster() {
         let text = """
-        CLUSTER  NODE   ROLE     STATE    CPUS  MEMORY   ADDR  PORTS
-                 lone   worker   running  1     1024 MB
-        """
+            CLUSTER  NODE   ROLE     STATE    CPUS  MEMORY   ADDR  PORTS
+                     lone   worker   running  1     1024 MB
+            """
         #expect(CLIOutputParsing.clusters(text).map(\.name) == ["lone"])
     }
 
@@ -64,11 +65,11 @@ struct TableParserTests {
 
     @Test func k8sListWithNodes() {
         let text = """
-        CLUSTER   NODE                    ROLE           STATE    CPUS  MEMORY   ADDR             PORTS
-        k8s-dev   k8s-dev-control-plane   control-plane  running  4     4096 MB  192.168.64.50    127.0.0.1:6443->6443/tcp
-        k8s-dev   k8s-dev-worker          worker         stopped  2     2g
-        other     other-control-plane     control-plane  running  2     2048     192.168.64.51    -
-        """
+            CLUSTER   NODE                    ROLE           STATE    CPUS  MEMORY   ADDR             PORTS
+            k8s-dev   k8s-dev-control-plane   control-plane  running  4     4096 MB  192.168.64.50    127.0.0.1:6443->6443/tcp
+            k8s-dev   k8s-dev-worker          worker         stopped  2     2g
+            other     other-control-plane     control-plane  running  2     2048     192.168.64.51    -
+            """
         let clusters = CLIOutputParsing.clusters(text)
         #expect(clusters.map(\.name) == ["k8s-dev", "other"])
         let dev = clusters[0]
@@ -93,19 +94,28 @@ struct TableParserTests {
         #expect(CLIOutputParsing.dnsDomains(Data(table.utf8)).map(\.domain) == ["test", "local.dev"])
         let json = #"[{"domain":"test","localhost":"203.0.113.1"},"plain",{"name":"named"}]"#
         let parsed = CLIOutputParsing.dnsDomains(Data(json.utf8))
-        #expect(parsed == [DNSDomain(domain: "test", localhostAddress: "203.0.113.1"), DNSDomain(domain: "plain"), DNSDomain(domain: "named")])
+        #expect(
+            parsed == [
+                DNSDomain(domain: "test", localhostAddress: "203.0.113.1"), DNSDomain(domain: "plain"),
+                DNSDomain(domain: "named"),
+            ])
     }
 
     @Test func registryTableAndJSON() {
         #expect(CLIOutputParsing.registries(Data("HOSTNAME  USERNAME  MODIFIED  CREATED\n".utf8)).isEmpty)
         let table = """
-        HOSTNAME             USERNAME   MODIFIED              CREATED
-        docker.io            ilessio    2026-10-17 18:00:00   2026-10-01 09:00:00
-        ghcr.io              robot      2026-10-17 18:00:00   2026-10-01 09:00:00
-        """
+            HOSTNAME             USERNAME   MODIFIED              CREATED
+            docker.io            ilessio    2026-10-17 18:00:00   2026-10-01 09:00:00
+            ghcr.io              robot      2026-10-17 18:00:00   2026-10-01 09:00:00
+            """
         let rows = CLIOutputParsing.registries(Data(table.utf8))
-        #expect(rows == [RegistryLogin(server: "docker.io", username: "ilessio"), RegistryLogin(server: "ghcr.io", username: "robot")])
-        let json = #"[{"id":"docker.io","name":"docker.io","username":"ilessio","creationDate":"2026-10-01T09:00:00Z"},{"id":"ghcr.io","username":"robot"}]"#
+        #expect(
+            rows == [
+                RegistryLogin(server: "docker.io", username: "ilessio"),
+                RegistryLogin(server: "ghcr.io", username: "robot"),
+            ])
+        let json =
+            #"[{"id":"docker.io","name":"docker.io","username":"ilessio","creationDate":"2026-10-01T09:00:00Z"},{"id":"ghcr.io","username":"robot"}]"#
         #expect(CLIOutputParsing.registries(Data(json.utf8)).map(\.server) == ["docker.io", "ghcr.io"])
         #expect(CLIOutputParsing.registries(Data(json.utf8)).map(\.username) == ["ilessio", "robot"])
     }
@@ -117,7 +127,8 @@ struct TableParserTests {
     }
 
     @Test func cliVersionBanner() {
-        #expect(CLIOutputParsing.cliVersion("container CLI version 1.5.0 (build: release, commit: d265d66)\n") == "1.5.0")
+        #expect(
+            CLIOutputParsing.cliVersion("container CLI version 1.5.0 (build: release, commit: d265d66)\n") == "1.5.0")
         #expect(CLIOutputParsing.cliVersion("1.6.0-beta") == "1.6.0-beta")
     }
 }

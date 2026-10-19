@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Networks + attached containers.
 @MainActor
@@ -35,7 +35,9 @@ public final class NetworksStore: PollingStore {
     public var filtered: [Network] {
         let q = searchText.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return items }
-        return items.filter { $0.name.localizedCaseInsensitiveContains(q) || ($0.status?.ipv4Subnet?.contains(q) ?? false) }
+        return items.filter {
+            $0.name.localizedCaseInsensitiveContains(q) || ($0.status?.ipv4Subnet?.contains(q) ?? false)
+        }
     }
 
     /// Container ids attached to `network`.
@@ -48,8 +50,12 @@ public final class NetworksStore: PollingStore {
         items = list.sorted { ($0.isBuiltin ? 0 : 1, $0.name) < ($1.isBuiltin ? 0 : 1, $1.name) }
     }
 
-    public func create(name: String, subnet: String? = nil, subnetV6: String? = nil, labels: [String: String] = [:]) async -> Bool {
-        await perform { try await backend.createNetwork(name: name, subnet: subnet, subnetV6: subnetV6, labels: labels) }
+    public func create(
+        name: String, subnet: String? = nil, subnetV6: String? = nil, labels: [String: String] = [:]
+    ) async -> Bool {
+        await perform {
+            try await backend.createNetwork(name: name, subnet: subnet, subnetV6: subnetV6, labels: labels)
+        }
     }
 
     public func delete(_ names: [String]) async {

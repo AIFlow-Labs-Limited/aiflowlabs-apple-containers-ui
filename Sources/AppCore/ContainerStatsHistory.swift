@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// One derived stats sample: rates are per second, computed against the previous raw sample.
 public struct StatsPoint: Hashable, Sendable, Identifiable {
@@ -17,9 +17,11 @@ public struct StatsPoint: Hashable, Sendable, Identifiable {
 
     public var id: Date { date }
 
-    public init(date: Date, cpuPercent: Double, memoryBytes: Int64, memoryLimitBytes: Int64,
-                networkRxPerSecond: Double = 0, networkTxPerSecond: Double = 0,
-                blockReadPerSecond: Double = 0, blockWritePerSecond: Double = 0, processes: Int = 0) {
+    public init(
+        date: Date, cpuPercent: Double, memoryBytes: Int64, memoryLimitBytes: Int64,
+        networkRxPerSecond: Double = 0, networkTxPerSecond: Double = 0,
+        blockReadPerSecond: Double = 0, blockWritePerSecond: Double = 0, processes: Int = 0
+    ) {
         self.date = date; self.cpuPercent = cpuPercent; self.memoryBytes = memoryBytes
         self.memoryLimitBytes = memoryLimitBytes; self.networkRxPerSecond = networkRxPerSecond
         self.networkTxPerSecond = networkTxPerSecond; self.blockReadPerSecond = blockReadPerSecond
@@ -90,10 +92,13 @@ public final class ContainerStatsHistory {
     }
 
     /// Rate math between two raw samples. Counter resets (current < previous) yield 0, never negative rates.
-    public nonisolated static func derive(previous: (date: Date, stats: ContainerStats)?, current: ContainerStats,
-                                          at date: Date) -> StatsPoint {
-        var point = StatsPoint(date: date, cpuPercent: 0, memoryBytes: current.memoryUsageBytes,
-                               memoryLimitBytes: current.memoryLimitBytes, processes: current.numProcesses)
+    public nonisolated static func derive(
+        previous: (date: Date, stats: ContainerStats)?, current: ContainerStats,
+        at date: Date
+    ) -> StatsPoint {
+        var point = StatsPoint(
+            date: date, cpuPercent: 0, memoryBytes: current.memoryUsageBytes,
+            memoryLimitBytes: current.memoryLimitBytes, processes: current.numProcesses)
         guard let previous else { return point }
         let interval = date.timeIntervalSince(previous.date)
         guard interval > 0 else { return point }

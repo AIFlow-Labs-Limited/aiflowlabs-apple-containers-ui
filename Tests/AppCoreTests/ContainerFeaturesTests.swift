@@ -1,15 +1,19 @@
-import Foundation
-import Testing
 import ContainerKit
 import ContainerKitMock
+import Foundation
+import Testing
+
 @testable import AppCore
 
 @MainActor
 @Suite struct ContainerStatsHistoryTests {
-    private func sample(_ id: String = "web", cpu: Int64, rx: Int64 = 0, tx: Int64 = 0, read: Int64 = 0,
-                        write: Int64 = 0, mem: Int64 = 100) -> ContainerStats {
-        ContainerStats(id: id, cpuUsageUsec: cpu, memoryUsageBytes: mem, memoryLimitBytes: 1000, networkRxBytes: rx,
-                       networkTxBytes: tx, blockReadBytes: read, blockWriteBytes: write, numProcesses: 3)
+    private func sample(
+        _ id: String = "web", cpu: Int64, rx: Int64 = 0, tx: Int64 = 0, read: Int64 = 0,
+        write: Int64 = 0, mem: Int64 = 100
+    ) -> ContainerStats {
+        ContainerStats(
+            id: id, cpuUsageUsec: cpu, memoryUsageBytes: mem, memoryLimitBytes: 1000, networkRxBytes: rx,
+            networkTxBytes: tx, blockReadBytes: read, blockWriteBytes: write, numProcesses: 3)
     }
 
     @Test func firstSamplePrimesCountersOnly() {
@@ -27,7 +31,8 @@ import ContainerKitMock
         let t0 = Date(timeIntervalSince1970: 1_000)
         history.append(sample(cpu: 0, rx: 0, tx: 0, read: 0, write: 0), at: t0)
         // 2 s later: 1 s of CPU time (50 %), 4 KB rx (2 KB/s), 1 KB tx, 8 KB read, 2 KB write.
-        let p = history.append(sample(cpu: 1_000_000, rx: 4096, tx: 1024, read: 8192, write: 2048), at: t0.addingTimeInterval(2))
+        let p = history.append(
+            sample(cpu: 1_000_000, rx: 4096, tx: 1024, read: 8192, write: 2048), at: t0.addingTimeInterval(2))
         #expect(abs(p.cpuPercent - 50) < 0.0001)
         #expect(p.networkRxPerSecond == 2048)
         #expect(p.networkTxPerSecond == 512)
@@ -50,7 +55,7 @@ import ContainerKitMock
         let t0 = Date(timeIntervalSince1970: 0)
         for i in 0..<20 { history.append(sample(cpu: Int64(i) * 1000), at: t0.addingTimeInterval(Double(i))) }
         let points = history.points(for: "web")
-        #expect(points.count == 11) // t = 9…19 inclusive
+        #expect(points.count == 11)  // t = 9…19 inclusive
         #expect(points.first?.date == t0.addingTimeInterval(9))
     }
 
@@ -127,14 +132,14 @@ import ContainerKitMock
 
     @Test func dotEnvParsing() {
         let text = """
-        # comment
-        export A=1
-        B = "two words"
-        C='single'
+            # comment
+            export A=1
+            B = "two words"
+            C='single'
 
-        D
-        E=x=y
-        """
+            D
+            E=x=y
+            """
         let vars = DotEnv.parse(text)
         #expect(vars.map(\.entry) == ["A=1", "B=two words", "C=single", "D", "E=x=y"])
     }
@@ -154,11 +159,17 @@ import ContainerKitMock
     /// Builds the container the mock backend would create for `spec` (same mapping as `MockBackend.createContainer`
     /// plus mounts/flags the mock ignores).
     private func container(from spec: RunSpec) -> Container {
-        let desc = Descriptor(digest: "sha256:" + String(repeating: "cd", count: 32), mediaType: "application/vnd.oci.image.index.v1+json", size: 1)
+        let desc = Descriptor(
+            digest: "sha256:" + String(repeating: "cd", count: 32),
+            mediaType: "application/vnd.oci.image.index.v1+json", size: 1)
         var mounts: [Container.Mount] = spec.mounts.map { m in
             switch m.kind {
-            case .bind(let p): return .init(destination: m.target, source: p, options: m.readOnly ? ["ro"] : [], type: .bind)
-            case .volume(let n): return .init(destination: m.target, source: "/vol/\(n)", options: m.readOnly ? ["ro"] : [], type: .volume(name: n, format: "ext4"))
+            case .bind(let p):
+                return .init(destination: m.target, source: p, options: m.readOnly ? ["ro"] : [], type: .bind)
+            case .volume(let n):
+                return .init(
+                    destination: m.target, source: "/vol/\(n)", options: m.readOnly ? ["ro"] : [],
+                    type: .volume(name: n, format: "ext4"))
             case .anonymous: return .init(destination: m.target, source: "", type: .volume(name: "anon", format: nil))
             }
         }
@@ -167,14 +178,23 @@ import ContainerKitMock
             id: spec.name ?? "x", image: ImageReference(reference: spec.image, descriptor: desc), creationDate: .now,
             platform: spec.platform ?? .arm64,
             resources: .init(cpus: spec.cpus ?? 4, memoryInBytes: spec.memory?.bytes ?? (1 << 30)),
-            initProcess: .init(executable: spec.command.first ?? "sh", arguments: Array(spec.command.dropFirst()),
-                               environment: spec.environment, workingDirectory: spec.workingDirectory ?? "/"),
+            initProcess: .init(
+                executable: spec.command.first ?? "sh", arguments: Array(spec.command.dropFirst()),
+                environment: spec.environment, workingDirectory: spec.workingDirectory ?? "/"),
             labels: spec.labels.merging(["com.apple.container.resource.anonymous": "1"]) { a, _ in a },
             mounts: mounts,
-            networks: [.init(network: spec.network ?? "default",
-                             options: .init(hostname: "x.test.", mac: spec.macAddress,
-                                            aliases: spec.networkAliases.isEmpty ? nil : spec.networkAliases))],
-            publishedPorts: spec.ports.map { .init(hostAddress: $0.hostAddress ?? "0.0.0.0", hostPort: $0.hostPort, containerPort: $0.containerPort, proto: $0.proto) },
+            networks: [
+                .init(
+                    network: spec.network ?? "default",
+                    options: .init(
+                        hostname: "x.test.", mac: spec.macAddress,
+                        aliases: spec.networkAliases.isEmpty ? nil : spec.networkAliases))
+            ],
+            publishedPorts: spec.ports.map {
+                .init(
+                    hostAddress: $0.hostAddress ?? "0.0.0.0", hostPort: $0.hostPort, containerPort: $0.containerPort,
+                    proto: $0.proto)
+            },
             capAdd: spec.capAdd, capDrop: spec.capDrop, readOnly: spec.readOnly, ssh: spec.ssh, useInit: spec.useInit)
         return Container(id: spec.name ?? "x", configuration: config, status: .init(state: .running))
     }
@@ -185,8 +205,10 @@ import ContainerKitMock
         spec.command = ["sleep", "300"]
         spec.environment = ["FOO=bar", "TOKEN=x"]
         spec.ports = [.init(hostAddress: "127.0.0.1", hostPort: 8080, containerPort: 80)]
-        spec.mounts = [.init(kind: .bind(hostPath: "/Users/me/src"), target: "/src", readOnly: true),
-                       .init(kind: .volume(name: "data"), target: "/data")]
+        spec.mounts = [
+            .init(kind: .bind(hostPath: "/Users/me/src"), target: "/src", readOnly: true),
+            .init(kind: .volume(name: "data"), target: "/data"),
+        ]
         spec.tmpfs = ["/tmp"]
         spec.workingDirectory = "/src"
         spec.cpus = 2
@@ -213,16 +235,20 @@ import ContainerKitMock
         spec.environment = ["PATH=/usr/bin", "POSTGRES_PASSWORD=pw"]
         spec.cpus = 4
         spec.memory = MemorySize(bytes: 1 << 30)
-        let image = try! JSONDecoder().decode(Image.OCIConfig.RuntimeConfig.self, from: Data(#"""
-        {"Entrypoint": ["docker-entrypoint.sh"], "Cmd": ["postgres"], "Env": ["PATH=/usr/bin"]}
-        """#.utf8))
+        let image = try! JSONDecoder().decode(
+            Image.OCIConfig.RuntimeConfig.self,
+            from: Data(
+                #"""
+                {"Entrypoint": ["docker-entrypoint.sh"], "Cmd": ["postgres"], "Env": ["PATH=/usr/bin"]}
+                """#.utf8))
         let rebuilt = RunSpec(recreating: container(from: spec), imageConfig: image)
         #expect(rebuilt.command.isEmpty)
         #expect(rebuilt.environment == ["POSTGRES_PASSWORD=pw"])
 
         var custom = spec
         custom.command = ["docker-entrypoint.sh", "postgres", "-c", "fsync=off"]
-        #expect(RunSpec(recreating: container(from: custom), imageConfig: image).command == ["postgres", "-c", "fsync=off"])
+        #expect(
+            RunSpec(recreating: container(from: custom), imageConfig: image).command == ["postgres", "-c", "fsync=off"])
     }
 
     @Test func mockFixturesProduceRunnableCommands() async throws {
@@ -237,7 +263,10 @@ import ContainerKitMock
     @Test func validation() {
         var spec = RunSpec(image: "")
         spec.name = "-bad"
-        spec.ports = [.init(hostPort: 8080, containerPort: 80), .init(hostPort: 8080, containerPort: 81), .init(hostPort: 70_000, containerPort: 1)]
+        spec.ports = [
+            .init(hostPort: 8080, containerPort: 80), .init(hostPort: 8080, containerPort: 81),
+            .init(hostPort: 70_000, containerPort: 1),
+        ]
         spec.memory = MemorySize(bytes: 32 << 20)
         spec.mounts = [.init(kind: .anonymous, target: "data")]
         let issues = spec.issues

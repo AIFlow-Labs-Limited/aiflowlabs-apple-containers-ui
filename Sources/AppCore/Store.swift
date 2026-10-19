@@ -1,6 +1,6 @@
+import ContainerKit
 import Foundation
 import Observation
-import ContainerKit
 
 /// Shared shape of every resource store: loading flag, errors, refresh, and `perform` for actions.
 ///
