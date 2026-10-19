@@ -44,11 +44,16 @@ public enum CLIOutputParsing {
 
     /// `container k8s ls` table (`CLUSTER NODE ROLE STATE CPUS MEMORY ADDR PORTS`) grouped into clusters,
     /// preserving the order clusters first appear in.
+    /// Real CLI 1.5.0 output leaves CLUSTER blank (rows are grouped under the last named cluster, and a lone
+    /// control-plane node is named after its cluster), so a blank cell inherits the previous cluster or the node name.
     public static func clusters(_ text: String) -> [KubernetesCluster] {
         var order: [String] = []
         var nodes: [String: [KubernetesCluster.Node]] = [:]
+        var current: String?
         for record in TableParser.parse(text).records {
-            guard let cluster = record["CLUSTER"], !cluster.isEmpty else { continue }
+            let named = nonEmpty(record["CLUSTER"])
+            guard let cluster = named ?? current ?? nonEmpty(record["NODE"]) else { continue }
+            current = cluster
             if nodes[cluster] == nil { order.append(cluster); nodes[cluster] = [] }
             let node = KubernetesCluster.Node(
                 name: record["NODE"] ?? cluster,

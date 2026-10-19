@@ -1,12 +1,14 @@
 #if DEBUG
 import SwiftUI
 import AppCore
+import ContainerKit
 
 /// DEBUG-only launch hooks for screenshots and UI smoke tests, e.g.
 /// `CONTAINER_DESKTOP_DEBUG_OPEN=palette,section=images swift run ContainerDesktop`.
 /// Tokens: `palette`, `settings`, `activity`, `terminal`, `cleanup`, `stopped`, `toasts`, `pull`, `section=<name>`,
 /// `select=<id>` (deep-link selection in the current section), `build-sheet` (opens the Build sheet),
 /// `resources-selftest` (pull/tag/delete + volume/network create/delete through the stores; prints results).
+/// platform: `machine-create`, `machine-select`, `cluster-create`, `cluster-select`, `registry-login`, `k8s-demo`, `machine-demo`.
 @MainActor
 enum DebugLaunchActions {
     static func run(model: AppModel, openWindow: OpenWindowAction, openSettings: OpenSettingsAction) async {
@@ -39,6 +41,22 @@ enum DebugLaunchActions {
                 draft.noCache = true
                 BuildsListView.debugPrefill = draft
                 model.navigation.open(.builds, select: BuildsListView.newBuildToken)
+            case "k8s-demo":
+                // Seed a mock cluster so the Kubernetes screenshot isn't empty.
+                await model.clusters.create(ClusterSpec(name: "k8s-dev")).wait()
+            case "e2e-machine":
+                await PlatformEndToEnd.machine(model: model)
+            case "e2e-cluster":
+                await PlatformEndToEnd.cluster(model: model)
+            case "machine-demo":
+                // A running, verified-image machine next to the fixture one.
+                var spec = MachineForm().spec
+                spec.cpus = 4
+                spec.memory = MemorySize(bytes: 8 << 30)
+                await model.machines.create(spec).wait()
+            case "machine-create", "machine-select", "cluster-create", "cluster-select", "registry-login":
+                // Platform sheets/selection (features-platform); the views pick these up.
+                DebugPlatformHooks.request(token)
             default:
                 if token.hasPrefix("section="), let s = SidebarSection(rawValue: String(token.dropFirst(8))) {
                     model.navigation.open(s)
