@@ -4,7 +4,8 @@ import Foundation
 public enum ByteCount {
     /// `1.2 GB`, `512 MB`, `0 bytes`.
     public static func format(_ bytes: Int64, style: ByteCountFormatter.CountStyle = .binary) -> String {
-        ByteCountFormatter.string(fromByteCount: max(0, bytes), countStyle: style)
+        // ByteCountFormatter spells zero "Zero KB" (status bar: "RAM Zero KB"); keep it numeric like every other value.
+        bytes <= 0 ? "0 bytes" : ByteCountFormatter.string(fromByteCount: bytes, countStyle: style)
     }
 
     public static func format(_ bytes: Int, style: ByteCountFormatter.CountStyle = .binary) -> String {

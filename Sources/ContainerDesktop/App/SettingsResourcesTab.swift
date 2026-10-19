@@ -53,7 +53,8 @@ struct ResourcesSettingsTab: View {
             LabeledContent("CPUs") {
                 HStack {
                     Stepper(value: cpuBinding(section), in: 1...max(1, hostCPUs)) {
-                        Text(cpuValue(section).map(String.init) ?? "Default").monospacedDigit()
+                        Text(cpuValue(section).map(String.init) ?? defaultLabel(engineCPUs(section).map(String.init)))
+                            .monospacedDigit()
                     }
                     Button("Default") { set(section, "cpus", nil) }
                         .buttonStyle(.borderless)
@@ -63,7 +64,11 @@ struct ResourcesSettingsTab: View {
             LabeledContent("Memory") {
                 HStack {
                     Stepper(value: memoryBinding(section), in: 1...max(1, hostMemoryGB)) {
-                        Text(memoryValue(section).map { "\($0) GB" } ?? "Default").monospacedDigit()
+                        Text(
+                            memoryValue(section).map { "\($0) GB" }
+                                ?? defaultLabel(engineMemoryGB(section).map { "\($0) GB" })
+                        )
+                        .monospacedDigit()
                     }
                     Button("Default") { set(section, "memory", nil) }
                         .buttonStyle(.borderless)
@@ -90,12 +95,43 @@ struct ResourcesSettingsTab: View {
         return Int(size.bytes >> 30)
     }
 
+    // The engine's current values (`system property ls`) for keys config.toml leaves unset, so "Default" says what
+    // it means and the stepper moves from it: it used to start at a hard-coded 4 (4 GB) whatever the default was.
+
+    private func defaultLabel(_ value: String?) -> String { value.map { "Default (\($0))" } ?? "Default" }
+
+    private func engineCPUs(_ section: String) -> Int? {
+        let p = model.system.properties
+        switch section {
+        case "container": return p?.container?.cpus
+        case "build": return p?.build?.cpus
+        case "machine": return p?.machine?.cpus
+        default: return nil
+        }
+    }
+
+    private func engineMemoryGB(_ section: String) -> Int? {
+        let p = model.system.properties
+        let raw: String? =
+            switch section {
+            case "container": p?.container?.memory
+            case "build": p?.build?.memory
+            case "machine": p?.machine?.memory
+            default: nil
+            }
+        guard let raw, let size = MemorySize(parsing: raw), size.bytes >= 1 << 30 else { return nil }
+        return Int(size.bytes >> 30)
+    }
+
     private func cpuBinding(_ section: String) -> Binding<Int> {
-        Binding(get: { cpuValue(section) ?? 4 }, set: { set(section, "cpus", String($0)) })
+        Binding(
+            get: { cpuValue(section) ?? engineCPUs(section) ?? 4 }, set: { set(section, "cpus", String($0)) })
     }
 
     private func memoryBinding(_ section: String) -> Binding<Int> {
-        Binding(get: { memoryValue(section) ?? 4 }, set: { set(section, "memory", "\"\($0)g\"") })
+        Binding(
+            get: { memoryValue(section) ?? engineMemoryGB(section) ?? 4 },
+            set: { set(section, "memory", "\"\($0)g\"") })
     }
 
     private func set(_ section: String, _ key: String, _ value: String?) {

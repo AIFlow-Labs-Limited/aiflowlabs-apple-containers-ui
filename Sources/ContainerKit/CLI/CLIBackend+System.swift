@@ -18,11 +18,23 @@ extension CLIBackend {
         let error = CLIErrorMapper.map(
             command: display(arguments), exitCode: result.exitCode,
             stderr: result.stderrText, stdout: result.stdoutText)
-        // A failing `system status` is itself the authoritative "services are down" signal.
-        if error == .systemNotRunning || CLIErrorMapper.isPluginsUnavailable(result.stderrText + result.stdoutText) {
+        // A failing `system status` is itself the authoritative "services are down" signal. CLI 1.5.0 with
+        // `--format json` reports a stopped engine only on stdout — `{"status":"unregistered"}`, exit 1, empty
+        // stderr — which used to surface as "Command failed" instead of the Stopped screen with its Start button.
+        if error == .systemNotRunning || CLIErrorMapper.isPluginsUnavailable(result.stderrText + result.stdoutText)
+            || Self.reportsNotRunning(stdout: result.stdout)
+        {
             return .stopped(clientVersion: await clientVersion())
         }
         throw error
+    }
+
+    /// Whether `system status --format json` stdout is a status object whose state is not `running`.
+    static func reportsNotRunning(stdout: Data) -> Bool {
+        guard let object = try? JSONSerialization.jsonObject(with: stdout) as? [String: Any],
+            let status = object["status"] as? String
+        else { return false }
+        return status.lowercased() != "running"
     }
 
     /// The CLI's own version (`container --version`), available even when services are down.

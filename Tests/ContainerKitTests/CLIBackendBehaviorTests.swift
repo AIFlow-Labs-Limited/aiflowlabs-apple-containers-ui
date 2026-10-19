@@ -54,6 +54,18 @@ struct CLIBackendBehaviorTests {
         #expect(status.client?.version == "1.5.0")
     }
 
+    @Test func jsonUnregisteredStatusIsStopped() async throws {
+        // Recorded from CLI 1.5.0 after `container system stop`: stdout only, exit 1, no stderr.
+        let runner = RecordingRunner { args in
+            args.contains("--version")
+                ? ProcessResult(stdout: "container CLI version 1.5.0 (build: release, commit: d265d66)\n")
+                : ProcessResult(exitCode: 1, stdout: "{\"status\":\"unregistered\"}\n", stderr: "")
+        }
+        let status = try await CLIBackend.recording(runner).systemStatus()
+        #expect(!status.isRunning)
+        #expect(status.client?.version == "1.5.0")
+    }
+
     @Test func pluginsUnavailableBecomesSystemNotRunningWhenStatusFails() async throws {
         let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: Self.plugins) }
         await #expect(throws: BackendError.systemNotRunning) { _ = try await CLIBackend.recording(runner).listImages() }

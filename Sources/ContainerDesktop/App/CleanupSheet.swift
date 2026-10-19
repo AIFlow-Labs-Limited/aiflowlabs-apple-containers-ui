@@ -14,7 +14,7 @@ struct CleanupSheet: View {
     @State private var confirming = false
     @State private var working = false
 
-    private var df: DiskUsageSnapshot { DiskUsageSnapshot(model: model) }
+    private var df: DiskUsageSnapshot { DiskUsageSnapshot(model: model, allImages: allImages) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
@@ -125,17 +125,26 @@ struct CleanupSheet: View {
     }
 }
 
-/// Reclaimable numbers derived from `system df` + the stores.
+/// Reclaimable numbers derived from `system df` + the stores. Each figure must describe what the toggle removes:
+/// the engine's numbers cover every stopped container (the builder too) and every unused image (tagged too).
 private struct DiskUsageSnapshot {
     var stoppedContainers: Int
     var containerBytes: Int64?
     var imageBytes: Int64?
     var volumeBytes: Int64?
 
-    @MainActor init(model: AppModel) {
-        stoppedContainers = model.containers.prunable.count
-        containerBytes = model.system.diskUsage?.containers.reclaimable
-        imageBytes = model.system.diskUsage?.images.reclaimable
+    @MainActor init(model: AppModel, allImages: Bool) {
+        let prunable = model.containers.prunable
+        stoppedContainers = prunable.count
+        let stoppedSystem = model.containers.items.contains { !$0.isRunning && $0.isSystemManaged }
+        // A stopped builder made "1 stopped" read 2.83 GB; the app never removes it, so drop the engine figure then.
+        containerBytes = prunable.isEmpty ? 0 : (stoppedSystem ? nil : model.system.diskUsage?.containers.reclaimable)
+        if allImages {
+            imageBytes = model.system.diskUsage?.images.reclaimable
+        } else {
+            imageBytes = PruneCandidates.images(model.images.items, containers: model.containers.items, all: false)
+                .reduce(0) { $0 + $1.totalSize }
+        }
         volumeBytes = model.system.diskUsage?.volumes.reclaimable
     }
 }

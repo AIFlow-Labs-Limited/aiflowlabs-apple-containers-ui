@@ -45,6 +45,9 @@ public final class AppModel {
 
     /// Slow lane for the menu bar and crash notifications while no window shows containers or the app is inactive.
     public static let backgroundPollInterval: Duration = .seconds(30)
+    /// Engine probe while the app is in the background. `system status` is cheap, and at 30 s an engine started or
+    /// stopped from Terminal took ~31 s to show up (PRD: lists recover within 30 s).
+    public static let engineBackgroundPollInterval: Duration = .seconds(10)
 
     /// What every store talks to; forwards to `backend` and is re-pointed by `replaceBackend`.
     @ObservationIgnored private let switchable: SwitchableBackend
@@ -97,7 +100,7 @@ public final class AppModel {
             do { return try CLIBackend() } catch let BackendError.cliNotInstalled(paths) {
                 return UnavailableBackend(searchedPaths: paths)
             } catch {
-                return UnavailableBackend(searchedPaths: CLIBackend.defaultSearchPaths)
+                return UnavailableBackend(searchedPaths: CLIBackend.searchPaths())
             }
         }
     }
@@ -110,7 +113,7 @@ public final class AppModel {
         didBootstrap = true
         await refreshEngine()
         if case .stopped = engine, settings.startEngineOnLaunch { await startEngine() }
-        enginePoller.backgroundInterval = Self.backgroundPollInterval
+        enginePoller.backgroundInterval = Self.engineBackgroundPollInterval
         enginePoller.start(interval: .seconds(5))
         containers.poller.backgroundInterval = Self.backgroundPollInterval
         updateBackgroundPolling()
@@ -137,7 +140,7 @@ public final class AppModel {
         if backend is UnavailableBackend {
             // "Check again": the CLI may have been installed since launch.
             guard CLIBackend.locateExecutable() != nil, let cli = try? CLIBackend() else {
-                setEngine(.notInstalled(searchedPaths: CLIBackend.defaultSearchPaths))
+                setEngine(.notInstalled(searchedPaths: CLIBackend.searchPaths()))
                 return
             }
             replaceBackend(cli)
