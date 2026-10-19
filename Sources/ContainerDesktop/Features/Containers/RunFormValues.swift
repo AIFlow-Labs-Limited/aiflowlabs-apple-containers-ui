@@ -211,18 +211,8 @@ struct RunFormValues: Codable, Equatable {
 
     /// Everything that blocks Run, as user-facing sentences.
     var issues: [String] {
+        // Image and host-folder checks (`.invalidImage`, `.relativeMountSource`) live in `RunSpec.issues`.
         var result = spec.issues.map(\.description)
-        // TODO(merge): move into `RunSpec.issues` (invalidImage / relativeMountSource) once AppCore has them.
-        let imageText = image.trimmingCharacters(in: .whitespaces)
-        if imageText.hasPrefix("-") || imageText.contains(where: \.isWhitespace) {
-            result.append("“\(imageText)” is not an image reference (it cannot start with “-” or contain spaces).")
-        }
-        for row in volumes where row.kind == .bind {
-            let source = row.source.trimmingCharacters(in: .whitespaces)
-            if !source.isEmpty, !Self.expandingTilde(source).hasPrefix("/") {
-                result.append("Host folder “\(source)” must be an absolute path (or start with ~).")
-            }
-        }
         result += malformedPorts.map { "Port mapping “\($0)” must be numbers, e.g. 8080 → 80." }
         if let shm = Self.trimmed(shmSize), MemorySize(parsing: shm) == nil { result.append("Shared memory size “\(shm)” is not a size like 64m.") }
         if volumes.contains(where: { $0.kind != .anonymous && !$0.target.isEmpty && $0.source.trimmingCharacters(in: .whitespaces).isEmpty }) {
@@ -250,10 +240,9 @@ struct RunFormValues: Codable, Equatable {
     var persistableCopy: RunFormValues {
         var copy = self
         copy.name = ""
-        // TODO(merge): `EnvironmentVariable.isSensitive` is the single masker; ContainerSecrets wraps it.
         copy.environment = environment.map { row in
             var row = row
-            if ContainerSecrets.isSensitive(key: row.key.trimmingCharacters(in: .whitespaces)) { row.value = "" }
+            if EnvironmentVariable.isSensitive(key: row.key.trimmingCharacters(in: .whitespaces), value: row.value) { row.value = "" }
             return row
         }
         return copy

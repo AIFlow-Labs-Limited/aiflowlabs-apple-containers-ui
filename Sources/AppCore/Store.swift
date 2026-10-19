@@ -66,6 +66,16 @@ public struct BulkResult: Sendable {
     public func summary(verb: String) -> String {
         failed.isEmpty ? "\(verb) \(succeeded.count)" : "\(verb) \(succeeded.count) of \(total)"
     }
+
+    /// Toast text naming the resource: "Deleted web", "Deleted 3 containers", or
+    /// "Deleted 8 of 10 containers; failed: a (message), b (message)".
+    public func summary(verb: String, noun: String) -> String {
+        if failed.isEmpty {
+            return succeeded.count == 1 ? "\(verb) \(succeeded[0])" : "\(verb) \(succeeded.count) \(noun)"
+        }
+        let details = failed.map { "\($0.id) (\($0.error.errorDescription ?? "failed"))" }.joined(separator: ", ")
+        return "\(verb) \(succeeded.count) of \(total) \(noun); failed: \(details)"
+    }
 }
 
 /// Per-store, per-call-site sequence numbers so a slow, older `load` cannot overwrite a newer result.

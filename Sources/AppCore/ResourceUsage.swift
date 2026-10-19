@@ -79,27 +79,6 @@ public enum ResourceUsage {
     }
 }
 
-/// Masks likely secrets in `KEY=VALUE` environment entries shown in inspectors.
-/// Forwarding shim over `EnvironmentVariable` (the single masker); prefer that type in new code.
-public enum EnvironmentMasking {
-    /// Whether the variable name suggests a secret value.
-    public static func isSecret(_ key: String) -> Bool { EnvironmentVariable.isSensitive(key: key) }
-
-    /// `(key, value, isSecret)` for an env entry; a bare `KEY` has an empty value.
-    public static func split(_ entry: String) -> (key: String, value: String, secret: Bool) {
-        let v = EnvironmentVariable(parsing: entry)
-        guard let value = v.value else { return (v.key, "", false) }
-        return (v.key, value, v.isSensitive)
-    }
-
-    /// Display form: secrets become `KEY=••••••` (credential URLs keep everything but the password).
-    public static func masked(_ entry: String) -> String {
-        let v = EnvironmentVariable(parsing: entry)
-        guard let value = v.value, v.isSensitive, !value.isEmpty else { return entry }
-        return "\(v.key)=\(EnvironmentVariable.urlCredentialRange(in: value) != nil ? EnvironmentVariable.maskedValue(value) : "••••••")"
-    }
-}
-
 /// Shortens a Dockerfile history `created_by` line for display.
 public enum LayerHistoryText {
     public static func shorten(_ createdBy: String, limit: Int = 140) -> String {

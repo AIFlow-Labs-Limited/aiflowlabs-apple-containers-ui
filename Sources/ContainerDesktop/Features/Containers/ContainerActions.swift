@@ -53,13 +53,13 @@ struct ContainerActions {
     }
 
     /// Bulk outcome as a toast: "Deleted 8 of 10 containers; failed: a (message), …".
-    private func report(_ result: ContainersBulkResult, verb: String, quietOnSuccess: Bool) {
-        guard result.attempted > 0 else { return }
-        if result.isSuccess {
-            if !quietOnSuccess || result.attempted > 1 { model.toasts.success(result.summary(verb: verb)) }
+    private func report(_ result: BulkResult, verb: String, quietOnSuccess: Bool) {
+        guard result.total > 0 else { return }
+        if result.allSucceeded {
+            if !quietOnSuccess || result.total > 1 { model.toasts.success(result.summary(verb: verb, noun: "containers")) }
         } else {
             model.toasts.error(result.succeeded.isEmpty ? "Action failed" : "Partly completed",
-                               message: result.summary(verb: verb))
+                               message: result.summary(verb: verb, noun: "containers"))
         }
     }
 

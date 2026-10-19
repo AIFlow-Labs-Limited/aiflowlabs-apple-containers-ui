@@ -81,7 +81,9 @@ public final class ImagesStore: PollingStore {
     }
 
     /// `all == false` removes dangling images only.
-    public func prune(all: Bool) async { await perform { try await backend.pruneImages(all: all) } }
+    /// Removes dangling (or, with `all`, every unused) image. The outcome is also stored in `actionError`.
+    @discardableResult
+    public func prune(all: Bool) async -> Result<Void, BackendError> { await attempt { try await backend.pruneImages(all: all) } }
 
     public func save(_ references: [String], to path: String, platform: Platform? = nil) async {
         await perform { try await backend.saveImages(references, to: path, platform: platform) }

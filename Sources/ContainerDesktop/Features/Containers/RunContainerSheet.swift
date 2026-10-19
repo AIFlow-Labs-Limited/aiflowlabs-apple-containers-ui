@@ -110,8 +110,7 @@ struct RunContainerSheet: View {
             }
             HStack(alignment: .top, spacing: Spacing.s) {
                 // Secrets are masked in the preview; Copy asks whether to include them.
-                // TODO(merge): `spec.commandLineString(maskSecrets: true)`.
-                let preview = ContainerSecrets.runCommandLine(spec, maskSecrets: true)
+                let preview = spec.commandLineString(maskSecrets: true)
                 ScrollView(.vertical) {
                     Text(preview)
                         .font(.monoCaption)
@@ -183,8 +182,9 @@ struct RunContainerSheet: View {
     }
 
     private func run() {
-        let spec = self.spec
-        guard spec.issues.isEmpty else { return }
+        guard self.spec.issues.isEmpty else { return }
+        // `~` expanded and the image trimmed: the CLI does neither.
+        let spec = self.spec.normalizedForRun()
         form.saveAsLastUsed()
         let store = model.containers
         let task = model.taskCenter.run(title: "Run \(spec.name ?? ContainerRow.shortImage(spec.image))", kind: .run,

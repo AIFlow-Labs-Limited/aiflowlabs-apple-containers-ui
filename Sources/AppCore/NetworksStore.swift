@@ -56,5 +56,7 @@ public final class NetworksStore: PollingStore {
         await perform { for name in names { try await backend.deleteNetwork(name) } }
     }
 
-    public func prune() async { await perform { try await backend.pruneNetworks() } }
+    /// Removes networks with no containers. The outcome is also stored in `actionError`.
+    @discardableResult
+    public func prune() async -> Result<Void, BackendError> { await attempt { try await backend.pruneNetworks() } }
 }

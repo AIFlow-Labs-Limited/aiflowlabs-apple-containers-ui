@@ -13,11 +13,10 @@ struct ContainerInspectTab: View {
     /// The container as displayed/copied: sensitive environment values masked unless "Show Secrets" is on.
     private var shown: Container { Self.masking(container, reveal: showSecrets) }
 
-    // TODO(merge): `EnvironmentVariable.isSensitive` is the single masker; ContainerSecrets wraps it.
     static func masking(_ container: Container, reveal: Bool) -> Container {
         guard !reveal else { return container }
         var c = container
-        c.configuration.initProcess.environment = ContainerSecrets.masked(c.configuration.initProcess.environment)
+        c.configuration.initProcess.environment = EnvironmentVariable.masked(c.configuration.initProcess.environment)
         return c
     }
 
@@ -40,7 +39,7 @@ struct ContainerInspectTab: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel(showJSON ? "Hide raw JSON" : "Show raw JSON")
                 Spacer()
-                if ContainerSecrets.containsSecrets(container.configuration.initProcess.environment) {
+                if EnvironmentVariable.containsSecrets(container.configuration.initProcess.environment) {
                     Toggle(isOn: $showSecrets) {
                         Label(showSecrets ? "Hide Secrets" : "Show Secrets", systemImage: showSecrets ? "eye.slash" : "eye")
                     }

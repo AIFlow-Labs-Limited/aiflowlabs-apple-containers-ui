@@ -124,11 +124,11 @@ import ContainerKitMock
         await store.refresh()
         let result = await store.stop(["db", "nope", "api"])
         #expect(result.succeeded == ["db", "api"])
-        #expect(result.failures.map(\.id) == ["nope"])
+        #expect(result.failed.map(\.id) == ["nope"])
         #expect(store.container(id: "db")?.isRunning == false)
         #expect(store.container(id: "api")?.isRunning == false)
         #expect(store.lastError != nil)
-        #expect(result.summary(verb: "Stopped").hasPrefix("Stopped 2 of 3 containers; failed: nope"))
+        #expect(result.summary(verb: "Stopped", noun: "containers").hasPrefix("Stopped 2 of 3 containers; failed: nope"))
     }
 
     @Test func bulkDeleteReportsEveryFailure() async {
@@ -136,7 +136,7 @@ import ContainerKitMock
         await store.refresh()
         let result = await store.delete(["x1", "old-job", "x2"], force: false)
         #expect(result.succeeded == ["old-job"])
-        #expect(result.failures.map(\.id) == ["x1", "x2"])
+        #expect(result.failed.map(\.id) == ["x1", "x2"])
         #expect(store.container(id: "old-job") == nil)
         guard case .other(let text) = store.lastError else { Issue.record("expected combined error"); return }
         #expect(text.contains("x1") && text.contains("x2"))
@@ -157,7 +157,7 @@ import ContainerKitMock
         store.onUnexpectedExit = { exited.append($0.id) }
         await store.refresh()
         let result = await store.delete(["db", "old-job"], force: true)
-        #expect(result.isSuccess)
+        #expect(result.allSucceeded)
         #expect(store.container(id: "db") == nil && store.container(id: "old-job") == nil)
         #expect(exited.isEmpty)
     }
@@ -189,18 +189,18 @@ import ContainerKitMock
 @Suite struct ContainerHelpersTests {
     @Test func masksSensitiveEnvironment() {
         let env = ["PATH=/usr/bin", "API_TOKEN=abc", "DB_PASSWORD=", "SECRET_KEY", "aws_secret_access_key=xyz"]
-        #expect(ContainerSecrets.masked(env) == ["PATH=/usr/bin", "API_TOKEN=\(ContainerSecrets.mask)", "DB_PASSWORD=", "SECRET_KEY",
-                                                 "aws_secret_access_key=\(ContainerSecrets.mask)"])
-        #expect(ContainerSecrets.containsSecrets(env))
-        #expect(!ContainerSecrets.containsSecrets(["PATH=/usr/bin", "TOKEN="]))
+        #expect(EnvironmentVariable.masked(env) == ["PATH=/usr/bin", "API_TOKEN=…", "DB_PASSWORD=", "SECRET_KEY",
+                                                    "aws_secret_access_key=…"])
+        #expect(EnvironmentVariable.containsSecrets(env))
+        #expect(!EnvironmentVariable.containsSecrets(["PATH=/usr/bin", "TOKEN="]))
     }
 
     @Test func runCommandLineMasksOnlyWhenAsked() {
         var spec = RunSpec(image: "alpine")
         spec.environment = ["API_TOKEN=s3cret", "MODE=dev"]
-        #expect(!ContainerSecrets.runCommandLine(spec, maskSecrets: true).contains("s3cret"))
-        #expect(ContainerSecrets.runCommandLine(spec, maskSecrets: true).contains("MODE=dev"))
-        #expect(ContainerSecrets.runCommandLine(spec, maskSecrets: false).contains("s3cret"))
+        #expect(!spec.commandLineString(maskSecrets: true).contains("s3cret"))
+        #expect(spec.commandLineString(maskSecrets: true).contains("MODE=dev"))
+        #expect(spec.commandLineString(maskSecrets: false).contains("s3cret"))
     }
 
     @Test func validatesCustomShell() {
@@ -214,7 +214,7 @@ import ContainerKitMock
         let words = ["container", "exec", "-it", "x", "sh|id", "a b", "it's", "*", "~", "$HOME", "#c", "(x)", ";", "&", "<", ">", "?"]
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = ["-c", "printf '%s\\n' " + ContainerShell.quoted(Array(words.dropFirst(0)))]
+        process.arguments = ["-c", "printf '%s\\n' " + ShellQuote.join(words)]
         let pipe = Pipe()
         process.standardOutput = pipe
         try process.run()

@@ -89,22 +89,20 @@ struct CleanupSheet: View {
     private func run() async {
         working = true
         let before = model.system.diskUsage?.totalBytes ?? 0
-        let backend = model.backend
         var failures: [String] = []
         if containers {
-            let result = await model.containers.delete(containerIDs, force: false)
-            if !result.isSuccess { failures.append(result.summary(verb: "Deleted")) }
+            let result = await model.containers.prune()
+            if !result.allSucceeded { failures.append(result.summary(verb: "Deleted", noun: "containers")) }
         }
-        // Each prune's own outcome (`perform` returns success), never a possibly stale `lastError` from elsewhere.
-        // TODO(merge): call the stores' prune methods once they return their result.
-        if images, !(await model.images.perform({ try await backend.pruneImages(all: allImages) })) {
-            failures.append("Images: " + (model.images.lastError?.errorDescription ?? "failed"))
+        // Each prune's own outcome, never a possibly stale `lastError` from elsewhere.
+        if images, case .failure(let error) = await model.images.prune(all: allImages) {
+            failures.append("Images: " + (error.errorDescription ?? "failed"))
         }
-        if volumes, !(await model.volumes.perform({ try await backend.pruneVolumes() })) {
-            failures.append("Volumes: " + (model.volumes.lastError?.errorDescription ?? "failed"))
+        if volumes, case .failure(let error) = await model.volumes.prune() {
+            failures.append("Volumes: " + (error.errorDescription ?? "failed"))
         }
-        if networks, !(await model.networks.perform({ try await backend.pruneNetworks() })) {
-            failures.append("Networks: " + (model.networks.lastError?.errorDescription ?? "failed"))
+        if networks, case .failure(let error) = await model.networks.prune() {
+            failures.append("Networks: " + (error.errorDescription ?? "failed"))
         }
         await model.system.refreshDiskUsage()
         working = false

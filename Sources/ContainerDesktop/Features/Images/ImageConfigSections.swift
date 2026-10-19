@@ -39,26 +39,27 @@ struct ImageConfigSection: View {
         if env.isEmpty {
             Text("None").foregroundStyle(.secondary)
         } else {
-            let hasSecrets = env.contains { EnvironmentMasking.split($0).secret }
+            let variables = EnvironmentVariable.parse(env)
+            let hasSecrets = variables.contains(where: \.isSensitive)
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                ForEach(env, id: \.self) { entry in
-                    let parts = EnvironmentMasking.split(entry)
+                ForEach(variables) { v in
+                    let hidden = v.isSensitive && !revealSecrets
                     HStack(alignment: .firstTextBaseline, spacing: 0) {
-                        Text(parts.key).foregroundStyle(.secondary)
+                        Text(v.key).foregroundStyle(.secondary)
                         Text("=").foregroundStyle(.tertiary)
-                        Text(parts.secret && !revealSecrets ? "••••••" : parts.value)
+                        Text(v.displayValue(reveal: revealSecrets))
                             .textSelection(.enabled)
                     }
                     .font(.monoCaption)
                     .lineLimit(2)
-                    .accessibilityLabel(parts.secret && !revealSecrets ? "\(parts.key), hidden value" : entry)
+                    .accessibilityLabel(hidden ? "\(v.key), hidden value" : v.entry)
                 }
                 if hasSecrets {
                     Toggle("Show secret values", isOn: $revealSecrets).toggleStyle(.checkbox).font(.caption)
                 }
                 HStack {
                     Spacer()
-                    CopyButton(env.map(EnvironmentMasking.masked).joined(separator: "\n"), label: "Copy environment (secrets masked)")
+                    CopyButton(EnvironmentVariable.masked(env).joined(separator: "\n"), label: "Copy environment (secrets masked)")
                 }
             }
         }

@@ -111,10 +111,9 @@ import ContainerKitMock
     }
 
     @Test func environmentMasking() {
-        #expect(EnvironmentMasking.masked("POSTGRES_PASSWORD=hunter2") == "POSTGRES_PASSWORD=••••••")
-        #expect(EnvironmentMasking.masked("GITHUB_TOKEN=abc") == "GITHUB_TOKEN=••••••")
-        #expect(EnvironmentMasking.masked("PATH=/usr/bin") == "PATH=/usr/bin")
-        #expect(EnvironmentMasking.split("LANG").key == "LANG")
+        #expect(EnvironmentVariable.masked(["POSTGRES_PASSWORD=hunter2", "GITHUB_TOKEN=abc", "PATH=/usr/bin", "LANG"])
+                == ["POSTGRES_PASSWORD=…", "GITHUB_TOKEN=…", "PATH=/usr/bin", "LANG"])
+        #expect(EnvironmentVariable(parsing: "LANG").key == "LANG")
     }
 
     // MARK: Builds

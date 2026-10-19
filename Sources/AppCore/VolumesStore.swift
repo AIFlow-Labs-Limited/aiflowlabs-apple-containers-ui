@@ -56,5 +56,7 @@ public final class VolumesStore: PollingStore {
         await perform { for name in names { try await backend.deleteVolume(name) } }
     }
 
-    public func prune() async { await perform { try await backend.pruneVolumes() } }
+    /// Removes volumes not mounted by any container. The outcome is also stored in `actionError`.
+    @discardableResult
+    public func prune() async -> Result<Void, BackendError> { await attempt { try await backend.pruneVolumes() } }
 }

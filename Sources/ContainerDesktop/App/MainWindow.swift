@@ -62,6 +62,8 @@ struct MainWindow: View {
             #endif
         }
         .onDisappear {
+            // Balances the `startPolling()` above (pollers are reference counted). The menu bar keeps its data fresh
+            // through AppModel's background client on the containers poller, which this does not remove.
             model.containers.stopPolling()
             model.system.stopPolling()
         }

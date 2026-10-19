@@ -39,9 +39,9 @@ import ContainerKit
         #expect(variable.isSensitive == secret, "\(key)")
         #expect(variable.displayValue(reveal: false).contains(passwordPart(value)) == !secret, "\(key)")
         #expect(variable.displayValue(reveal: true) == value)
-        // 2. Image config (EnvironmentMasking shim)
-        #expect(EnvironmentMasking.split(entry).secret == secret)
-        #expect(EnvironmentMasking.masked(entry).contains(passwordPart(value)) == !secret, "\(key)")
+        // 2. Image config / Inspect (`EnvironmentVariable.masked` / `containsSecrets`)
+        #expect(EnvironmentVariable.containsSecrets([entry]) == secret, "\(key)")
+        #expect(EnvironmentVariable.masked([entry])[0].contains(passwordPart(value)) == !secret, "\(key)")
         // 3. Run sheet preview / "Copy container run" (commandLineString)
         var spec = RunSpec(image: "alpine")
         spec.environment = [entry]

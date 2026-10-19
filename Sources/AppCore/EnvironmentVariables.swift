@@ -3,8 +3,8 @@ import ContainerKit
 
 /// A `KEY=VALUE` entry from a container's process environment, with secret masking for display.
 ///
-/// This is the app's single secret detector: the environment tab, image config, `RunSpec.commandLineString`,
-/// the run sheet and `EnvironmentMasking` (kept as a forwarding shim) all use `isSensitive`.
+/// This is the app's single secret detector and masker: the environment tab, image config, Inspect,
+/// `RunSpec.commandLineString(maskSecrets:)` and the run sheet all use `isSensitive` / `maskedEntry`.
 public struct EnvironmentVariable: Hashable, Sendable, Identifiable {
     public var key: String
     /// `nil` for a bare `KEY` (inherit from the host when passed to `-e`).
@@ -89,6 +89,16 @@ public struct EnvironmentVariable: Hashable, Sendable, Identifiable {
     public var maskedEntry: String {
         guard let value, isSensitive, !value.isEmpty else { return entry }
         return Self.urlCredentialRange(in: value) != nil ? "\(key)=\(Self.maskedValue(value))" : "\(key)=…"
+    }
+
+    /// `maskedEntry` for every `KEY=VALUE` entry (bare `KEY` and empty values unchanged).
+    public static func masked(_ entries: [String]) -> [String] {
+        entries.map { EnvironmentVariable(parsing: $0).maskedEntry }
+    }
+
+    /// Whether any entry carries a non-empty sensitive value.
+    public static func containsSecrets(_ entries: [String]) -> Bool {
+        entries.contains { EnvironmentVariable(parsing: $0).maskedEntry != $0 }
     }
 
     /// Parses entries, numbering `ordinal` and `occurrence` so every row has a unique `id`.
