@@ -133,7 +133,9 @@ struct PruneImagesSheet: View {
                 Text("All images not used by a container").tag(true)
             }
             .pickerStyle(.radioGroup)
-            if let reclaimable = model.system.diskUsage?.images.reclaimable {
+            // The engine's figure counts every unused image, so next to "Dangling only" it read 24.8 GB while the
+            // list below removed 327 MB. Only show it for the option it describes.
+            if all, let reclaimable = model.system.diskUsage?.images.reclaimable {
                 LabeledContent("Reclaimable (engine estimate)") {
                     Text(ByteCount.format(reclaimable)).monospacedDigit()
                 }
@@ -160,6 +162,14 @@ struct PruneImagesSheet: View {
                 Text(
                     "Expected to remove \(PruneText.plural(candidates.count, "image")) "
                         + "(\(ByteCount.format(candidates.reduce(0) { $0 + $1.totalSize })))")
+            }
+            if candidates.contains(where: { $0.repository == "kindest/node" }) {
+                Label(
+                    "Includes kindest/node, the Kubernetes node image. The next cluster you create downloads it again.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(Color.statusWarning)
             }
             Text("Computed by Container Desktop from the containers it can see; the engine makes the final decision.")
                 .font(.caption).foregroundStyle(.secondary)
