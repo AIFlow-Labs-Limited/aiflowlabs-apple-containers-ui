@@ -5,9 +5,18 @@ import SwiftUI
 
 /// Inspector for one cluster: nodes, how loaded images work, and copyable kubectl commands.
 struct ClusterDetailView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.openSettings) private var openSettings
     let cluster: KubernetesCluster
     let onLoadImage: () -> Void
     let onDelete: () -> Void
+
+    /// The kubeconfig server is `https://<cluster>.<dns.domain>:6443`; without a macOS resolver for that domain
+    /// (`container system dns create`), `kubectl --context <cluster>` fails with "no such host".
+    private var unresolvedDomain: String? {
+        guard let domain = model.system.properties?.dns?.domain, !domain.isEmpty else { return nil }
+        return model.system.dnsDomains.contains { $0.domain == domain } ? nil : domain
+    }
 
     var body: some View {
         ScrollView {
@@ -29,6 +38,25 @@ struct ClusterDetailView: View {
                     CopyableCommandRow(title: "Context", command: KubectlCommands.context(cluster.name))
                     Text("Added to ~/.kube/config as context “\(cluster.name)”.").font(.caption).foregroundStyle(
                         .secondary)
+                }
+                if let domain = unresolvedDomain {
+                    InfoCard(
+                        title: "kubectl can't reach \(cluster.name).\(domain) yet", symbol: "exclamationmark.triangle",
+                        tint: .statusWarning
+                    ) {
+                        VStack(alignment: .leading, spacing: Spacing.s) {
+                            Text(
+                                "The context points at https://\(cluster.name).\(domain):6443, but this Mac has no resolver "
+                                    + "for “.\(domain)”, so kubectl fails with “no such host”. Enable DNS names once "
+                                    + "(administrator password)."
+                            )
+                            Button("Set up DNS names…") {
+                                UserDefaults.standard.set("network", forKey: SettingsView.selectedTabKey)
+                                openSettings()
+                            }
+                            .accessibilityHint("Opens Settings, Network")
+                        }
+                    }
                 }
                 InfoCard(title: "Images loaded", symbol: "shippingbox") {
                     Text(
@@ -93,4 +121,5 @@ struct ClusterDetailView: View {
             ]), onLoadImage: {}, onDelete: {}
     )
     .frame(width: 420, height: 700)
+    .appModelEnvironment(ResourcePreview.model())
 }
