@@ -104,12 +104,21 @@ public protocol MachineOperations: Sendable {
 }
 
 public protocol KubernetesOperations: Sendable {
-    /// Whether the `k8s` plugin exists in this CLI build.
+    /// Whether the `k8s` plugin exists in this CLI build. Returns `false` **only** when the plugin is missing;
+    /// throws `BackendError.systemNotRunning` when the container system is down (and other errors as usual),
+    /// which the UI should treat as "unknown" rather than "unavailable".
+    func checkKubernetesAvailable() async throws -> Bool
+    /// Deprecated non-throwing form of `checkKubernetesAvailable()`: any error reads as `false`.
     func kubernetesAvailable() async -> Bool
     func listClusters() async throws -> [KubernetesCluster]
     func createCluster(_ spec: ClusterSpec) -> LineStream
     func deleteCluster(_ name: String) async throws
     func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream
+}
+
+extension KubernetesOperations {
+    /// Default for conformers that only implement `kubernetesAvailable()`.
+    public func checkKubernetesAvailable() async throws -> Bool { await kubernetesAvailable() }
 }
 
 /// The complete backend.

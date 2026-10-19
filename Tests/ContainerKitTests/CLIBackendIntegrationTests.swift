@@ -54,7 +54,8 @@ struct CLIBackendIntegrationTests {
             #expect(try await backend.inspectMachine(machine.id).id == machine.id)
         }
         _ = try await backend.builderStatus()
-        let k8s = await backend.kubernetesAvailable()
+        let k8s = try await backend.checkKubernetesAvailable()
+        #expect(await backend.kubernetesAvailable() == k8s)
         if k8s { _ = try await backend.listClusters() }
         let logs = try await backend.systemLogs(lines: 5)
         #expect(logs.count <= 5)
@@ -66,6 +67,9 @@ struct CLIBackendIntegrationTests {
         await #expect(throws: BackendError.notFound(kind: "volume", id: ghost)) { _ = try await backend.inspectVolume(ghost) }
         await #expect(throws: BackendError.notFound(kind: "network", id: ghost)) { _ = try await backend.inspectNetwork(ghost) }
         await #expect(throws: BackendError.notFound(kind: "machine", id: ghost)) { _ = try await backend.inspectMachine(ghost) }
+        await #expect(throws: BackendError.notFound(kind: "container", id: ghost)) {
+            _ = try await backend.execCapture(ghost, command: ["true"], workingDirectory: nil)
+        }
     }
 
     @Test func pullCachedImageStreams() async throws {

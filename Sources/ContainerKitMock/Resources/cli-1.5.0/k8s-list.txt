@@ -1,1 +1,4 @@
-CLUSTER  NODE  ROLE  STATE  CPUS  MEMORY  ADDR  PORTS
+CLUSTER  NODE        ROLE                  STATE    CPUS  MEMORY    ADDR           PORTS
+         k8s-dev     control-plane,worker  running  4     8192 MB   192.168.64.36
+         staging     control-plane,worker  stopped  2     4096 MB
+         cd-ui-test  control-plane,worker  running  4     32768 MB  192.168.64.41

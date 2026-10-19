@@ -84,3 +84,52 @@ public enum JSONValue: Codable, Hashable, Sendable {
     public var arrayValue: [JSONValue]? { if case .array(let a) = self { return a } else { return nil } }
     public var objectValue: [String: JSONValue]? { if case .object(let o) = self { return o } else { return nil } }
 }
+
+/// A JSON array decoded element by element: undecodable elements are skipped (and counted) instead of
+/// failing the whole array, so one odd resource never empties a list.
+public struct LossyArray<Element: Decodable>: Decodable {
+    public var elements: [Element]
+    /// How many elements could not be decoded.
+    public var droppedCount: Int
+    /// Why each dropped element failed (for diagnostics).
+    public var errors: [String]
+
+    public init(elements: [Element], droppedCount: Int = 0, errors: [String] = []) {
+        self.elements = elements
+        self.droppedCount = droppedCount
+        self.errors = errors
+    }
+
+    public init(from decoder: any Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        var elements: [Element] = []
+        var errors: [String] = []
+        while !container.isAtEnd {
+            do {
+                elements.append(try container.decode(Element.self))
+            } catch {
+                errors.append(String(describing: error))
+                // A failed decode does not advance the container; consume the element as anything.
+                _ = try container.decode(AnyJSON.self)
+            }
+        }
+        self.elements = elements
+        self.droppedCount = errors.count
+        self.errors = errors
+    }
+
+    /// Accepts any JSON value without inspecting it.
+    private struct AnyJSON: Decodable {
+        init(from decoder: any Decoder) throws {}
+    }
+}
+
+extension LossyArray: Sendable where Element: Sendable {}
+
+/// Helpers for decoders that must not fail on secondary fields.
+enum LenientDecoding {
+    /// The date at `key`, or the epoch when it is missing or unparseable.
+    static func date<K: CodingKey>(_ container: KeyedDecodingContainer<K>, _ key: K) -> Date {
+        ((try? container.decodeIfPresent(Date.self, forKey: key)) ?? nil) ?? Date(timeIntervalSince1970: 0)
+    }
+}

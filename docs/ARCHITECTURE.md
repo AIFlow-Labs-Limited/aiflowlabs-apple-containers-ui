@@ -40,7 +40,7 @@ Errors are `BackendError` — the UI switches on `.systemNotRunning` / `.cliNotI
 
 ### CLIBackend (v1)
 
-- Locates the binary: `CONTAINER_CLI` env → `/usr/local/bin/container` → `which container`. Missing → `.cliNotInstalled`.
+- Locates the binary: `CONTAINER_CLI` env (if executable) → `/usr/local/bin/container` → `/opt/homebrew/bin/container` (no `$PATH` lookup). Missing → `.cliNotInstalled`.
 - `ProcessRunner` (actor): `Foundation.Process`, stdout/stderr pipes read on background tasks, cancellation
   kills the process group, timeouts, `--format json` where available, exit code → `BackendError.commandFailed`
   with stderr cleaned of progress lines (`[n/6] …`).

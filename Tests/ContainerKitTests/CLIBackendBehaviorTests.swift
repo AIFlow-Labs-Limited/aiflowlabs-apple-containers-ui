@@ -56,6 +56,48 @@ struct CLIBackendBehaviorTests {
         }
     }
 
+    @Test func execReturnsTheProgramsOwnErrorOutput() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: "Error: config not found: x\n") }
+        let result = try await CLIBackend.recording(runner).execCapture("web", command: ["app"], workingDirectory: nil)
+        #expect(result.exitCode == 1)
+        #expect(result.stderr == "Error: config not found: x\n")
+    }
+
+    @Test func execMissingContainerThrowsNotFound() async throws {
+        let runner = RecordingRunner { _ in
+            ProcessResult(exitCode: 1, stdout: "", stderr: "Error: get failed: container web not found\n")
+        }
+        await #expect(throws: BackendError.notFound(kind: "container", id: "web")) {
+            _ = try await CLIBackend.recording(runner).execCapture("web", command: ["ls"], workingDirectory: nil)
+        }
+    }
+
+    @Test func execOtherContainerNotFoundIsProgramOutput() async throws {
+        // `web` is running; the program inside reports a *different* missing container.
+        let runner = RecordingRunner { _ in
+            ProcessResult(exitCode: 2, stdout: "", stderr: "Error: get failed: container web2 not found\n")
+        }
+        let result = try await CLIBackend.recording(runner).execCapture("web", command: ["ls"], workingDirectory: nil)
+        #expect(result.exitCode == 2)
+    }
+
+    @Test func execSystemDownThrows() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: Self.down) }
+        await #expect(throws: BackendError.systemNotRunning) {
+            _ = try await CLIBackend.recording(runner).execCapture("web", command: ["ls"], workingDirectory: nil)
+        }
+    }
+
+    @Test func createContainerWithoutIdOrNameThrowsDecoding() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(stdout: "\n") }
+        await #expect {
+            _ = try await CLIBackend.recording(runner).createContainer(RunSpec(image: "alpine"))
+        } throws: { error in
+            if case BackendError.decoding = error { return true }
+            return false
+        }
+    }
+
     @Test func inspectMissingMapsToNotFound() async throws {
         let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: "Error: container not found: ghost\n") }
         await #expect(throws: BackendError.notFound(kind: "container", id: "ghost")) {
@@ -136,10 +178,57 @@ struct CLIBackendBehaviorTests {
         }
     }
 
-    @Test func kubernetesUnavailableWhenHelpFails() async throws {
-        let runner = RecordingRunner { _ in ProcessResult(exitCode: 64, stdout: "", stderr: "Error: unknown command 'k8s'\n") }
+    @Test func kubernetesUnavailableOnlyWhenPluginIsMissing() async throws {
+        let runner = RecordingRunner { args in
+            args.contains("status") ? ProcessResult(stdout: "running")
+                : ProcessResult(exitCode: 64, stdout: "", stderr: "Error: unknown command 'k8s'\n")
+        }
         let backend = try CLIBackend.recording(runner)
+        #expect(try await !backend.checkKubernetesAvailable())
         #expect(await !backend.kubernetesAvailable())
+        #expect(runner.commands.prefix(2) == [["k8s", "--help"], ["system", "status"]])
+    }
+
+    @Test func kubernetesAvailabilityThrowsWhenSystemIsDown() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(exitCode: 64, stdout: "", stderr: "Error: unknown command 'k8s'\n") }
+        await #expect(throws: BackendError.systemNotRunning) { _ = try await CLIBackend.recording(runner).checkKubernetesAvailable() }
+        let down = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: Self.down) }
+        await #expect(throws: BackendError.systemNotRunning) { _ = try await CLIBackend.recording(down).checkKubernetesAvailable() }
+    }
+
+    @Test func systemLogsWindowScalesWithRequest() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(stdout: "a\nb\n") }
+        let backend = try CLIBackend.recording(runner)
+        _ = try await backend.systemLogs(lines: 200)
+        _ = try await backend.systemLogs(lines: 501)
+        #expect(runner.commands == [["system", "logs", "--last", "5m"], ["system", "logs", "--last", "1h"]])
+    }
+
+    @Test func cancelledTextOutsideOsascriptIsNotCancellation() {
+        #expect(CLIErrorMapper.map(command: "container image pull x", exitCode: 1, stderr: "Error: User canceled the job (-128)\n")
+            != .cancelled)
+    }
+
+    @Test func adminPromptDismissalIsCancellation() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: "0:120: execution error: User canceled. (-128)\n") }
+        await #expect(throws: BackendError.cancelled) { try await CLIBackend.recording(runner).deleteDNSDomain("test") }
+    }
+
+    @Test func writeConfigFollowsSymlinkAndKeepsPermissions() async throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("cd-config-link-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: dir) }
+        try fm.createDirectory(at: dir.appendingPathComponent("dotfiles"), withIntermediateDirectories: true)
+        let real = dir.appendingPathComponent("dotfiles/config.toml")
+        try Data("old\n".utf8).write(to: real)
+        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: real.path)
+        let link = dir.appendingPathComponent("config.toml")
+        try fm.createSymbolicLink(at: link, withDestinationURL: real)
+        let backend = try CLIBackend.recording(RecordingRunner(), configPath: link.path)
+        try await backend.writeConfigTOML("new\n")
+        #expect(try fm.destinationOfSymbolicLink(atPath: link.path) == real.path)
+        #expect(try String(contentsOf: real, encoding: .utf8) == "new\n")
+        #expect((try fm.attributesOfItem(atPath: real.path)[.posixPermissions] as? NSNumber)?.intValue == 0o600)
     }
 
     @Test func missingExplicitExecutableStillConstructs() throws {

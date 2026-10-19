@@ -17,7 +17,7 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         configuration = try c.decode(Configuration.self, forKey: .configuration)
-        variants = try c.decodeIfPresent([Variant].self, forKey: .variants) ?? []
+        variants = (try? c.decodeIfPresent(LossyArray<Variant>.self, forKey: .variants))?.elements ?? []
     }
 
     // MARK: Derived
@@ -33,9 +33,13 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
         else if ref.hasPrefix("docker.io/") { ref = String(ref.dropFirst("docker.io/".count)) }
         return ref
     }
+    /// `alpine` for `python:alpine`; `nil` when untagged or digest-only (`x@sha256:…`). For `x:1@sha256:…` it is `1`.
     public var tag: String? {
-        guard let colon = reference.lastIndex(of: ":"), !reference[colon...].contains("/") else { return nil }
-        return String(reference[reference.index(after: colon)...])
+        var ref = reference
+        if let at = ref.firstIndex(of: "@") { ref = String(ref[..<at]) }
+        guard let colon = ref.lastIndex(of: ":"), !ref[colon...].contains("/") else { return nil }
+        let tag = ref[ref.index(after: colon)...]
+        return tag.isEmpty ? nil : String(tag)
     }
     public var platforms: [Platform] { variants.map(\.platform) }
     public var isMultiArch: Bool { variants.count > 1 }
@@ -53,6 +57,14 @@ public struct Image: Codable, Identifiable, Hashable, Sendable {
             self.name = name
             self.creationDate = creationDate
             self.descriptor = descriptor
+        }
+
+        /// `name` and `descriptor` are required; an unreadable date falls back to the epoch.
+        public init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            creationDate = LenientDecoding.date(c, .creationDate)
+            descriptor = try c.decode(Descriptor.self, forKey: .descriptor)
         }
     }
 
