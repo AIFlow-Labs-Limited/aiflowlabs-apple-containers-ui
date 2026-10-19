@@ -193,7 +193,7 @@ public actor MockBackend: ContainerBackend {
     public func exportContainer(_ id: String, to tarPath: String) async throws { await wait() }
     public nonisolated func terminalCommand(for target: TerminalTarget) -> CommandLine {
         switch target {
-        case .container(let id, let command): return CommandLine(executable: "/usr/local/bin/container", arguments: ["exec", "-it", id] + command)
+        case .container(let id, let command): return CommandLine(executable: "/usr/local/bin/container", arguments: ["exec", "-it", "--", id] + command)
         case .machine(let name): return CommandLine(executable: "/usr/local/bin/container", arguments: ["machine", "run", "-n", name])
         case .shell: return CommandLine(executable: "/bin/zsh", arguments: ["-l"])
         }

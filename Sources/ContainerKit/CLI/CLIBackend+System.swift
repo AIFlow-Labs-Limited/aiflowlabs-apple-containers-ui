@@ -62,7 +62,7 @@ extension CLIBackend {
         return CLIOutputParsing.dnsDomains(result.stdout)
     }
 
-    /// `container system dns create DOMAIN [--localhost IP]`, run as administrator through `osascript`.
+    /// `container system dns create [--localhost IP] -- DOMAIN`, run as administrator through `osascript`.
     public func createDNSDomain(_ domain: String, localhostAddress: String?) async throws {
         try Self.validateDomain(domain)
         var arguments = ["system", "dns", "create"]
@@ -72,14 +72,14 @@ extension CLIBackend {
             }
             arguments += ["--localhost", localhostAddress]
         }
-        arguments.append(domain)
+        arguments += ["--", domain]
         try await runAsAdministrator(arguments)
     }
 
-    /// `container system dns delete DOMAIN`, run as administrator through `osascript`.
+    /// `container system dns delete -- DOMAIN`, run as administrator through `osascript`.
     public func deleteDNSDomain(_ domain: String) async throws {
         try Self.validateDomain(domain)
-        try await runAsAdministrator(["system", "dns", "delete", domain])
+        try await runAsAdministrator(["system", "dns", "delete", "--", domain])
     }
 
     /// Raw `config.toml`, or `""` when the file does not exist.
@@ -147,6 +147,7 @@ extension CLIBackend {
     }
 
     static func validateDomain(_ domain: String) throws {
+        try validateOperand(domain, "DNS domain")
         let valid = !domain.isEmpty && domain.allSatisfy { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "-" || $0 == "." }
         guard valid else { throw BackendError.other("“\(domain)” is not a valid DNS domain name.") }
     }

@@ -21,25 +21,33 @@ extension CLIBackend {
             return failedStream(.unsupported(feature: "Kubernetes worker nodes",
                                              reason: "`container k8s create` has no --workers option in this CLI version."))
         }
-        return streamCommand(["k8s", "create"] + spec.cliArguments)
+        return validatedStream {
+            try Self.validateOperand(spec.name, "Cluster name")
+            return streamCommand(["k8s", "create"] + spec.cliArguments)
+        }
     }
 
     /// `container k8s delete --name NAME`.
     public func deleteCluster(_ name: String) async throws {
+        try Self.validateOperand(name, "Cluster name")
         try await execute(["k8s", "delete", "--name", name], timeout: .seconds(300))
     }
 
-    /// `container k8s load-image [--name CLUSTER] [--platform P] REF`. Per-node targeting is not supported
+    /// `container k8s load-image [--name CLUSTER] [--platform P] -- REF`. Per-node targeting is not supported
     /// by CLI 1.5.0 (the image is loaded into every node).
     public nonisolated func loadImage(_ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?) -> LineStream {
         guard nodes.isEmpty else {
             return failedStream(.unsupported(feature: "Loading an image into specific nodes",
                                              reason: "`container k8s load-image` has no --node option in this CLI version."))
         }
-        var arguments = ["k8s", "load-image"]
-        if let cluster { arguments += ["--name", cluster] }
-        if let platform { arguments += ["--platform", platform.slug] }
-        arguments.append(reference)
-        return streamCommand(arguments)
+        return validatedStream {
+            try Self.validateOperand(reference, "Image reference")
+            if let cluster { try Self.validateOperand(cluster, "Cluster name") }
+            var arguments = ["k8s", "load-image"]
+            if let cluster { arguments += ["--name", cluster] }
+            if let platform { arguments += ["--platform", platform.slug] }
+            arguments += ["--", reference]
+            return streamCommand(arguments)
+        }
     }
 }

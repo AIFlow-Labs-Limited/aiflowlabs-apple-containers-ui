@@ -8,44 +8,54 @@ extension CLIBackend {
         try await decode([Image].self, ["image", "ls", "--format", "json"])
     }
 
-    /// `container image inspect REF` (one-element array).
+    /// `container image inspect -- REF` (one-element array).
     public func inspectImage(_ reference: String) async throws -> Image {
-        try await inspectFirst(Image.self, kind: "image", id: reference, ["image", "inspect", reference])
+        try Self.validateOperand(reference, "Image reference")
+        return try await inspectFirst(Image.self, kind: "image", id: reference, ["image", "inspect", "--", reference])
     }
 
-    /// `container image pull --progress plain [--platform P] REF`.
+    /// `container image pull --progress plain [--platform P] -- REF`.
     public nonisolated func pullImage(_ reference: String, platform: Platform?) -> LineStream {
-        streamCommand(Self.transferArguments("pull", reference, platform: platform))
+        validatedStream {
+            try Self.validateOperand(reference, "Image reference")
+            return streamCommand(Self.transferArguments("pull", reference, platform: platform))
+        }
     }
 
-    /// `container image push --progress plain [--platform P] REF`.
+    /// `container image push --progress plain [--platform P] -- REF`.
     public nonisolated func pushImage(_ reference: String, platform: Platform?) -> LineStream {
-        streamCommand(Self.transferArguments("push", reference, platform: platform))
+        validatedStream {
+            try Self.validateOperand(reference, "Image reference")
+            return streamCommand(Self.transferArguments("push", reference, platform: platform))
+        }
     }
 
     /// argv for `image pull` / `image push`.
     static func transferArguments(_ verb: String, _ reference: String, platform: Platform?) -> [String] {
-        ["image", verb, "--progress", "plain"] + (platform.map { ["--platform", $0.slug] } ?? []) + [reference]
+        ["image", verb, "--progress", "plain"] + (platform.map { ["--platform", $0.slug] } ?? []) + ["--", reference]
     }
 
-    /// `container image rm REF`.
+    /// `container image rm -- REF`.
     public func deleteImage(_ reference: String) async throws {
-        try await execute(["image", "rm", reference], timeout: Self.actionTimeout)
+        try Self.validateOperand(reference, "Image reference")
+        try await execute(["image", "rm", "--", reference], timeout: Self.actionTimeout)
     }
 
-    /// `container image tag SRC NEW`.
+    /// `container image tag -- SRC NEW`.
     public func tagImage(_ reference: String, newReference: String) async throws {
-        try await execute(["image", "tag", reference, newReference])
+        try Self.validateOperands([reference, newReference], "Image reference")
+        try await execute(["image", "tag", "--", reference, newReference])
     }
 
     /// `container image prune [--all]`.
     public func pruneImages(all: Bool) async throws {
-        try await execute(["image", "prune"] + (all ? ["--all"] : []), timeout: Self.actionTimeout)
+        try await execute(["image", "prune"] + (all ? ["--all"] : []), timeout: Self.pruneTimeout)
     }
 
-    /// `container image save --output TAR [--platform P] REFS…`.
+    /// `container image save --output TAR [--platform P] -- REFS…`.
     public func saveImages(_ references: [String], to tarPath: String, platform: Platform?) async throws {
-        let arguments = ["image", "save", "--output", tarPath] + (platform.map { ["--platform", $0.slug] } ?? []) + references
+        try Self.validateOperands(references, "Image reference")
+        let arguments = ["image", "save", "--output", tarPath] + (platform.map { ["--platform", $0.slug] } ?? []) + ["--"] + references
         try await execute(arguments, timeout: nil)
     }
 

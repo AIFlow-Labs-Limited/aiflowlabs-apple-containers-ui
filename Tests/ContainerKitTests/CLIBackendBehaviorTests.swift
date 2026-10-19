@@ -56,6 +56,48 @@ struct CLIBackendBehaviorTests {
         }
     }
 
+    @Test func execReturnsTheProgramsOwnErrorOutput() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: "Error: config not found: x\n") }
+        let result = try await CLIBackend.recording(runner).execCapture("web", command: ["app"], workingDirectory: nil)
+        #expect(result.exitCode == 1)
+        #expect(result.stderr == "Error: config not found: x\n")
+    }
+
+    @Test func execMissingContainerThrowsNotFound() async throws {
+        let runner = RecordingRunner { _ in
+            ProcessResult(exitCode: 1, stdout: "", stderr: "Error: get failed: container web not found\n")
+        }
+        await #expect(throws: BackendError.notFound(kind: "container", id: "web")) {
+            _ = try await CLIBackend.recording(runner).execCapture("web", command: ["ls"], workingDirectory: nil)
+        }
+    }
+
+    @Test func execOtherContainerNotFoundIsProgramOutput() async throws {
+        // `web` is running; the program inside reports a *different* missing container.
+        let runner = RecordingRunner { _ in
+            ProcessResult(exitCode: 2, stdout: "", stderr: "Error: get failed: container web2 not found\n")
+        }
+        let result = try await CLIBackend.recording(runner).execCapture("web", command: ["ls"], workingDirectory: nil)
+        #expect(result.exitCode == 2)
+    }
+
+    @Test func execSystemDownThrows() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: Self.down) }
+        await #expect(throws: BackendError.systemNotRunning) {
+            _ = try await CLIBackend.recording(runner).execCapture("web", command: ["ls"], workingDirectory: nil)
+        }
+    }
+
+    @Test func createContainerWithoutIdOrNameThrowsDecoding() async throws {
+        let runner = RecordingRunner { _ in ProcessResult(stdout: "\n") }
+        await #expect {
+            _ = try await CLIBackend.recording(runner).createContainer(RunSpec(image: "alpine"))
+        } throws: { error in
+            if case BackendError.decoding = error { return true }
+            return false
+        }
+    }
+
     @Test func inspectMissingMapsToNotFound() async throws {
         let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: "Error: container not found: ghost\n") }
         await #expect(throws: BackendError.notFound(kind: "container", id: "ghost")) {

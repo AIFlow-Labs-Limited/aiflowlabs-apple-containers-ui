@@ -20,6 +20,8 @@ public actor CLIBackend: ContainerBackend {
     static let queryTimeout: Duration = .seconds(60)
     /// Default timeout for state-changing commands that should finish promptly (`stop`, `rm`, …).
     static let actionTimeout: Duration = .seconds(180)
+    /// Timeout for `prune` commands, which can delete many large images or volumes.
+    static let pruneTimeout: Duration = .seconds(15 * 60)
 
     /// Diagnostics name, e.g. `CLI (/usr/local/bin/container)`.
     public nonisolated var backendDescription: String { "CLI (\(executable))" }
@@ -49,7 +51,7 @@ public actor CLIBackend: ContainerBackend {
     /// Command line an embedded terminal should spawn for an interactive session.
     public nonisolated func terminalCommand(for target: TerminalTarget) -> CommandLine {
         switch target {
-        case .container(let id, let command): return CommandLine(executable: executable, arguments: ["exec", "-it", id] + command)
+        case .container(let id, let command): return CommandLine(executable: executable, arguments: ["exec", "-it", "--", id] + command)
         case .machine(let name): return CommandLine(executable: executable, arguments: ["machine", "run", "-n", name])
         case .shell: return CommandLine(executable: "/bin/zsh", arguments: ["-l"])
         }
@@ -138,6 +140,26 @@ public actor CLIBackend: ContainerBackend {
     /// A stream that immediately fails (unsupported option combinations).
     nonisolated func failedStream(_ error: BackendError) -> LineStream {
         AsyncThrowingStream { $0.finish(throwing: error) }
+    }
+
+    /// Rejects a name, id or reference that the CLI would parse as an option. Positional operands are also
+    /// passed after `--`; this keeps option *values* (`--name X`) and error messages unambiguous.
+    static func validateOperand(_ value: String, _ what: String) throws {
+        guard !value.hasPrefix("-") else {
+            throw BackendError.other("\(what) “\(value)” may not start with -")
+        }
+    }
+
+    /// `validateOperand` for several values.
+    static func validateOperands(_ values: [String], _ what: String) throws {
+        for value in values { try validateOperand(value, what) }
+    }
+
+    /// Runs `body` to build a stream, turning a validation error into a stream that fails immediately.
+    nonisolated func validatedStream(_ body: () throws -> LineStream) -> LineStream {
+        do { return try body() } catch let error as BackendError { return failedStream(error) } catch {
+            return failedStream(.other(error.localizedDescription))
+        }
     }
 
     /// Appends `--label key=value` pairs sorted by key (stable argv for tests and "copy command").
