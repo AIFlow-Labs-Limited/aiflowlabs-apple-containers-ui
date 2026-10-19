@@ -53,7 +53,9 @@ public struct StringRowsEditor: View {
                 Label(addTitle, systemImage: "plus.circle")
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("\(addTitle) \(title.lowercased())")
+            // Callers usually pass a full title ("Add label"); only append the noun to a bare "Add".
+            .accessibilityLabel(
+                addTitle.localizedCaseInsensitiveContains(title) ? addTitle : "\(addTitle) \(title.lowercased())")
         }
         .onAppear { rowIDs = ids }
         .onChange(of: rows.count) { rowIDs = ids }
