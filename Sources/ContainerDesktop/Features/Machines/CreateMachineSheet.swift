@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 import ContainerKit
 import AppCore
 import DesignSystem
@@ -11,8 +10,19 @@ struct CreateMachineSheet: View {
 
     private static let customTag = "__custom__"
     private let host = HostResources.current
-    @State private var form = MachineForm()
-    @State private var imageChoice = MachineImageOption.curated[0].reference
+    @State private var form: MachineForm
+    @State private var imageChoice = MachineImageOption.verified.reference
+
+    init(localImages: [String], existingNames: [String] = [], create: @escaping (MachineSpec) -> Void) {
+        self.localImages = localImages
+        self.create = create
+        var form = MachineForm(existingNames: existingNames)
+        // Don't propose a name that's taken: dev, dev-2, dev-3…
+        if form.nameError != nil, let free = (2...99).lazy.map({ "dev-\($0)" }).first(where: { n in
+            !existingNames.contains { $0.caseInsensitiveCompare(n) == .orderedSame }
+        }) { form.name = free }
+        _form = State(initialValue: form)
+    }
     @State private var showAdvanced = false
     @Environment(\.dismiss) private var dismiss
 
@@ -72,7 +82,7 @@ struct CreateMachineSheet: View {
             }
         }
         .padding(Spacing.xl)
-        .frame(width: 600, height: 760)
+        .frame(width: 600, height: 720)
     }
 
     private var memoryBinding: Binding<Double> {
@@ -105,26 +115,36 @@ struct CreateMachineSheet: View {
             Label(option.note, systemImage: option.support == .verified ? "checkmark.seal" : "info.circle")
                 .font(.caption)
                 .foregroundStyle(option.support == .verified ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
-        } else if MachineImageOption.knownBroken(form.imageReference) {
-            FieldError(message: "Docker Hub's alpine doesn't boot as a machine (busybox init needs OpenRC). Use ghcr.io/linuxcontainers/alpine:3.20.")
+        } else if form.imageIsKnownBroken {
+            brokenImageNotice
+        } else if let error = form.imageError, !form.imageReference.isEmpty {
+            FieldError(message: error)
         } else if !form.imageReference.isEmpty {
             Text("Unverified image: it needs /sbin/init, /bin/sh and getent. If it doesn't boot, check the machine's Logs tab.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
 
+    /// Blocks Docker Hub's alpine with the reason and a one-click switch to the verified image.
+    private var brokenImageNotice: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            FieldError(message: form.imageError)
+            Text("Blocked: \(MachineImageOption.knownBrokenPatterns.joined(separator: ", ")). "
+                 + "Apple's test image \(MachineImageOption.verified.reference) is the same distribution with a working init.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Button("Use \(MachineImageOption.verified.reference)") {
+                imageChoice = MachineImageOption.verified.reference
+                form.image = MachineImageOption.verified.reference
+            }
+            .controlSize(.small)
+        }
+    }
+
     @ViewBuilder
     private var advanced: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            TextField("User name", text: $form.username, prompt: Text("your Mac user (default)"))
-            HStack {
-                TextField("UID", text: $form.uid, prompt: Text("auto"))
-                TextField("GID", text: $form.gid, prompt: Text("auto"))
-            }
-            Text("Sent as `--user name|uid[:gid]`. A user name takes precedence over the UID.")
+            Text("You log in with your Mac user name; this CLI version has no option to change it.")
                 .font(.caption).foregroundStyle(.secondary)
-            FieldError(message: form.userError)
-            Divider()
             Toggle("Nested virtualization", isOn: $form.virtualization)
             if form.virtualization {
                 HStack {
@@ -142,15 +162,13 @@ struct CreateMachineSheet: View {
     private func isCurated(_ ref: String) -> Bool { MachineImageOption.curated.contains { $0.reference == ref } }
 
     private func chooseKernel() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.message = "Choose a Linux kernel built with CONFIG_KVM=y"
-        if panel.runModal() == .OK, let url = panel.url { form.kernelPath = url.path }
+        if let url = FilePanels.openFile(title: "Choose a Linux kernel built with CONFIG_KVM=y") {
+            form.kernelPath = url.path(percentEncoded: false)
+        }
     }
 }
 
 #Preview("Create machine") {
-    CreateMachineSheet(localImages: ["ghcr.io/linuxcontainers/alpine:3.20", "docker.io/library/postgres:16-alpine"]) { _ in }
+    CreateMachineSheet(localImages: ["ghcr.io/linuxcontainers/alpine:3.20", "docker.io/library/postgres:16-alpine"],
+                       existingNames: ["dev"]) { _ in }
 }

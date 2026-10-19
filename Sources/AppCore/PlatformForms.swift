@@ -73,11 +73,25 @@ public struct MachineImageOption: Identifiable, Hashable, Sendable {
                            note: "Not tested yet. Needs a real /sbin/init to boot.", support: .unverified),
     ]
 
-    /// Docker Hub's `alpine` uses busybox init, which calls a missing /sbin/openrc and reboots immediately.
+    /// The image the create sheet offers instead of a known-broken one.
+    public static var verified: MachineImageOption { curated[0] }
+
+    /// Spellings of Docker Hub's `alpine`, shown to the user when one is blocked.
+    public static let knownBrokenPatterns = ["alpine", "alpine:<tag>", "alpine:latest", "docker.io/alpine:<tag>",
+                                             "docker.io/library/alpine:<tag>", "index.docker.io/library/alpine:<tag>"]
+
+    /// Docker Hub's `alpine` (any tag or digest, any spelling) uses busybox init, which calls a missing
+    /// /sbin/openrc and reboots immediately. `ghcr.io/linuxcontainers/alpine` is a different image and boots.
     public static func knownBroken(_ reference: String) -> Bool {
-        let r = reference.lowercased()
-        return ["alpine", "alpine:latest", "docker.io/library/alpine", "docker.io/library/alpine:latest", "docker.io/alpine"]
-            .contains(r) || r.hasPrefix("docker.io/library/alpine:") || (r.hasPrefix("alpine:") && !r.contains("/"))
+        var r = reference.trimmingCharacters(in: .whitespaces).lowercased()
+        if let at = r.firstIndex(of: "@") { r = String(r[..<at]) }
+        for prefix in ["index.docker.io/", "registry-1.docker.io/", "docker.io/"] where r.hasPrefix(prefix) {
+            r.removeFirst(prefix.count)
+            break
+        }
+        if r.hasPrefix("library/") { r.removeFirst("library/".count) }
+        let repository = r.split(separator: ":", maxSplits: 1).first.map(String.init) ?? r
+        return repository == "alpine"
     }
 }
 
@@ -110,26 +124,38 @@ public struct MachineForm: Hashable, Sendable {
     public var homeMount: HomeMountMode = .readWrite
     public var setDefault = false
     public var bootNow = true
-    public var username = ""
-    public var uid = ""
-    public var gid = ""
     public var virtualization = false
     public var kernelPath = ""
+    /// Names already taken (from `machine ls`), for the duplicate check.
+    public var existingNames: [String] = []
 
-    public init(host: HostResources = .current) {
+    // No user / UID / GID fields: CLI 1.5.0's `machine create` has no `--user` (it always uses your Mac account).
+
+    public init(host: HostResources = .current, existingNames: [String] = []) {
         cpus = min(4, host.cpus)
         memoryGB = host.machineDefaultMemoryGB
+        self.existingNames = existingNames
     }
 
-    public var nameError: String? { MachineNameRule.validate(name) }
+    public var nameError: String? {
+        if let error = MachineNameRule.validate(name) { return error }
+        if existingNames.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) {
+            return "A machine named “\(name)” already exists."
+        }
+        return nil
+    }
 
     public var imageReference: String { image.trimmingCharacters(in: .whitespaces) }
 
-    public var userError: String? {
-        if !uid.isEmpty, Int(uid) == nil { return "UID must be a number." }
-        if !gid.isEmpty, Int(gid) == nil { return "GID must be a number." }
-        if !gid.isEmpty, uid.isEmpty, username.isEmpty { return "Set a UID or user name with the GID." }
-        return nil
+    /// Whether the image is one we know doesn't boot (create is blocked; the sheet offers the verified image).
+    public var imageIsKnownBroken: Bool { MachineImageOption.knownBroken(imageReference) }
+
+    public var imageError: String? {
+        if imageReference.isEmpty { return "Choose an image." }
+        if imageIsKnownBroken {
+            return "Docker Hub's alpine doesn't boot as a machine: its busybox init needs OpenRC and reboots at once."
+        }
+        return ResourceValidator.imageReference(imageReference)
     }
 
     public var kernelError: String? {
@@ -137,15 +163,7 @@ public struct MachineForm: Hashable, Sendable {
             ? "Nested virtualization needs a kernel built with CONFIG_KVM=y." : nil
     }
 
-    public var isValid: Bool { nameError == nil && !imageReference.isEmpty && userError == nil && kernelError == nil }
-
-    /// `--user name|uid[:gid]`: a user name wins; otherwise uid with an optional gid.
-    public var userArgument: String? {
-        let name = username.trimmingCharacters(in: .whitespaces)
-        if !name.isEmpty { return gid.isEmpty ? name : "\(name):\(gid)" }
-        if !uid.isEmpty { return gid.isEmpty ? uid : "\(uid):\(gid)" }
-        return nil
-    }
+    public var isValid: Bool { nameError == nil && imageError == nil && kernelError == nil }
 
     public var spec: MachineSpec {
         var s = MachineSpec(image: imageReference, name: name)
@@ -154,7 +172,6 @@ public struct MachineForm: Hashable, Sendable {
         s.homeMount = homeMount.rawValue
         s.setDefault = setDefault
         s.noBoot = !bootNow
-        s.user = userArgument
         if virtualization {
             s.virtualization = true
             let k = kernelPath.trimmingCharacters(in: .whitespaces)
@@ -172,6 +189,12 @@ public struct MachineForm: Hashable, Sendable {
 public enum MachineResize {
     public static func settings(cpus: Int, memoryGB: Int) -> [String: String] {
         ["cpus": String(cpus), "memory": MemorySize(bytes: Int64(memoryGB) << 30).cliArgument]
+    }
+
+    /// The command for `settings`, in the same key order `CLIBackend.configureMachine` sends (sorted).
+    public static func previewCommand(name: String, settings: [String: String], executable: String = "container") -> String {
+        let pairs = settings.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+        return CommandLine(executable: executable, arguments: ["machine", "set", "-n", name] + pairs).display
     }
 }
 

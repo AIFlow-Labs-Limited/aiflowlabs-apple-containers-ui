@@ -131,6 +131,6 @@ extension RegistryLogin {
 
 #Preview("Registries") {
     RegistriesListView()
-        .environment(AppModel.platformPreview())
+        .appModelEnvironment(ResourcePreview.model())
         .frame(width: 900, height: 500)
 }

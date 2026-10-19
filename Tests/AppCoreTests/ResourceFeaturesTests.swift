@@ -39,7 +39,7 @@ import ContainerKitMock
         await model.volumes.refresh()
         let probevol = model.volumes.items.first { $0.name == "probevol" }!
         #expect(ResourceUsage.containers(mounting: probevol, in: model.containers.items).map(\.id) == ["probe"])
-        await model.volumes.create(name: "fresh")
+        _ = await model.volumes.create(name: "fresh")
         let fresh = model.volumes.items.first { $0.name == "fresh" }!
         #expect(ResourceUsage.containers(mounting: fresh, in: model.containers.items).isEmpty)
     }

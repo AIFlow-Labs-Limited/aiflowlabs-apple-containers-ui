@@ -3,13 +3,16 @@ import AppCore
 
 // Small helpers shared by the Images / Volumes / Networks / Builds / Machines / Kubernetes / Registries features.
 
-extension Binding where Value: RangeReplaceableCollection, Value: Sendable {
+extension Binding where Value: Collection, Value: ExpressibleByArrayLiteral, Value: Sendable {
     /// `true` while the collection is non-empty; setting `false` empties it. Drives confirmation dialogs from a
     /// "pending" list (`isPresented: $pendingDelete.isPresent`).
     var isPresent: Binding<Bool> {
-        Binding<Bool>(get: { !wrappedValue.isEmpty }, set: { if !$0 { wrappedValue = Value() } })
+        Binding<Bool>(get: { !wrappedValue.isEmpty }, set: { if !$0 { wrappedValue = [] } })
     }
 }
+
+/// `“a”, “b”` — quoted names for confirmation dialogs.
+func listed(_ names: [String]) -> String { names.map { "“\($0)”" }.joined(separator: ", ") }
 
 /// Copy for prune confirmations and the outcome toast.
 enum PruneText {

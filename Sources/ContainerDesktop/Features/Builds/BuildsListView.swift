@@ -52,7 +52,7 @@ struct BuildsListView: View {
         .confirmDestructive(title: pendingDelete.count == 1 ? "Remove this build from history?" : "Remove \(pendingDelete.count) builds from history?",
                             message: "Removes \(historyNames(pendingDelete)) and their logs from the local history. Built images are kept.",
                             actionTitle: "Remove",
-                            isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+                            isPresented: $pendingDelete.isPresent) {
             store.deleteHistory(pendingDelete)
             selection.subtract(pendingDelete)
         }
