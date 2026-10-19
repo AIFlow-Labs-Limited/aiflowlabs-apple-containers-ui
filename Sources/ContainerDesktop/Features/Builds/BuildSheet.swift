@@ -180,6 +180,11 @@ struct BuildSheet: View {
         if let chosen = draft.dockerfile, !dockerfiles.contains(chosen), !chosen.hasPrefix("/") {
             draft.dockerfile = nil
         }
+        // "Auto" means no `-f`, and the CLI only finds `Dockerfile` / `Containerfile` by itself. A context with just
+        // `Dockerfile.dev` showed "Auto (Dockerfile.dev)" and then failed, so pick such a file explicitly.
+        if draft.dockerfile == nil, let first = dockerfiles.first, !BuildContextInspector.knownNames.contains(first) {
+            draft.dockerfile = first
+        }
         loadStages()
     }
 
