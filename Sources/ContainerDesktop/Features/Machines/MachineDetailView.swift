@@ -86,14 +86,16 @@ private struct MachineOverview: View {
             ("CPUs", "\(machine.cpus)"),
             ("Memory", ByteCount.format(machine.memory)),
             ("Disk", ByteCount.format(machine.diskSize)),
-            ("Image", machine.image?.reference ?? ""),
+            // `machine ls` has no image and `machine inspect` may not either (e.g. a machine whose image was
+            // deleted); say so instead of an empty row.
+            ("Image", machine.image?.reference ?? "Unknown"),
             ("Home folder", HomeMountMode(rawValue: machine.homeMount ?? "")?.title ?? (machine.homeMount ?? "")),
             ("Platform", machine.platform?.slug ?? ""),
         ]
         if let u = machine.userSetup { rows.append(("User", "\(u.username) (uid \(u.uid), gid \(u.gid))")) }
         rows.append(("Created", machine.createdDate.map(RelativeDate.absolute) ?? ""))
         rows.append(("Terminal", "container machine run -n \(machine.name)"))
-        return rows
+        return rows.filter { !$0.1.isEmpty }  // blank Home folder / Platform / Created rows read as broken
     }
 }
 
