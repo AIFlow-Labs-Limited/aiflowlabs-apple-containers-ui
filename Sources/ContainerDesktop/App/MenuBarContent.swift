@@ -10,6 +10,12 @@ struct MenuBarContent: View {
 
     var body: some View {
         Text("Container system: \(model.engine.label)\(model.engine.version.map { " (\($0))" } ?? "")")
+            // The main window's poller stops when that window closes; refresh when the menu opens so it is current.
+            // TODO(merge): drop once AppModel owns a background poll lane in Poller.
+            .onAppear {
+                guard model.engine.isRunning, !model.containers.poller.isRunning else { return }
+                Task { await model.containers.refresh() }
+            }
         Divider()
         if model.engine.isRunning {
             let running = model.containers.running
@@ -35,7 +41,9 @@ struct MenuBarContent: View {
             .keyboardShortcut("o")
         switch model.engine {
         case .running:
-            Button("Stop container system") { Task { await model.stopEngine() } }
+            Button("Stop container system…") {
+                if EngineStopConfirmation.confirmModally(model: model) { Task { await model.stopEngine() } }
+            }
         case .stopped, .error:
             Button("Start container system") { Task { await model.startEngine() } }
         default:
