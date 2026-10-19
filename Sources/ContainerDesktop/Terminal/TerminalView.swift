@@ -1,11 +1,27 @@
 import AppKit
 import ContainerKit
+import DesignSystem
 import SwiftTerm
 import SwiftUI
 
-/// Embedded terminal (SwiftTerm `LocalProcessTerminalView`) running a `ContainerKit.CommandLine` produced by
-/// `backend.terminalCommand(for:)`. Never builds CLI arguments itself.
-struct TerminalView: NSViewRepresentable {
+/// Embedded terminal running a `ContainerKit.CommandLine` produced by `backend.terminalCommand(for:)`. Never builds
+/// CLI arguments itself. Adds an inset in the terminal's own background colour so the prompt does not touch the
+/// pane edge.
+struct TerminalView: View {
+    let command: ContainerKit.CommandLine
+    var fontSize: CGFloat = NSFont.systemFontSize
+    var onExit: ((Int32?) -> Void)?
+
+    var body: some View {
+        TerminalHostView(command: command, fontSize: fontSize, onExit: onExit)
+            .padding(.leading, Spacing.s)
+            .padding(.vertical, Spacing.xs)
+            .background(Color(nsColor: .textBackgroundColor))  // = SwiftTerm's configureNativeColors() background
+    }
+}
+
+/// The SwiftTerm `LocalProcessTerminalView` host behind `TerminalView`.
+struct TerminalHostView: NSViewRepresentable {
     let command: ContainerKit.CommandLine
     var fontSize: CGFloat = NSFont.systemFontSize
     var onExit: ((Int32?) -> Void)?
