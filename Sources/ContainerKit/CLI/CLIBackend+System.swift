@@ -50,9 +50,11 @@ extension CLIBackend {
         try await decode(DiskUsage.self, ["system", "df", "--format", "json"])
     }
 
-    /// The last `lines` lines of `container system logs --last 1h`.
+    /// The last `lines` lines of `container system logs --last WINDOW`; the window grows with the request
+    /// (≤ 500 lines → `5m`, else `1h`) so a small request never buffers an hour of logs.
     public func systemLogs(lines: Int) async throws -> [OutputLine] {
-        let result = try await execute(["system", "logs", "--last", "1h"])
+        let window = lines <= 500 ? "5m" : "1h"
+        let result = try await execute(["system", "logs", "--last", window])
         return Self.lines(result.stdoutText).suffix(max(0, lines)).map { OutputLine($0) }
     }
 
@@ -93,12 +95,16 @@ extension CLIBackend {
         }
     }
 
-    /// Writes `config.toml` atomically, creating its directory when needed.
+    /// Writes `config.toml` atomically, creating its directory when needed. A symlinked config (dotfiles)
+    /// is written through to its target, and the existing file's POSIX permissions are kept.
     public func writeConfigTOML(_ text: String) async throws {
-        let url = configFileURL
+        let url = configFileURL.resolvingSymlinksInPath()
+        let fm = FileManager.default
         do {
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let permissions = (try? fm.attributesOfItem(atPath: url.path))?[.posixPermissions]
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data(text.utf8).write(to: url, options: .atomic)
+            if let permissions { try fm.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path) }
         } catch {
             throw BackendError.other("Could not write \(url.path): \(error.localizedDescription)")
         }

@@ -356,6 +356,7 @@ public actor MockBackend: ContainerBackend {
     // MARK: Kubernetes
 
     public func kubernetesAvailable() async -> Bool { true }
+    public func checkKubernetesAvailable() async throws -> Bool { try requireRunning(); return true }
     public func listClusters() async throws -> [KubernetesCluster] { try requireRunning(); await wait(); return clusters }
     public nonisolated func createCluster(_ spec: ClusterSpec) -> LineStream {
         stream(["Pulling node image kindest/node:v1.35.5", "Creating control-plane node \(spec.name)", "Initializing kubeadm", "Installing kindnet CNI",

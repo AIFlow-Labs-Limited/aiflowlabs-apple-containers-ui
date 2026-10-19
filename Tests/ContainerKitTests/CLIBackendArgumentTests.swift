@@ -23,7 +23,7 @@ struct CLIBackendArgumentTests {
         default: break
         }
         if args.first == "inspect" { return fixture("container-inspect.json") }
-        if args == ["system", "logs", "--last", "1h"] { return ProcessResult(stdout: "l1\nl2\nl3\n") }
+        if args == ["system", "logs", "--last", "5m"] { return ProcessResult(stdout: "l1\nl2\nl3\n") }
         return ProcessResult(stdout: "[]")
     }
 
@@ -51,7 +51,7 @@ struct CLIBackendArgumentTests {
             ["system", "stop"],
             ["system", "property", "ls", "--format", "json"],
             ["system", "df", "--format", "json"],
-            ["system", "logs", "--last", "1h"],
+            ["system", "logs", "--last", "5m"],
             ["system", "dns", "ls", "--format", "json"],
         ])
         #expect(calls[7] == ["/usr/bin/osascript", "-e",

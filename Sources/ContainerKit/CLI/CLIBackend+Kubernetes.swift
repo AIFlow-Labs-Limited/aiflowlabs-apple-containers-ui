@@ -3,9 +3,27 @@ import Foundation
 // MARK: - KubernetesOperations
 
 extension CLIBackend {
-    /// `container k8s --help` exits 0 only when the plugin exists and the system is running.
+    /// `container k8s --help`: `true` when it exits 0, `false` only when the plugin is missing
+    /// (`unknown command 'k8s'` / `Plugins are unavailable` while `system status` succeeds).
+    /// Throws `.systemNotRunning` when the system is down, and any other failure as mapped.
+    public func checkKubernetesAvailable() async throws -> Bool {
+        let arguments = ["k8s", "--help"]
+        let result = try await runRaw(arguments, timeout: .seconds(15))
+        if result.exitCode == 0 { return true }
+        let raw = result.stderrText + result.stdoutText
+        if CLIErrorMapper.indicatesSystemNotRunning(raw) { throw BackendError.systemNotRunning }
+        if raw.localizedCaseInsensitiveContains("unknown command") || CLIErrorMapper.isPluginsUnavailable(raw) {
+            // Both messages are also printed when services are down; ask `system status` to tell them apart.
+            let status = try? await runner.run([executable, "system", "status"], stdin: nil, timeout: .seconds(15), environment: [:])
+            if status?.exitCode == 0 { return false }
+            throw BackendError.systemNotRunning
+        }
+        throw await failure(arguments, result)
+    }
+
+    /// Compatibility shim: `checkKubernetesAvailable()` with every error read as `false`.
     public func kubernetesAvailable() async -> Bool {
-        (try? await runRaw(["k8s", "--help"], timeout: .seconds(15)))?.exitCode == 0
+        (try? await checkKubernetesAvailable()) ?? false
     }
 
     /// `container k8s ls` (table only in 1.5.0), grouped into clusters.

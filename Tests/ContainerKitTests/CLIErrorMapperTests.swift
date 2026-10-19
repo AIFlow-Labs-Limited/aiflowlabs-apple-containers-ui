@@ -43,7 +43,7 @@ struct CLIErrorMapperTests {
 
     @Test func userCancelledAdminPrompt() {
         let stderr = "0:120: execution error: User canceled. (-128)\n"
-        #expect(CLIErrorMapper.map(command: "osascript", exitCode: 1, stderr: stderr) == .cancelled)
+        #expect(CLIErrorMapper.indicatesUserCancelled(stderr))
     }
 
     @Test func progressLineDetection() {
