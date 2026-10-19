@@ -76,6 +76,13 @@ struct ContainersTable: View {
             ui.selection = ids
             ui.showDetail = true
         }
+        // ⌘⌫ deletes the selection only while the table has focus (never while typing in a search field).
+        .onKeyPress(keys: [.delete], phases: .down) { press in
+            guard press.modifiers == .command, !ui.selection.isEmpty else { return .ignored }
+            actions.requestDelete(Array(ui.selection))
+            return .handled
+        }
+        .alternatingRowBackgrounds(.disabled)   // no striped "rows" below the content
         .onAppear(perform: loadColumns)
         .onChange(of: columns) { saveColumns() }
         .accessibilityLabel("Containers")

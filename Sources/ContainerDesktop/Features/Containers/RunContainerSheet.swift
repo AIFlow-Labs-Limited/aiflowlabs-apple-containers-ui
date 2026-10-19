@@ -17,6 +17,8 @@ struct RunContainerSheet: View {
     @State private var suggestMessage: String?
     @State private var showAdvanced = false
     @State private var loadedLastUsedFor: String?
+    /// Remembered settings for the image being typed; decoded on image change, not on every render.
+    @State private var lastForImage: RunFormValues?
 
     init(prefill: RunSpec? = nil, onLaunched: @escaping (String) -> Void = { _ in }) {
         self.onLaunched = onLaunched
@@ -40,7 +42,7 @@ struct RunContainerSheet: View {
             HStack {
                 Text("Run a New Container").font(.title2.bold())
                 Spacer()
-                if loadedLastUsedFor != form.image, let last = RunFormValues.lastUsed(for: form.image) {
+                if loadedLastUsedFor != form.image, let last = lastForImage, last.image == form.image {
                     Button("Use Last Settings for This Image") { apply(last) }
                         .controlSize(.small)
                 }
@@ -80,6 +82,7 @@ struct RunContainerSheet: View {
             footer
         }
         .frame(width: 680, height: 760)
+        .onChange(of: form.image, initial: true) { lastForImage = RunFormValues.lastUsed(for: form.image) }
         .task {
             if model.images.items.isEmpty { await model.images.refresh() }
             if model.networks.items.isEmpty { await model.networks.refresh() }
@@ -106,8 +109,11 @@ struct RunContainerSheet: View {
                 .accessibilityElement(children: .combine)
             }
             HStack(alignment: .top, spacing: Spacing.s) {
+                // Secrets are masked in the preview; Copy asks whether to include them.
+                // TODO(merge): `spec.commandLineString(maskSecrets: true)`.
+                let preview = ContainerSecrets.runCommandLine(spec, maskSecrets: true)
                 ScrollView(.vertical) {
-                    Text(spec.commandLineString)
+                    Text(preview)
                         .font(.monoCaption)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,8 +121,15 @@ struct RunContainerSheet: View {
                 .frame(maxHeight: 54)
                 .padding(Spacing.s)
                 .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.small))
-                .accessibilityLabel("Command preview: \(spec.commandLineString)")
-                CopyButton(spec.commandLineString, label: "Copy command")
+                .accessibilityLabel("Command preview: \(preview)")
+                Button {
+                    if let text = SecretCopyPrompt.runCommand(for: spec) { copyToPasteboard(text) }
+                } label: {
+                    SwiftUI.Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Copy command")
+                .accessibilityLabel("Copy command")
             }
             HStack {
                 Spacer()
@@ -143,13 +156,15 @@ struct RunContainerSheet: View {
     private func suggestPorts() {
         let reference = spec.image
         let backend = model.backend
+        // EXPOSE can differ per variant: read the one that will run (Automatic = native arm64).
+        let architecture = form.platform == .amd64 ? "amd64" : "arm64"
         suggesting = true
         suggestMessage = nil
         Task {
             defer { suggesting = false }
             do {
                 let image = try await backend.inspectImage(reference)
-                let exposed = (image.variants.first { $0.platform.architecture == "arm64" } ?? image.variants.first)?
+                let exposed = (image.variants.first { $0.platform.architecture == architecture } ?? image.variants.first)?
                     .config?.config?.exposedPortList ?? []
                 let mapped = Set(form.ports.map(\.container))
                 var added = 0

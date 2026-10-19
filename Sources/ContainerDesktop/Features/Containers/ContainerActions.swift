@@ -18,9 +18,18 @@ struct ContainerActions {
 
     // MARK: Lifecycle
 
-    func start(_ ids: [String]) { let ids = store.containerIDs(for: ids); Task { await store.start(ids) } }
-    func stop(_ ids: [String]) { let ids = store.containerIDs(for: ids); Task { await store.stop(ids) } }
-    func restart(_ ids: [String]) { let ids = store.containerIDs(for: ids); Task { await store.restart(ids) } }
+    func start(_ ids: [String]) {
+        let ids = store.containerIDs(for: ids)
+        Task { report(await store.start(ids), verb: "Started", quietOnSuccess: true) }
+    }
+    func stop(_ ids: [String]) {
+        let ids = store.containerIDs(for: ids)
+        Task { report(await store.stop(ids), verb: "Stopped", quietOnSuccess: true) }
+    }
+    func restart(_ ids: [String]) {
+        let ids = store.containerIDs(for: ids)
+        Task { report(await store.restart(ids), verb: "Restarted", quietOnSuccess: true) }
+    }
     func requestKill(_ ids: [String]) { ui.pendingKill = store.containerIDs(for: ids) }
     func requestDelete(_ ids: [String]) { ui.pendingDelete = store.containerIDs(for: ids) }
 
@@ -30,18 +39,28 @@ struct ContainerActions {
         let ids = ui.pendingDelete
         ui.pendingDelete = []
         Task {
-            await store.delete(ids, force: true)
-            ui.selection.subtract(ids)
-            if store.lastError == nil {
-                model.toasts.success(ids.count == 1 ? "Deleted \(ids[0])" : "Deleted \(ids.count) containers")
-            }
+            // `force` only reaches running containers (they are killed, then removed).
+            let result = await store.delete(ids, force: true)
+            ui.selection.subtract(result.succeeded)
+            report(result, verb: "Deleted", quietOnSuccess: false)
         }
     }
 
     func confirmKill() {
         let ids = ui.pendingKill
         ui.pendingKill = []
-        Task { await store.kill(ids) }
+        Task { report(await store.kill(ids), verb: "Killed", quietOnSuccess: true) }
+    }
+
+    /// Bulk outcome as a toast: "Deleted 8 of 10 containers; failed: a (message), …".
+    private func report(_ result: ContainersBulkResult, verb: String, quietOnSuccess: Bool) {
+        guard result.attempted > 0 else { return }
+        if result.isSuccess {
+            if !quietOnSuccess || result.attempted > 1 { model.toasts.success(result.summary(verb: verb)) }
+        } else {
+            model.toasts.error(result.succeeded.isEmpty ? "Action failed" : "Partly completed",
+                               message: result.summary(verb: verb))
+        }
     }
 
     // MARK: Navigation
@@ -60,7 +79,9 @@ struct ContainerActions {
         let backend = model.backend
         Task {
             let config = await Self.imageConfig(for: c, backend: backend)
-            copyToPasteboard(RunSpec(recreating: c, imageConfig: config).commandLineString)
+            let spec = RunSpec(recreating: c, imageConfig: config)
+            guard let text = SecretCopyPrompt.runCommand(for: spec) else { return }
+            copyToPasteboard(text)
             model.toasts.info("Copied container run command", message: c.id)
         }
     }

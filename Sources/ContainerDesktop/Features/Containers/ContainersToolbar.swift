@@ -3,7 +3,8 @@ import ContainerKit
 import AppCore
 import DesignSystem
 
-/// Toolbar for the containers section: Run (⌘N), bulk lifecycle actions, view options.
+/// Toolbar for the containers section: Run (⌘N lives in the File menu), bulk lifecycle actions, view options.
+/// ⌘⌫ (Delete) is handled by the table itself so it never fires while a text field is being edited.
 struct ContainersToolbar: ToolbarContent {
     let model: AppModel
     let ui: ContainersUIState
@@ -17,7 +18,6 @@ struct ContainersToolbar: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
             Button { actions.run() } label: { Label("Run", systemImage: "plus") }
-                .keyboardShortcut("n", modifiers: .command)
                 .help("Run a new container (⌘N)")
                 .accessibilityLabel("Run a new container")
         }
@@ -25,12 +25,13 @@ struct ContainersToolbar: ToolbarContent {
             ToolbarActionButton("Start", systemImage: "play.fill") { actions.start(selectedIDs) }
                 .disabled(!selected.contains { !$0.isRunning })
             ToolbarActionButton("Stop", systemImage: "stop.fill") { actions.stop(selectedIDs) }
-                .keyboardShortcut(".", modifiers: .command)
+                .keyboardShortcut(".", modifiers: [.command, .shift])
+                .help("Stop selected containers (⇧⌘.)")
                 .disabled(!selected.contains(where: \.isRunning))
             ToolbarActionButton("Restart", systemImage: "arrow.clockwise.circle") { actions.restart(selectedIDs) }
                 .disabled(selected.isEmpty)
             ToolbarActionButton("Delete", systemImage: "trash", role: .destructive) { actions.requestDelete(selectedIDs) }
-                .keyboardShortcut(.delete, modifiers: .command)
+                .help("Delete selected containers (⌘⌫ in the list)")
                 .disabled(selected.isEmpty)
             Menu {
                 Toggle("Show Stopped Containers", isOn: Binding(
@@ -43,7 +44,7 @@ struct ContainersToolbar: ToolbarContent {
                 Toggle("Group by Project", isOn: $groupByProject)
                 Divider()
                 Button("Prune Stopped Containers…") { requestPrune() }
-                    .disabled(!store.items.contains { !$0.isRunning && !$0.isSystemManaged })
+                    .disabled(store.prunable.isEmpty)
             } label: {
                 Label("View Options", systemImage: "line.3.horizontal.decrease.circle")
             }
@@ -52,6 +53,6 @@ struct ContainersToolbar: ToolbarContent {
     }
 
     private func requestPrune() {
-        ui.pendingDelete = store.items.filter { !$0.isRunning && !$0.isSystemManaged }.map(\.id)
+        ui.pendingDelete = store.prunable.map(\.id)
     }
 }

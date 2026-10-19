@@ -38,7 +38,7 @@ struct TerminalPanel: View {
         HStack(spacing: Spacing.s) {
             Image(systemName: "terminal").foregroundStyle(.secondary).accessibilityHidden(true)
             Text("Terminal").font(.callout.weight(.semibold))
-            Text("`container` is on PATH").font(.caption).foregroundStyle(.secondary)
+            Text("PATH includes /usr/local/bin (where `container` installs)").font(.caption).foregroundStyle(.secondary)
             Spacer()
             Button { restart() } label: { Image(systemName: "plus") }
                 .buttonStyle(.borderless)
@@ -60,7 +60,7 @@ struct TerminalPanel: View {
             .frame(height: 5)
             .overlay(Divider(), alignment: .top)
             .contentShape(Rectangle())
-            .onHover { inside in if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() } }
+            .pointerStyle(.rowResize)   // balanced by SwiftUI, unlike NSCursor.push/pop on hover
             .gesture(DragGesture(minimumDistance: 1).onChanged { value in
                 let start = dragStart ?? height
                 dragStart = start

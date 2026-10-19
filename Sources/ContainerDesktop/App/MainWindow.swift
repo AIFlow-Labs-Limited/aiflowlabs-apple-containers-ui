@@ -8,6 +8,7 @@ struct MainWindow: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
     @FocusState private var searchFocused: Bool
+    @State private var confirmingEngineStop = false
 
     private var section: SidebarSection { model.navigation.section ?? .containers }
 
@@ -33,7 +34,16 @@ struct MainWindow: View {
         .searchable(text: searchBinding, placement: .toolbar, prompt: "Search \(section.title.lowercased())")
         .searchFocused($searchFocused)
         .toolbar { toolbarContent }
-        .sheet(isPresented: $nav.isPaletteOpen) { CommandPaletteView() }
+        .sheet(isPresented: $nav.isPaletteOpen) {
+            CommandPaletteView {
+                // Present after the palette sheet has gone so the alert attaches to the window.
+                Task { try? await Task.sleep(for: .milliseconds(250)); confirmingEngineStop = true }
+            }
+        }
+        .confirmDestructive(title: EngineStopConfirmation.title, message: EngineStopConfirmation.message(for: model),
+                            actionTitle: EngineStopConfirmation.actionTitle, isPresented: $confirmingEngineStop) {
+            Task { await model.stopEngine() }
+        }
         .sheet(isPresented: $nav.isCleanupOpen) { CleanupSheet() }
         .overlay(alignment: .bottomTrailing) { ToastOverlay().padding(.bottom, 40).padding(.trailing, Spacing.l) }
         .background {

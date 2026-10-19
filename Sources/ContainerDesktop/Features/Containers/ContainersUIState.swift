@@ -20,18 +20,6 @@ enum ContainerDetailTab: String, CaseIterable, Identifiable, Codable {
         case .environment: return "Environment"
         }
     }
-
-    var symbol: String {
-        switch self {
-        case .logs: return "text.alignleft"
-        case .inspect: return "info.circle"
-        case .terminal: return "terminal"
-        case .stats: return "chart.xyaxis.line"
-        case .mounts: return "externaldrive"
-        case .ports: return "point.3.connected.trianglepath.dotted"
-        case .environment: return "list.bullet.rectangle"
-        }
-    }
 }
 
 /// Presents the Run sheet, optionally prefilled (from an image, a deep link, or "Run similar").
@@ -54,8 +42,6 @@ final class ContainersUIState {
     /// Project groups the user collapsed.
     var collapsedProjects = Set<String>()
     var sortOrder: [KeyPathComparator<ContainerRow>] = [KeyPathComparator(\ContainerRow.name)]
-    /// 5-minute stats history per container, kept while the Containers section is open.
-    let statsHistory = ContainerStatsHistory(window: 300)
     /// Per-container selected tab, persisted across launches.
     private(set) var tabs: [String: ContainerDetailTab]
 
@@ -77,7 +63,8 @@ final class ContainersUIState {
     func setTab(_ tab: ContainerDetailTab, for id: String) {
         guard tabs[id] != tab else { return }
         tabs[id] = tab
-        // Keep the dictionary small: forget the oldest entries beyond 200 containers.
+        // Keep the dictionary small beyond 200 containers by dropping an arbitrary entry (the alphabetically
+        // first key — insertion order is not tracked; losing a remembered tab is harmless).
         if tabs.count > 200, let victim = tabs.keys.sorted().first { tabs[victim] = nil }
         if let data = try? JSONEncoder().encode(tabs) { defaults.set(data, forKey: Self.tabsKey) }
     }

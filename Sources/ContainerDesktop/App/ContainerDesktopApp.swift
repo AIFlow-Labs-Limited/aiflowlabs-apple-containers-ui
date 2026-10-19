@@ -11,7 +11,9 @@ struct ContainerDesktopApp: App {
     @State private var model = AppModel.make(mock: { MockBackend() })
 
     var body: some Scene {
-        WindowGroup("Container Desktop", id: SceneID.main) {
+        // One main window: `openWindow(id: SceneID.main)` brings it to the front instead of creating a second one
+        // (every window would otherwise share one NavigationModel, palette and terminal).
+        Window("Container Desktop", id: SceneID.main) {
             MainWindow()
                 .appModelEnvironment(model)
                 .preferredColorScheme(model.settings.appearance.colorScheme)

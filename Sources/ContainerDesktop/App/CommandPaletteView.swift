@@ -10,6 +10,8 @@ struct CommandPaletteView: View {
     @Environment(\.openSettings) private var openSettings
     @FocusState private var focused: Bool
     @State private var highlighted = 0
+    /// Asks the presenting window to confirm `container system stop` (the palette closes first).
+    var requestEngineStop: () -> Void = {}
 
     var body: some View {
         @Bindable var palette = model.palette
@@ -71,7 +73,7 @@ struct CommandPaletteView: View {
         switch item.action {
         case .navigate(let section, let id): model.navigation.open(section, select: id)
         case .startEngine: Task { await model.startEngine() }
-        case .stopEngine: Task { await model.stopEngine() }
+        case .stopEngine: requestEngineStop()
         case .cleanUp: model.navigation.isCleanupOpen = true
         case .openSettings: openSettings()
         case .openActivity: openWindow(id: SceneID.activity)
