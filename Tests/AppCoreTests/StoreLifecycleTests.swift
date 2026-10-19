@@ -225,6 +225,7 @@ func eventually(timeout: Duration = .seconds(3), _ condition: () -> Bool) async 
         let model = TestSupport.model()
         await model.bootstrap()
         #expect(model.containers.poller.backgroundInterval == AppModel.backgroundPollInterval)
+        #expect(model.enginePoller.backgroundInterval == AppModel.engineBackgroundPollInterval)
         #expect(model.containers.poller.backgroundClientCount == 1)
         model.settings.menuBarEnabled = false
         model.settings.notificationsEnabled = false
