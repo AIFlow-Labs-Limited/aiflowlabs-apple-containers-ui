@@ -122,3 +122,12 @@ render(
         header: CGPoint(x: 0, y: 44), headerCentered: true,
         shot: CGRect(x: (1280 - socialShotW) / 2, y: 182, width: socialShotW, height: socialShotW * aspect)),
     to: "docs/launch/social-preview.png")
+
+// X article cover 2400×960 (5:2, X crops anything else): header at the top, screenshot bleeding off the bottom.
+let coverShotW: CGFloat = 1960
+render(
+    Layout(
+        size: CGSize(width: 2400, height: 960), iconSize: 150, titleSize: 80, taglineSize: 36,
+        header: CGPoint(x: 0, y: 64), headerCentered: true,
+        shot: CGRect(x: (2400 - coverShotW) / 2, y: 280, width: coverShotW, height: coverShotW * aspect)),
+    to: "docs/launch/x-cover.png")
