@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ContainerKit
 import ContainerKitMock
 import AppCore
@@ -81,23 +82,58 @@ struct ContainerDetailView: View {
         .padding(.vertical, Spacing.s)
     }
 
-    @ViewBuilder
     private var content: some View {
-        switch tab.wrappedValue {
-        case .logs: ContainerLogsTab(container: container)
-        case .inspect: ContainerInspectTab(container: container)
-        case .terminal: ContainerTerminalTab(container: container, actions: actions)
-        case .stats: ContainerStatsTab(container: container, history: ui.statsHistory)
-        case .mounts: ContainerMountsTab(container: container)
-        case .ports: ContainerPortsTab(container: container, actions: actions)
-        case .environment: ContainerEnvironmentTab(container: container)
-        }
+        DetailTabContent(container: container, tab: tab.wrappedValue, actions: actions,
+                         statsHistory: actions.model.containers.statsHistory)
     }
 
     private func iconButton(_ title: String, _ symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) { SwiftUI.Image(systemName: symbol) }
             .help(title)
             .accessibilityLabel(title)
+    }
+}
+
+/// The selected tab's content. The Terminal tab stays mounted (hidden) once opened so switching tabs keeps its
+/// `container exec` session alive; it is reset per container by the parent's `.id(container.id)`.
+private struct DetailTabContent: View {
+    let container: Container
+    let tab: ContainerDetailTab
+    let actions: ContainerActions
+    let statsHistory: ContainerStatsHistory
+    @State private var terminalMounted = false
+
+    var body: some View {
+        ZStack {
+            if terminalMounted || tab == .terminal {
+                ContainerTerminalTab(container: container, actions: actions)
+                    .opacity(tab == .terminal ? 1 : 0)
+                    .allowsHitTesting(tab == .terminal)
+                    .accessibilityHidden(tab != .terminal)
+            }
+            if tab != .terminal {
+                other.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.background)
+            }
+        }
+        .onChange(of: tab, initial: true) { old, new in
+            if new == .terminal { terminalMounted = true }
+            // Keystrokes must not keep going to the hidden shell.
+            if old == .terminal, new != .terminal { NSApp.keyWindow?.makeFirstResponder(nil) }
+        }
+    }
+
+    @ViewBuilder
+    private var other: some View {
+        switch tab {
+        case .logs: ContainerLogsTab(container: container)
+        case .inspect: ContainerInspectTab(container: container)
+        case .terminal: EmptyView()
+        case .stats: ContainerStatsTab(container: container, history: statsHistory)
+        case .mounts: ContainerMountsTab(container: container)
+        case .ports: ContainerPortsTab(container: container, actions: actions)
+        case .environment: ContainerEnvironmentTab(container: container)
+        }
     }
 }
 

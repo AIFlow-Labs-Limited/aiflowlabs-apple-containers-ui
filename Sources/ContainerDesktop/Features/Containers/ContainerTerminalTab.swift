@@ -6,6 +6,9 @@ import AppCore
 import DesignSystem
 
 /// Terminal tab: shell picker, embedded `container exec -it` session, or hand-off to Terminal.app.
+///
+/// `ContainerDetailView` keeps this view mounted (hidden) after it was first shown, so switching to another
+/// detail tab does not kill the session. Ending an active session (Reconnect / Close) asks first.
 struct ContainerTerminalTab: View {
     let container: Container
     let actions: ContainerActions
@@ -13,8 +16,11 @@ struct ContainerTerminalTab: View {
     @AppStorage("containers.terminal.shell") private var shell = Shell.sh.rawValue
     @AppStorage("containers.terminal.customShell") private var customShell = "/bin/ash"
     @State private var session: UUID?
+    /// The command the running session was started with (the picker may change meanwhile).
+    @State private var sessionCommand: ContainerKit.CommandLine?
     @State private var exitCode: Int32?
     @State private var exited = false
+    @State private var pendingEnd: PendingEnd?
 
     enum Shell: String, CaseIterable, Identifiable {
         case sh, bash, zsh, custom
@@ -22,16 +28,28 @@ struct ContainerTerminalTab: View {
         var title: String { self == .custom ? "Custom…" : rawValue }
     }
 
+    private enum PendingEnd: Identifiable {
+        case reconnect, close
+        var id: Self { self }
+    }
+
+    private var isCustom: Bool { shell == Shell.custom.rawValue }
+    private var shellError: String? { isCustom ? ContainerShell.validationError(customShell) : nil }
+    private var sessionActive: Bool { session != nil && !exited }
+
     private var command: [String] {
         switch Shell(rawValue: shell) ?? .sh {
-        case .custom: return ShellWords.split(customShell).isEmpty ? ["sh"] : ShellWords.split(customShell)
+        case .custom: return [customShell.trimmingCharacters(in: .whitespaces)]
         case let s: return [s.rawValue]
         }
     }
 
-    private var commandLine: ContainerKit.CommandLine {
+    private var pickerCommandLine: ContainerKit.CommandLine {
         model.backend.terminalCommand(for: .container(id: container.id, command: command))
     }
+
+    /// What the preview / copy / Terminal.app show: the live session's command while one runs.
+    private var shownCommandLine: ContainerKit.CommandLine { sessionActive ? (sessionCommand ?? pickerCommandLine) : pickerCommandLine }
 
     var body: some View {
         if !container.isRunning {
@@ -43,17 +61,27 @@ struct ContainerTerminalTab: View {
             VStack(spacing: 0) {
                 controls
                 Divider()
-                if let session {
-                    TerminalView(command: commandLine) { code in
+                if let session, let sessionCommand {
+                    TerminalView(command: sessionCommand) { code in
                         Task { @MainActor in exitCode = code; exited = true }
                     }
                     .id(session)
                     .overlay(alignment: .bottom) { if exited { exitBanner } }
                 } else {
                     EmptyStateView(symbol: "terminal", title: "Open a shell",
-                                   message: "Runs \(commandLine.display)", actionTitle: "Open") { open() }
+                                   message: shellError ?? "Runs \(Self.quoted(pickerCommandLine))",
+                                   actionTitle: shellError == nil ? "Open" : nil) { open() }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+            }
+            .confirmationDialog("End the running shell session?", isPresented: Binding(
+                get: { pendingEnd != nil }, set: { if !$0 { pendingEnd = nil } }), presenting: pendingEnd) { action in
+                Button(action == .reconnect ? "End and Reconnect" : "End Session", role: .destructive) {
+                    action == .reconnect ? open() : close()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { _ in
+                Text("Anything running in the shell inside \(container.id) is stopped.")
             }
         }
     }
@@ -64,26 +92,38 @@ struct ContainerTerminalTab: View {
                 ForEach(Shell.allCases) { Text($0.title).tag($0.rawValue) }
             }
             .fixedSize()
-            if shell == Shell.custom.rawValue {
-                TextField("Command", text: $customShell)
+            if isCustom {
+                TextField("Shell path", text: $customShell, prompt: Text("/bin/ash"))
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
-                    .onSubmit(open)
+                    .font(.monoCaption)
+                    .frame(width: 160)
+                    .onSubmit { if !sessionActive { open() } }
+                    .help(shellError ?? "An absolute path or a shell name such as ash, bash, zsh")
+                if let shellError {
+                    SwiftUI.Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.statusError)
+                        .help(shellError)
+                        .accessibilityLabel(shellError)
+                }
             }
-            Button(session == nil ? "Open" : "Reconnect", systemImage: "play.fill", action: open)
-                .keyboardShortcut(.return, modifiers: .command)
+            // No ⌘↩ here: a stray shortcut must not end a live session.
+            Button(session == nil ? "Open" : "Reconnect", systemImage: "play.fill") {
+                sessionActive ? (pendingEnd = .reconnect) : open()
+            }
+            .disabled(shellError != nil)
             if session != nil {
-                Button("Close", systemImage: "xmark") { session = nil; exited = false }
+                Button("Close", systemImage: "xmark") { sessionActive ? (pendingEnd = .close) : close() }
             }
             Spacer()
-            Text(commandLine.display)
+            Text(Self.quoted(shownCommandLine))
                 .font(.monoCaption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
-            CopyButton(commandLine.display, label: "Copy command")
+            CopyButton(Self.quoted(shownCommandLine), label: "Copy command")
             Button("Open in Terminal.app", systemImage: "macwindow", action: openInTerminalApp)
+                .disabled(shellError != nil && !sessionActive)
         }
         .controlSize(.small)
         .padding(.horizontal, Spacing.m)
@@ -102,21 +142,40 @@ struct ContainerTerminalTab: View {
     }
 
     private func open() {
+        guard shellError == nil else { return }
         exited = false
         exitCode = nil
+        sessionCommand = pickerCommandLine
         session = UUID()
     }
 
-    /// Writes a throwaway `.command` script (the backend's command line, shell-quoted) and opens it in Terminal.app.
+    private func close() {
+        session = nil
+        sessionCommand = nil
+        exited = false
+    }
+
+    /// Every word single-quoted, so the line is safe to paste into a shell or run from a script.
+    // TODO(merge): use ContainerKit `ShellQuote` / the fixed `CommandLine.display`.
+    static func quoted(_ command: ContainerKit.CommandLine) -> String {
+        ContainerShell.quoted([command.executable] + command.arguments)
+    }
+
+    /// Writes a throwaway `.command` script (the backend's command line, every word single-quoted) and opens it in
+    /// Terminal.app.
     private func openInTerminalApp() {
+        let commandLine = shownCommandLine
         let dir = FileManager.default.temporaryDirectory.appending(path: "ContainerDesktop", directoryHint: .isDirectory)
         let url = dir.appending(path: "exec-\(container.id)-\(UUID().uuidString.prefix(8)).command")
+        let exports = commandLine.environment.sorted { $0.key < $1.key }
+            .filter { $0.key.range(of: "^[A-Za-z_][A-Za-z0-9_]*$", options: .regularExpression) != nil }
+            .map { "export \($0.key)=\(ContainerShell.quoted([$0.value]))\n" }.joined()
         let script = """
         #!/bin/zsh
         # Generated by Container Desktop — deletes itself after starting.
         rm -f "$0"
         export PATH="/usr/local/bin:$PATH"
-        exec \(commandLine.display)
+        \(exports)exec \(Self.quoted(commandLine))
 
         """
         do {
