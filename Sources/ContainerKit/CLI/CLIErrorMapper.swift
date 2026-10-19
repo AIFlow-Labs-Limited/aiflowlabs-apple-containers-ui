@@ -26,7 +26,10 @@ enum CLIErrorMapper {
     /// The apiserver is definitely down (`container system status` and friends say so explicitly).
     static func indicatesSystemNotRunning(_ text: String) -> Bool {
         let lower = text.lowercased()
+        // CLI 1.5.0 list/inspect commands with the engine stopped: `Error: interrupted: "XPC connection error:
+        // Connection invalid"` + "Ensure container system service has been started with `container system start`."
         return lower.contains("apiserver is not running") || lower.contains("not registered with launchd")
+            || lower.contains("ensure container system service has been started")
     }
 
     /// `Plugins are unavailable` is printed both when services are down and for a mistyped subcommand, so

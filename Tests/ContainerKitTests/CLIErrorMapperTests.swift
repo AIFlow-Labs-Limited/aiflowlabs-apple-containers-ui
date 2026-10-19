@@ -5,6 +5,14 @@ import Testing
 
 @Suite("CLIErrorMapper")
 struct CLIErrorMapperTests {
+    @Test func xpcConnectionInvalidMeansSystemNotRunning() {
+        let stderr = """
+            Error: interrupted: "XPC connection error: Connection invalid"
+            Ensure container system service has been started with `container system start`.
+            """
+        #expect(CLIErrorMapper.map(command: "container image ls", exitCode: 1, stderr: stderr) == .systemNotRunning)
+    }
+
     @Test func systemNotRunning() {
         let stderr = "Error: apiserver is not running and not registered with launchd\n"
         #expect(
