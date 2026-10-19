@@ -45,8 +45,8 @@ import ContainerKit
         // 3. Run sheet preview / "Copy container run" (commandLineString)
         var spec = RunSpec(image: "alpine")
         spec.environment = [entry]
-        #expect(spec.commandLineString.contains(passwordPart(value)) == !secret, "\(key)")
-        #expect(spec.commandLineString(maskSecrets: false).contains(passwordPart(value)))
+        #expect(spec.commandLineString().contains(passwordPart(value)) == !secret, "\(key)")
+        #expect(spec.commandLineString.contains(passwordPart(value)))   // legacy property is unmasked
         // 4. Recreate copy
         // (RunSpec(recreating:) feeds the same commandLineString; covered by 3.)
         // 5. ErrorBanner failedCommand: masks every -e value, secret or not.

@@ -80,13 +80,13 @@ public extension RunSpec {
         capDrop = cfg.capDrop
     }
 
-    /// `container run …` as a shell-quoted one-liner, with secret `-e` values masked (`-e DB_PASSWORD=…`).
-    /// Use `commandLineString(maskSecrets: false)` for an explicit "Copy with secrets" action.
-    var commandLineString: String { commandLineString(maskSecrets: true) }
+    /// `container run …` as a shell-quoted one-liner, **unmasked** (legacy; secrets verbatim). For anything shown
+    /// on screen use `commandLineString()` / `commandLineString(maskSecrets: true)`.
+    var commandLineString: String { commandLineString(maskSecrets: false) }
 
-    /// `container run …` as a shell-quoted one-liner. `maskSecrets` replaces sensitive environment values
-    /// (`EnvironmentVariable.isSensitive`) for display.
-    func commandLineString(maskSecrets: Bool) -> String {
+    /// `container run …` as a shell-quoted one-liner. `maskSecrets` (default) replaces sensitive environment
+    /// values (`EnvironmentVariable.isSensitive`) with `KEY=…` for display.
+    func commandLineString(maskSecrets: Bool = true) -> String {
         var args = cliArguments
         if maskSecrets {
             var i = 0

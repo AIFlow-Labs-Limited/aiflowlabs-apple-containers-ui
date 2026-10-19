@@ -24,6 +24,33 @@ public struct BuildRecord: Codable, Identifiable, Hashable, Sendable {
     }
 
     public var duration: TimeInterval? { finishedAt.map { $0.timeIntervalSince(startedAt) } }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, tag, contextDirectory, platforms, startedAt, finishedAt, status, log, errorMessage
+    }
+
+    /// Tolerant decoding: fields added after v1 (and an unknown `status`) fall back to defaults instead of
+    /// failing the whole history file.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        tag = try c.decode(String.self, forKey: .tag)
+        contextDirectory = try c.decodeIfPresent(String.self, forKey: .contextDirectory) ?? ""
+        platforms = try c.decodeIfPresent([String].self, forKey: .platforms) ?? []
+        startedAt = try c.decodeIfPresent(Date.self, forKey: .startedAt) ?? Date(timeIntervalSince1970: 0)
+        finishedAt = try c.decodeIfPresent(Date.self, forKey: .finishedAt)
+        status = (try? c.decodeIfPresent(String.self, forKey: .status)).flatMap { $0.flatMap(Status.init(rawValue:)) } ?? .failed
+        log = try c.decodeIfPresent([String].self, forKey: .log) ?? []
+        errorMessage = try c.decodeIfPresent(String.self, forKey: .errorMessage)
+    }
+}
+
+/// On-disk build history (`builds.json`). v1 = `{ "version": 1, "records": [...] }`; a bare array (pre-v1) is
+/// still read.
+struct BuildHistoryFile: Codable {
+    static let currentVersion = 1
+    var version: Int
+    var records: [BuildRecord]
 }
 
 /// BuildKit builder status, builds (streamed through TaskCenter) and persisted history.
@@ -65,7 +92,10 @@ public final class BuildsStore: PollingStore {
         self.tasks = tasks
         self.gate = gate
         self.historyURL = historyURL
-        history = Self.loadHistory(from: historyURL)
+        switch Self.loadHistory(from: historyURL) {
+        case .success(let records): history = records
+        case .failure(let error): actionError = error
+        }
     }
 
     public var builderRunning: Bool { builder?.isRunning ?? false }
@@ -114,7 +144,11 @@ public final class BuildsStore: PollingStore {
         history[index].finishedAt = task.finishedAt ?? .now
         history[index].log = task.buffer.lines.suffix(Self.maxLogLines).map(\.text)
         switch task.state {
-        case .running, .succeeded: history[index].status = .succeeded
+        case .succeeded: history[index].status = .succeeded
+        case .running:
+            // `wait()` returned without a final state: never report that as a success.
+            history[index].status = .failed
+            history[index].errorMessage = "The build ended without reporting a result."
         case .cancelled: history[index].status = .cancelled
         case .failed(let error):
             history[index].status = .failed
@@ -142,16 +176,31 @@ public final class BuildsStore: PollingStore {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(history.filter { $0.status != .running }).write(to: historyURL, options: .atomic)
+            let file = BuildHistoryFile(version: BuildHistoryFile.currentVersion, records: history.filter { $0.status != .running })
+            try encoder.encode(file).write(to: historyURL, options: .atomic)
         } catch {
-            lastError = .other("Could not save build history: \(error.localizedDescription)")
+            actionError = .other("Could not save build history: \(error.localizedDescription)")
         }
     }
 
-    private static func loadHistory(from url: URL) -> [BuildRecord] {
-        guard let data = try? Data(contentsOf: url) else { return [] }
+    /// Reads the history. A missing file is an empty history. An unreadable or newer-version file is moved aside
+    /// to `builds.json.bak` (so the next save cannot destroy it) and reported as an error.
+    static func loadHistory(from url: URL) -> Result<[BuildRecord], BackendError> {
+        guard let data = try? Data(contentsOf: url) else { return .success([]) }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode([BuildRecord].self, from: data)) ?? []
+        if let file = try? decoder.decode(BuildHistoryFile.self, from: data), file.version <= BuildHistoryFile.currentVersion {
+            return .success(file.records)
+        }
+        if let legacy = try? decoder.decode([BuildRecord].self, from: data) { return .success(legacy) }
+        let backup = url.appendingPathExtension("bak")
+        let fm = FileManager.default
+        try? fm.removeItem(at: backup)
+        do {
+            try fm.moveItem(at: url, to: backup)
+            return .failure(.other("The build history could not be read and was moved to \(backup.path). A new history was started."))
+        } catch {
+            return .failure(.other("The build history at \(url.path) could not be read: \(error.localizedDescription)"))
+        }
     }
 }

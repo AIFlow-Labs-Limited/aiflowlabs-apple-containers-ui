@@ -70,3 +70,39 @@ import ContainerKit
         #expect(users == [pinned.id, byName.id])
     }
 }
+
+@MainActor
+@Suite struct BuildHistoryFileTests {
+    @Test func corruptHistoryIsMovedAsideAndReported() throws {
+        let url = TestSupport.historyURL()
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{ not json".utf8).write(to: url)
+        let store = BuildsStore(backend: UnavailableBackend(searchedPaths: []), tasks: TaskCenter(), gate: PollingGate(), historyURL: url)
+        #expect(store.history.isEmpty)
+        #expect(store.lastError?.errorDescription?.contains(".bak") == true)
+        let backup = url.appendingPathExtension("bak")
+        #expect(try String(contentsOf: backup, encoding: .utf8) == "{ not json")
+    }
+
+    @Test func legacyArrayAndMissingFieldsStillLoad() throws {
+        let url = TestSupport.historyURL()
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"[{"tag":"app:1","status":"succeeded","startedAt":"2026-01-01T00:00:00Z"},{"tag":"x","status":"weird"}]"#.utf8).write(to: url)
+        guard case .success(let records) = BuildsStore.loadHistory(from: url) else { Issue.record("expected success"); return }
+        #expect(records.map(\.tag) == ["app:1", "x"])
+        #expect(records[0].status == .succeeded && records[0].log.isEmpty && records[0].platforms.isEmpty)
+        #expect(records[1].status == .failed)
+    }
+
+    @Test func savedFileIsVersioned() async throws {
+        let model = TestSupport.model()
+        let task = model.builds.build(BuildSpec(contextDirectory: "/tmp", tag: "v:1"))
+        await task.wait()
+        try await Task.sleep(for: .milliseconds(50))
+        let url = try #require(Mirror(reflecting: model.builds).descendant("historyURL") as? URL)
+        let json = try String(contentsOf: url, encoding: .utf8)
+        #expect(json.contains("\"version\" : 1"))
+        guard case .success(let records) = BuildsStore.loadHistory(from: url) else { Issue.record("reload failed"); return }
+        #expect(records.first?.tag == "v:1")
+    }
+}
