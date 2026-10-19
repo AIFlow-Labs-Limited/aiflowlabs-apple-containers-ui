@@ -1,25 +1,25 @@
 import Foundation
 
 /// A parsed fixed-width CLI table (`k8s ls`, `system version`, `system dns ls`, `registry ls`, …).
-public struct TextTable: Hashable, Sendable {
+struct TextTable: Hashable, Sendable {
     /// Column titles in order, e.g. `["CLUSTER", "NODE", …]`.
-    public var headers: [String]
+    var headers: [String]
     /// Cell values; every row has exactly `headers.count` cells (missing cells are `""`).
-    public var rows: [[String]]
+    var rows: [[String]]
 
     /// Creates a table.
-    public init(headers: [String], rows: [[String]]) {
+    init(headers: [String], rows: [[String]]) {
         self.headers = headers
         self.rows = rows
     }
 
     /// Rows keyed by header title.
-    public var records: [[String: String]] {
+    var records: [[String: String]] {
         rows.map { Dictionary(zip(headers, $0), uniquingKeysWith: { first, _ in first }) }
     }
 
     /// All values of one column (empty when the column does not exist).
-    public func column(_ header: String) -> [String] {
+    func column(_ header: String) -> [String] {
         guard let index = headers.firstIndex(of: header) else { return [] }
         return rows.map { $0[index] }
     }
@@ -31,9 +31,9 @@ public struct TextTable: Hashable, Sendable {
 /// spaces. Cells are sliced by those offsets, so values containing single spaces
 /// (`Version 26.6.2 (Build 25G83)`, `Application Support`) and empty cells survive. Rows that do not line up
 /// fall back to splitting on runs of two or more spaces.
-public enum TableParser {
+enum TableParser {
     /// Parses `text`; the first non-blank line is the header.
-    public static func parse(_ text: String) -> TextTable {
+    static func parse(_ text: String) -> TextTable {
         let lines = text.split(whereSeparator: \.isNewline).map { LineSplitter.stripANSI(String($0)) }
         guard let headerIndex = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else {
             return TextTable(headers: [], rows: [])
@@ -48,7 +48,7 @@ public enum TableParser {
     }
 
     /// Parses a two-column `FIELD VALUE` table (e.g. `system status` without `--format json`) into a dictionary.
-    public static func keyValues(_ text: String) -> [String: String] {
+    static func keyValues(_ text: String) -> [String: String] {
         let table = parse(text)
         guard table.headers.count >= 2 else { return [:] }
         return Dictionary(table.rows.map { ($0[0], $0[1]) }, uniquingKeysWith: { first, _ in first })

@@ -50,9 +50,11 @@ extension CLIBackend {
         try await decode(DiskUsage.self, ["system", "df", "--format", "json"])
     }
 
-    /// The last `lines` lines of `container system logs --last 1h`.
+    /// The last `lines` lines of `container system logs --last WINDOW`; the window grows with the request
+    /// (≤ 500 lines → `5m`, else `1h`) so a small request never buffers an hour of logs.
     public func systemLogs(lines: Int) async throws -> [OutputLine] {
-        let result = try await execute(["system", "logs", "--last", "1h"])
+        let window = lines <= 500 ? "5m" : "1h"
+        let result = try await execute(["system", "logs", "--last", window])
         return Self.lines(result.stdoutText).suffix(max(0, lines)).map { OutputLine($0) }
     }
 
@@ -62,7 +64,7 @@ extension CLIBackend {
         return CLIOutputParsing.dnsDomains(result.stdout)
     }
 
-    /// `container system dns create DOMAIN [--localhost IP]`, run as administrator through `osascript`.
+    /// `container system dns create [--localhost IP] -- DOMAIN`, run as administrator through `osascript`.
     public func createDNSDomain(_ domain: String, localhostAddress: String?) async throws {
         try Self.validateDomain(domain)
         var arguments = ["system", "dns", "create"]
@@ -72,14 +74,14 @@ extension CLIBackend {
             }
             arguments += ["--localhost", localhostAddress]
         }
-        arguments.append(domain)
+        arguments += ["--", domain]
         try await runAsAdministrator(arguments)
     }
 
-    /// `container system dns delete DOMAIN`, run as administrator through `osascript`.
+    /// `container system dns delete -- DOMAIN`, run as administrator through `osascript`.
     public func deleteDNSDomain(_ domain: String) async throws {
         try Self.validateDomain(domain)
-        try await runAsAdministrator(["system", "dns", "delete", domain])
+        try await runAsAdministrator(["system", "dns", "delete", "--", domain])
     }
 
     /// Raw `config.toml`, or `""` when the file does not exist.
@@ -93,12 +95,16 @@ extension CLIBackend {
         }
     }
 
-    /// Writes `config.toml` atomically, creating its directory when needed.
+    /// Writes `config.toml` atomically, creating its directory when needed. A symlinked config (dotfiles)
+    /// is written through to its target, and the existing file's POSIX permissions are kept.
     public func writeConfigTOML(_ text: String) async throws {
-        let url = configFileURL
+        let url = configFileURL.resolvingSymlinksInPath()
+        let fm = FileManager.default
         do {
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let permissions = (try? fm.attributesOfItem(atPath: url.path))?[.posixPermissions]
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data(text.utf8).write(to: url, options: .atomic)
+            if let permissions { try fm.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path) }
         } catch {
             throw BackendError.other("Could not write \(url.path): \(error.localizedDescription)")
         }
@@ -147,6 +153,7 @@ extension CLIBackend {
     }
 
     static func validateDomain(_ domain: String) throws {
+        try validateOperand(domain, "DNS domain")
         let valid = !domain.isEmpty && domain.allSatisfy { ($0.isASCII && ($0.isLetter || $0.isNumber)) || $0 == "-" || $0 == "." }
         guard valid else { throw BackendError.other("“\(domain)” is not a valid DNS domain name.") }
     }

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Backend that drives the `container` CLI (`/usr/local/bin/container`), using `--format json` wherever the
 /// CLI offers it and parsing tables elsewhere. It keeps no state; stores cache.
@@ -20,6 +21,8 @@ public actor CLIBackend: ContainerBackend {
     static let queryTimeout: Duration = .seconds(60)
     /// Default timeout for state-changing commands that should finish promptly (`stop`, `rm`, …).
     static let actionTimeout: Duration = .seconds(180)
+    /// Timeout for `prune` commands, which can delete many large images or volumes.
+    static let pruneTimeout: Duration = .seconds(15 * 60)
 
     /// Diagnostics name, e.g. `CLI (/usr/local/bin/container)`.
     public nonisolated var backendDescription: String { "CLI (\(executable))" }
@@ -49,7 +52,7 @@ public actor CLIBackend: ContainerBackend {
     /// Command line an embedded terminal should spawn for an interactive session.
     public nonisolated func terminalCommand(for target: TerminalTarget) -> CommandLine {
         switch target {
-        case .container(let id, let command): return CommandLine(executable: executable, arguments: ["exec", "-it", id] + command)
+        case .container(let id, let command): return CommandLine(executable: executable, arguments: ["exec", "-it", "--", id] + command)
         case .machine(let name): return CommandLine(executable: executable, arguments: ["machine", "run", "-n", name])
         case .shell: return CommandLine(executable: "/bin/zsh", arguments: ["-l"])
         }
@@ -93,6 +96,19 @@ public actor CLIBackend: ContainerBackend {
         }
     }
 
+    /// Decodes a `ls`-style JSON array leniently: elements that fail to decode are skipped and logged.
+    nonisolated func decodeList<T: Decodable>(_ type: T.Type, _ arguments: [String]) async throws -> [T] {
+        let list = try await decode(LossyArray<T>.self, arguments)
+        if list.droppedCount > 0 {
+            let command = display(arguments)
+            let reasons = list.errors.prefix(3).joined(separator: " | ")
+            Self.log.error("Skipped \(list.droppedCount, privacy: .public) undecodable element(s) from `\(command, privacy: .public)`: \(reasons, privacy: .public)")
+        }
+        return list.elements
+    }
+
+    static let log = Logger(subsystem: "io.aiflowlabs.containerdesktop", category: "CLIBackend")
+
     /// Decodes an `inspect`-style JSON array and returns its first element (`notFound` when empty).
     nonisolated func inspectFirst<T: Decodable>(_ type: T.Type, kind: String, id: String, _ arguments: [String]) async throws -> T {
         guard let first = try await decode([T].self, arguments).first else { throw BackendError.notFound(kind: kind, id: id) }
@@ -117,7 +133,7 @@ public actor CLIBackend: ContainerBackend {
     /// Streams `container <arguments>`, remapping a failure to the most specific `BackendError`.
     nonisolated func streamCommand(_ arguments: [String]) -> LineStream {
         let upstream = runner.stream([executable] + arguments, environment: [:])
-        return AsyncThrowingStream { continuation in
+        return AsyncThrowingStream(bufferingPolicy: .bufferingNewest(ProcessRunner.streamBufferLimit)) { continuation in
             let task = Task {
                 do {
                     for try await line in upstream { continuation.yield(line) }
@@ -138,6 +154,26 @@ public actor CLIBackend: ContainerBackend {
     /// A stream that immediately fails (unsupported option combinations).
     nonisolated func failedStream(_ error: BackendError) -> LineStream {
         AsyncThrowingStream { $0.finish(throwing: error) }
+    }
+
+    /// Rejects a name, id or reference that the CLI would parse as an option. Positional operands are also
+    /// passed after `--`; this keeps option *values* (`--name X`) and error messages unambiguous.
+    static func validateOperand(_ value: String, _ what: String) throws {
+        guard !value.hasPrefix("-") else {
+            throw BackendError.other("\(what) “\(value)” may not start with -")
+        }
+    }
+
+    /// `validateOperand` for several values.
+    static func validateOperands(_ values: [String], _ what: String) throws {
+        for value in values { try validateOperand(value, what) }
+    }
+
+    /// Runs `body` to build a stream, turning a validation error into a stream that fails immediately.
+    nonisolated func validatedStream(_ body: () throws -> LineStream) -> LineStream {
+        do { return try body() } catch let error as BackendError { return failedStream(error) } catch {
+            return failedStream(.other(error.localizedDescription))
+        }
     }
 
     /// Appends `--label key=value` pairs sorted by key (stable argv for tests and "copy command").

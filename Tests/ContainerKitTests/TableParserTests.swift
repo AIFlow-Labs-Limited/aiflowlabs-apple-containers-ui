@@ -5,11 +5,43 @@ import ContainerKitMock
 
 @Suite("TableParser and CLI output parsing")
 struct TableParserTests {
-    @Test func emptyK8sListFixture() {
+    @Test func k8sListFixtureHasThreeBlankClusterRows() {
         let table = TableParser.parse(Fixtures.text("k8s-list.txt"))
         #expect(table.headers == ["CLUSTER", "NODE", "ROLE", "STATE", "CPUS", "MEMORY", "ADDR", "PORTS"])
-        #expect(table.rows.isEmpty)
-        #expect(CLIOutputParsing.clusters(Fixtures.text("k8s-list.txt")).isEmpty)
+        #expect(table.rows.count == 3)
+        let clusters = CLIOutputParsing.clusters(Fixtures.text("k8s-list.txt"))
+        #expect(clusters.map(\.name) == ["k8s-dev", "staging", "cd-ui-test"])
+        #expect(clusters.map(\.nodes.count) == [1, 1, 1])
+        #expect(clusters[1].nodes[0].state == .stopped)
+        #expect(clusters[1].nodes[0].address == nil)
+        #expect(clusters[2].nodes[0].memoryMB == 32768)
+        #expect(clusters[0].isRunning && !clusters[1].isRunning)
+    }
+
+    @Test func emptyK8sList() {
+        #expect(CLIOutputParsing.clusters("CLUSTER  NODE  ROLE  STATE  CPUS  MEMORY  ADDR  PORTS\n").isEmpty)
+    }
+
+    /// Two lone control-plane rows with blank CLUSTER must not merge; a blank worker row joins the cluster above it.
+    @Test func k8sListBlankClusterControlPlanesStartNewClusters() {
+        let text = """
+        CLUSTER  NODE         ROLE           STATE    CPUS  MEMORY   ADDR           PORTS
+                 alpha        control-plane  running  2     4096 MB  192.168.64.10
+                 alpha-w1     worker         running  2     2048 MB  192.168.64.11
+                 beta         control-plane  stopped  2     4096 MB
+        """
+        let clusters = CLIOutputParsing.clusters(text)
+        #expect(clusters.map(\.name) == ["alpha", "beta"])
+        #expect(clusters[0].nodes.map(\.name) == ["alpha", "alpha-w1"])
+        #expect(clusters[1].nodes.map(\.name) == ["beta"])
+    }
+
+    @Test func k8sListLeadingBlankWorkerBecomesItsOwnCluster() {
+        let text = """
+        CLUSTER  NODE   ROLE     STATE    CPUS  MEMORY   ADDR  PORTS
+                 lone   worker   running  1     1024 MB
+        """
+        #expect(CLIOutputParsing.clusters(text).map(\.name) == ["lone"])
     }
 
     @Test func systemStatusFixtureKeepsSpacesAndEmptyCells() {

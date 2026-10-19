@@ -69,11 +69,12 @@ public struct MemorySize: Hashable, Sendable, Codable, CustomStringConvertible {
 
     public init(bytes: Int64) { self.bytes = bytes }
 
-    /// Parses `1g`, `1gb`, `1gib`, `2048mb`, `512m`, bare bytes. Case-insensitive.
+    /// Parses `1g`, `1gb`, `1gib`, `2048mb`, `512m`, `.5g`, bare bytes. Case-insensitive.
+    /// Returns `nil` for zero, negative, non-finite or out-of-range (≥ 2⁶³ bytes) sizes.
     public init?(parsing text: String) {
         let s = text.trimmingCharacters(in: .whitespaces).lowercased()
         let digits = s.prefix { $0.isNumber || $0 == "." }
-        guard let value = Double(digits) else { return nil }
+        guard digits.allSatisfy(\.isASCII), let value = Double(digits) else { return nil }
         let unit = s.dropFirst(digits.count).trimmingCharacters(in: .whitespaces)
         let multiplier: Double
         switch unit {
@@ -84,16 +85,21 @@ public struct MemorySize: Hashable, Sendable, Codable, CustomStringConvertible {
         case "t", "tb", "tib": multiplier = 1_099_511_627_776
         default: return nil
         }
-        bytes = Int64(value * multiplier)
+        let product = (value * multiplier).rounded()
+        // Double(Int64.max) rounds up to 2^63, so `<` keeps the conversion below in range.
+        guard product.isFinite, product >= 1, product < Double(Int64.max) else { return nil }
+        bytes = Int64(product)
     }
 
-    /// Canonical CLI argument, e.g. `4g`, `512m`.
+    /// Argument for memory flags (`-m`, `--memory`, `--shm-size`, `memory=`): the CLI works in 1 MiB steps,
+    /// so the size is rounded to the nearest whole MiB (at least 1) and written as `NG` or `NM`.
     public var cliArgument: String {
-        if bytes % (1 << 30) == 0 { return "\(bytes >> 30)g" }
-        if bytes % (1 << 20) == 0 { return "\(bytes >> 20)m" }
-        if bytes % (1 << 10) == 0 { return "\(bytes >> 10)k" }
-        return "\(bytes)"
+        let mebibytes = max(1, (bytes + (1 << 19)) >> 20)
+        return mebibytes % 1024 == 0 ? "\(mebibytes / 1024)G" : "\(mebibytes)M"
     }
+
+    /// Exact size in bytes with no suffix, for flags that take bytes (`volume create -s`).
+    public var cliArgumentBytes: String { String(bytes) }
 
     public var description: String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .binary)
