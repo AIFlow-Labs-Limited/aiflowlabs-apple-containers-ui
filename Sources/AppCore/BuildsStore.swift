@@ -112,7 +112,7 @@ public final class BuildsStore: PollingStore {
     private func complete(_ id: UUID, with task: LongRunningTask) {
         guard let index = history.firstIndex(where: { $0.id == id }) else { return }
         history[index].finishedAt = task.finishedAt ?? .now
-        history[index].log = task.lines.suffix(Self.maxLogLines).map(\.text)
+        history[index].log = task.buffer.lines.suffix(Self.maxLogLines).map(\.text)
         switch task.state {
         case .running, .succeeded: history[index].status = .succeeded
         case .cancelled: history[index].status = .cancelled

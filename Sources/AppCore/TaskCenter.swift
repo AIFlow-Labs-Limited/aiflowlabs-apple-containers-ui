@@ -39,15 +39,22 @@ public final class LongRunningTask: Identifiable {
 
     /// Lines kept per task; older lines are dropped so a chatty build cannot exhaust memory.
     public static let maxLines = 5_000
+    /// Output is published to observers at most this often (one view update per batch, not per line).
+    public static let appendBatchInterval: Duration = .milliseconds(50)
 
     public let id = UUID()
     public let title: String
     public let kind: Kind
     public let startedAt: Date
     public private(set) var finishedAt: Date?
-    public private(set) var lines: [OutputLine] = []
+    /// Bounded output (`maxLines`). Feed views with `buffer.lines`, `buffer.droppedCount`, `buffer.totalAppended`.
+    public private(set) var buffer = LogRingBuffer(capacity: LongRunningTask.maxLines)
+    /// Copy of the buffered lines (oldest first). Prefer `buffer` in views (no copy, stable ids, follow token).
+    public var lines: [OutputLine] { Array(buffer.lines) }
     public private(set) var state: State = .running
     @ObservationIgnored fileprivate var work: Task<Void, Never>?
+    @ObservationIgnored private var pending: [OutputLine] = []
+    @ObservationIgnored private var flushTask: Task<Void, Never>?
 
     init(title: String, kind: Kind, startedAt: Date = .now) {
         self.title = title
@@ -63,12 +70,26 @@ public final class LongRunningTask: Identifiable {
     /// Waits for the task to finish (tests, chained actions).
     public func wait() async { await work?.value }
 
+    /// Queues a line; queued lines reach `buffer` in one mutation every `appendBatchInterval`.
     fileprivate func append(_ line: OutputLine) {
-        lines.append(line)
-        if lines.count > Self.maxLines { lines.removeFirst(lines.count - Self.maxLines) }
+        pending.append(line)
+        guard flushTask == nil else { return }
+        flushTask = Task { [weak self] in
+            try? await Task.sleep(for: LongRunningTask.appendBatchInterval)
+            self?.flush()
+        }
+    }
+
+    private func flush() {
+        flushTask?.cancel()
+        flushTask = nil
+        guard !pending.isEmpty else { return }
+        buffer.append(contentsOf: pending)
+        pending.removeAll(keepingCapacity: true)
     }
 
     fileprivate func finish(_ state: State) {
+        flush()
         self.state = state
         finishedAt = .now
     }
