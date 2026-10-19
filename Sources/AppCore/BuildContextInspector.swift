@@ -6,12 +6,16 @@ public enum BuildContextInspector {
     /// File names recognised as build definitions, in preference order.
     public static let knownNames = ["Dockerfile", "Containerfile"]
 
+    /// Per-Dockerfile ignore files (`Dockerfile.dockerignore`) look like `Dockerfile.*` but are not build files.
+    static let ignoreSuffixes = [".dockerignore", ".containerignore"]
+
     /// Build definition files in `directory` (top level): `Dockerfile`, `Containerfile`, `*.Dockerfile`,
-    /// `Dockerfile.*`, `*.Containerfile`. Preferred names first.
+    /// `Dockerfile.*`, `*.Containerfile` — never `*.dockerignore`. Preferred names first.
     public static func dockerfiles(in directory: URL) -> [String] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path(percentEncoded: false))) ?? []
         let matches = names.filter { name in
-            knownNames.contains(name) || knownNames.contains { name.hasPrefix("\($0).") || name.hasSuffix(".\($0)") }
+            guard !ignoreSuffixes.contains(where: { name.lowercased().hasSuffix($0) }) else { return false }
+            return knownNames.contains(name) || knownNames.contains { name.hasPrefix("\($0).") || name.hasSuffix(".\($0)") }
         }
         return matches.sorted { a, b in
             let ra = knownNames.firstIndex(of: a) ?? Int.max, rb = knownNames.firstIndex(of: b) ?? Int.max
@@ -31,13 +35,49 @@ public enum BuildContextInspector {
 
     /// Stage names from the Dockerfile at `path` (relative to `directory` unless absolute).
     public static func stages(dockerfile path: String, in directory: URL) -> [String] {
-        let url = path.hasPrefix("/") ? URL(filePath: path) : directory.appending(path: path)
+        let url = URL(filePath: resolve(path, against: directory.path(percentEncoded: false)))
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
         return stages(inDockerfile: text)
+    }
+
+    // MARK: Paths
+    //
+    // The CLI resolves relative `-f` and `--secret src=` paths against ITS working directory, and a Finder-launched
+    // app has cwd `/`. So every path handed to `container build` is made absolute here: `~` is expanded, relative
+    // paths are resolved against the build context.
+
+    /// `~/x` → `/Users/me/x`; other paths unchanged.
+    public static func expandTilde(_ path: String) -> String { (path as NSString).expandingTildeInPath }
+
+    /// Absolute form of `path`: `~` expanded, relative paths joined to `context` (itself `~`-expanded), `.`/`..`
+    /// collapsed.
+    public static func resolve(_ path: String, against context: String) -> String {
+        let expanded = expandTilde(path)
+        if expanded.hasPrefix("/") { return (expanded as NSString).standardizingPath }
+        return ((expandTilde(context) as NSString).appendingPathComponent(expanded) as NSString).standardizingPath
+    }
+
+    /// A `--secret` entry with its `src=` path made absolute (see `resolve`). `env=` secrets are returned unchanged.
+    public static func resolveSecret(_ entry: String, against context: String) -> String {
+        entry.split(separator: ",", omittingEmptySubsequences: false).map { field in
+            guard field.hasPrefix("src=") else { return String(field) }
+            let path = String(field.dropFirst(4))
+            return path.isEmpty ? String(field) : "src=" + resolve(path, against: context)
+        }.joined(separator: ",")
     }
 }
 
 public extension BuildSpec {
+    /// This spec with every path the CLI would otherwise resolve against its own cwd made absolute: the context
+    /// (`~` expanded), `-f` (relative to the context) and `--secret …,src=` (relative to the context).
+    func resolvingPaths() -> BuildSpec {
+        var s = self
+        s.contextDirectory = BuildContextInspector.resolve(contextDirectory, against: FileManager.default.currentDirectoryPath)
+        if let dockerfile, !dockerfile.isEmpty { s.dockerfile = BuildContextInspector.resolve(dockerfile, against: s.contextDirectory) }
+        s.secrets = secrets.map { BuildContextInspector.resolveSecret($0, against: s.contextDirectory) }
+        return s
+    }
+
     /// The full command the Build sheet previews: `container build …`, shell-quoted.
     var commandPreview: String {
         ContainerKit.CommandLine(executable: "container", arguments: ["build"] + cliArguments).display

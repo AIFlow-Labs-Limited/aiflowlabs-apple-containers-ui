@@ -46,9 +46,11 @@ struct BuildDraft: Codable, Hashable {
         rows.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 
+    /// The command that runs. Every path is absolute (`~` expanded, relative to the context), because the CLI
+    /// resolves relative paths against its own working directory — `/` for an app launched from Finder.
     var spec: BuildSpec {
         let trimmedTag = tag.trimmingCharacters(in: .whitespaces)
-        var spec = BuildSpec(contextDirectory: contextDirectory.isEmpty ? "<context>" : (contextDirectory as NSString).expandingTildeInPath,
+        var spec = BuildSpec(contextDirectory: contextDirectory.isEmpty ? "<context>" : contextDirectory,
                              tag: trimmedTag.isEmpty ? "<tag>" : trimmedTag)
         spec.dockerfile = dockerfile
         spec.platforms = platforms
@@ -60,7 +62,7 @@ struct BuildDraft: Codable, Hashable {
         spec.labels = Self.clean(labels)
         spec.secrets = Self.clean(secrets)
         spec.forwardSSH = forwardSSH
-        return spec
+        return contextDirectory.isEmpty ? spec : spec.resolvingPaths()
     }
 
     /// Problems blocking "Build", in display order.
@@ -80,22 +82,34 @@ struct BuildDraft: Codable, Hashable {
 
     // MARK: Memory
 
-    private static let defaultsKey = "builds.drafts"
+    /// Most recently used first; the oldest entries are dropped beyond `maxRemembered`.
+    private static let defaultsKey = "builds.drafts.v2"
+    static let maxRemembered = 50
 
-    private static func key(tag: String, context: String) -> String { "\(context)|\(tag)" }
-
-    static func remembered(tag: String, context: String) -> BuildDraft? {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
-              let all = try? JSONDecoder().decode([String: BuildDraft].self, from: data) else { return nil }
-        return all[key(tag: tag, context: context)]
+    private struct Entry: Codable {
+        var key: String
+        var draft: BuildDraft
     }
 
-    func remember() {
-        var all: [String: BuildDraft] = [:]
-        if let data = UserDefaults.standard.data(forKey: Self.defaultsKey),
-           let decoded = try? JSONDecoder().decode([String: BuildDraft].self, from: data) { all = decoded }
-        all[Self.key(tag: spec.tag, context: contextDirectory)] = self
-        if all.count > 50 { all = Dictionary(uniqueKeysWithValues: all.suffix(50).map { ($0.key, $0.value) }) }
-        if let data = try? JSONEncoder().encode(all) { UserDefaults.standard.set(data, forKey: Self.defaultsKey) }
+    /// Keyed on the expanded context so `~/app` and `/Users/me/app` are the same draft.
+    private static func key(tag: String, context: String) -> String { "\(BuildContextInspector.expandTilde(context))|\(tag)" }
+
+    private static func load(_ defaults: UserDefaults) -> [Entry] {
+        guard let data = defaults.data(forKey: defaultsKey) else { return [] }
+        return (try? JSONDecoder().decode([Entry].self, from: data)) ?? []
+    }
+
+    static func remembered(tag: String, context: String, defaults: UserDefaults = .standard) -> BuildDraft? {
+        let k = key(tag: tag, context: context)
+        return load(defaults).first { $0.key == k }?.draft
+    }
+
+    func remember(defaults: UserDefaults = .standard) {
+        let k = Self.key(tag: spec.tag, context: contextDirectory)
+        var all = Self.load(defaults).filter { $0.key != k }
+        all.insert(Entry(key: k, draft: self), at: 0)
+        if all.count > Self.maxRemembered { all.removeLast(all.count - Self.maxRemembered) }
+        if let data = try? JSONEncoder().encode(all) { defaults.set(data, forKey: Self.defaultsKey) }
+        defaults.removeObject(forKey: "builds.drafts")  // v1: an unordered dictionary (random eviction)
     }
 }
