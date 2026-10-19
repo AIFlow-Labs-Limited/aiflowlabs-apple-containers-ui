@@ -9,12 +9,35 @@ import ContainerKit
 /// `select=<id>` (deep-link selection in the current section), `build-sheet` (opens the Build sheet),
 /// `resources-selftest` (pull/tag/delete + volume/network create/delete through the stores; prints results).
 /// platform: `machine-create`, `machine-select`, `cluster-create`, `cluster-select`, `registry-login`, `k8s-demo`, `machine-demo`.
+///
+/// Tokens that change engine state (`stopped`, `pull`, `*-demo`, `resources-selftest`, `e2e-*`) only run against the
+/// mock backend unless `CONTAINER_DESKTOP_ALLOW_REAL_ENGINE_TESTS=1` is set. This gate is central: the feature hook
+/// files these tokens dispatch to (`ResourcesSelfTest`, `PlatformEndToEnd`, …) are only reached through here.
 @MainActor
 enum DebugLaunchActions {
+    static let allowRealEngineVariable = "CONTAINER_DESKTOP_ALLOW_REAL_ENGINE_TESTS"
+
+    static func isMockBackend(_ model: AppModel) -> Bool { model.backend.backendDescription.hasPrefix("Mock") }
+
+    /// Whether `token` mutates the engine (pulls, stops, creates or deletes resources).
+    static func mutatesEngine(_ token: String) -> Bool {
+        ["stopped", "pull", "resources-selftest"].contains(token) || token.hasSuffix("-demo") || token.hasPrefix("e2e-")
+    }
+
+    static func isAllowed(_ token: String, model: AppModel,
+                          environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        !mutatesEngine(token) || isMockBackend(model) || environment[allowRealEngineVariable] == "1"
+    }
+
     static func run(model: AppModel, openWindow: OpenWindowAction, openSettings: OpenSettingsAction) async {
         guard let raw = ProcessInfo.processInfo.environment["CONTAINER_DESKTOP_DEBUG_OPEN"], !raw.isEmpty else { return }
         try? await Task.sleep(for: .milliseconds(600))
         for token in raw.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespaces) }) {
+            guard isAllowed(token, model: model) else {
+                print("[debug] skipped “\(token)”: it changes the real engine (\(model.backend.backendDescription)). "
+                      + "Set \(allowRealEngineVariable)=1 to allow it.")
+                continue
+            }
             switch token {
             case "palette": model.navigation.isPaletteOpen = true
             case "settings": openSettings()
