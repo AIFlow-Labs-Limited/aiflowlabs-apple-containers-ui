@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+- Engine: after `container system stop` the app showed a connection error with only Retry instead of the Stopped
+  screen with Start. CLI 1.5.0 reports `{"status":"unregistered"}` with exit code 1, and list commands fail with an
+  XPC connection error; both now mean "stopped". Start from the app works, and "Not installed" names the path that
+  was searched. Engine probes run every 10 s in the background, so a stop shows in about 2 s and recovery in 6 s.
+- Clean up: sizes now describe what each toggle removes (the stopped builder and the engine's whole-image estimate
+  were counted before).
+- Settings: resource steppers start from the engine's real defaults ("Default (1 GB)") instead of a hard-coded 4.
+- Activity: CLI progress lines (written to stderr) are no longer painted red; only lines that read as errors are.
+- Kubernetes: the cluster inspector warns when the `.test` DNS domain is not configured, since `kubectl --context`
+  cannot resolve the node otherwise, and links to Settings → Network.
+- Networks: "1 containers" grammar; overlapping-subnet warning verified against the default network.
+- Terminal: a readable ANSI palette per appearance (directory colours were invisible on dark backgrounds).
+- Zero byte values read "0 bytes" instead of "Zero KB".
+
 ## [0.1.0] - 2026-10-19
 
 ### Added
