@@ -61,7 +61,8 @@ struct NetworksListView: View {
                     .help(r.attached.map(\.id).joined(separator: ", "))
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
-                        "\(r.attached.count) containers: \(r.attached.map(\.id).joined(separator: ", "))")
+                        "\(PruneText.plural(r.attached.count, "container")): \(r.attached.map(\.id).joined(separator: ", "))"
+                    )
                 }
             }
         }
