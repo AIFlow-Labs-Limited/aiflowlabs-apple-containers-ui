@@ -106,3 +106,47 @@ import ContainerKit
         #expect(records.first?.tag == "v:1")
     }
 }
+
+@Suite struct RunSpecFixesTests {
+    @Test func imageCannotLookLikeAFlag() {
+        #expect(RunSpec(image: "--privileged").issues.contains(.invalidImage("--privileged")))
+        #expect(RunSpec(image: "alpine latest").issues.contains(.invalidImage("alpine latest")))
+        #expect(RunSpec(image: " alpine ").issues.isEmpty)
+    }
+
+    @Test func wildcardHostPortsCollide() {
+        func spec(_ hosts: [String?]) -> RunSpec {
+            var s = RunSpec(image: "nginx")
+            s.ports = hosts.map { RunSpec.PortMapping(hostAddress: $0, hostPort: 80, containerPort: 80) }
+            return s
+        }
+        #expect(spec([nil, "0.0.0.0"]).issues.contains(.duplicateHostPort(80)))
+        #expect(spec(["*", "0.0.0.0"]).issues.contains(.duplicateHostPort(80)))
+        #expect(spec(["127.0.0.1", nil]).issues.contains(.duplicateHostPort(80)))
+        #expect(spec(["127.0.0.1", "192.168.1.2"]).issues.isEmpty)
+        var udp = spec([nil])
+        udp.ports.append(.init(hostPort: 80, containerPort: 80, proto: "udp"))
+        #expect(udp.issues.isEmpty)
+    }
+
+    @Test func bindSourcesExpandTilde() {
+        var s = RunSpec(image: "alpine")
+        s.mounts = [.init(kind: .bind(hostPath: "~/project"), target: "/src"), .init(kind: .bind(hostPath: "rel/dir"), target: "/x")]
+        #expect(s.issues == [.relativeMountSource("rel/dir")])
+        let run = s.normalizedForRun(home: "/Users/me")
+        #expect(run.mounts[0].kind == .bind(hostPath: "/Users/me/project"))
+    }
+
+    @Test func recreateKeepsEveryNetworkAndDNSDomain() {
+        let desc = Descriptor(digest: "sha256:00", mediaType: "x", size: 1)
+        let c = Container(id: "web", configuration: .init(
+            id: "web", image: ImageReference(reference: "nginx", descriptor: desc), creationDate: .now,
+            initProcess: .init(executable: "nginx"),
+            networks: [.init(network: "front"), .init(network: "back", options: .init(mac: "02:00:00:00:00:01", aliases: ["db"]))],
+            dns: .init(domain: "test")))
+        let spec = RunSpec(recreating: c)
+        #expect(spec.network == "front")
+        #expect(spec.dnsDomain == "test")
+        #expect(spec.extraArguments == ["--network", "back,mac=02:00:00:00:00:01,alias=db"])
+    }
+}
