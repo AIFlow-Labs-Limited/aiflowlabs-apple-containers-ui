@@ -19,42 +19,42 @@ struct ContainersTable: View {
     var body: some View {
         Table(of: ContainerRow.self, selection: $ui.selection, sortOrder: $ui.sortOrder, columnCustomization: $columns) {
             TableColumn("Name", value: \.name) { ContainerNameCell(row: $0) }
-                .width(min: 140, ideal: 180)
+                .width(min: 120, ideal: 150)
                 .customizationID("name")
                 .disabledCustomizationBehavior(.visibility)
             TableColumn("Image", value: \.imageShort) { row in
                 Text(row.imageShort).foregroundStyle(.secondary).lineLimit(1).help(row.imageFull)
             }
-            .width(min: 120, ideal: 200)
+            .width(min: 100, ideal: 160)
             .customizationID("image")
             TableColumn("Status", value: \.statusRank) { row in
                 Text(row.statusText).lineLimit(1).foregroundStyle(row.state == .running ? .primary : .secondary)
             }
-            .width(min: 90, ideal: 120)
+            .width(min: 80, ideal: 115)
             .customizationID("status")
             TableColumn("CPU %", value: \.cpu) { row in
                 Text(row.cpu >= 0 ? Percent.format(row.cpu) : emDash).monospacedDigit()
                     .foregroundStyle(row.cpu >= 0 ? .primary : .secondary)
             }
-            .width(min: 50, ideal: 64)
+            .width(min: 48, ideal: 56)
             .customizationID("cpu")
             TableColumn("Memory", value: \.memory) { MemoryCell(row: $0) }
-                .width(min: 110, ideal: 150)
+                .width(min: 100, ideal: 130)
                 .customizationID("memory")
             TableColumn("Ports", value: \.portsSort) { PortChips(ports: $0.ports, limit: $0.isProject ? 2 : 3) }
-                .width(min: 80, ideal: 130)
+                .width(min: 70, ideal: 100)
                 .customizationID("ports")
             TableColumn("IP", value: \.ip) { row in
                 Text(row.ip.isEmpty ? emDash : row.ip).font(.monoCaption).foregroundStyle(row.ip.isEmpty ? .secondary : .primary)
             }
-            .width(min: 90, ideal: 110)
+            .width(min: 85, ideal: 100)
             .customizationID("ip")
             TableColumn("Started", value: \.started) { row in
-                Text(row.hasStarted ? RelativeDate.format(row.started) : emDash)
+                Text(row.hasStarted ? RelativeDate.uptime(since: row.started) + " ago" : emDash)
                     .foregroundStyle(.secondary)
                     .help(row.hasStarted ? RelativeDate.absolute(row.started) : "")
             }
-            .width(min: 80, ideal: 110)
+            .width(min: 70, ideal: 95)
             .customizationID("started")
             TableColumn("Actions") { ContainerActionsCell(row: $0, actions: actions) }
                 .width(56)

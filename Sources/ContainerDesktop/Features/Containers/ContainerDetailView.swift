@@ -18,11 +18,21 @@ struct ContainerDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            Picker("Tab", selection: tab) {
+                ForEach(ContainerDetailTab.allCases) { t in Text(t.title).tag(t) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 640)
+            .padding(.horizontal, Spacing.l)
+            .padding(.bottom, Spacing.s)
+            .accessibilityLabel("Detail tab")
             Divider()
             content
                 .id(container.id)   // fresh tab state (log stream, sampler, terminal) per container
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(.background)
     }
 
@@ -42,14 +52,6 @@ struct ContainerDetailView: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
             }
-            Spacer(minLength: Spacing.s)
-            Picker("Tab", selection: tab) {
-                ForEach(ContainerDetailTab.allCases) { t in Text(t.title).tag(t) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .accessibilityLabel("Detail tab")
             Spacer(minLength: Spacing.s)
             HStack(spacing: Spacing.xs) {
                 if container.isRunning {
