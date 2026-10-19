@@ -4,14 +4,18 @@ import DesignSystem
 
 /// Settings scene (⌘,): General · Resources · Engine · Network · Updates · About.
 struct SettingsView: View {
+    /// UserDefaults key of the selected tab; other views set it (e.g. to `"network"`) before `openSettings()`.
+    static let selectedTabKey = "settings.selectedTab"
+    @AppStorage(SettingsView.selectedTabKey) private var tab = "general"
+
     var body: some View {
-        TabView {
-            Tab("General", systemImage: "gearshape") { GeneralSettingsTab() }
-            Tab("Resources", systemImage: "cpu") { ResourcesSettingsTab() }
-            Tab("Engine", systemImage: "doc.text") { EngineSettingsTab() }
-            Tab("Network", systemImage: "network") { NetworkSettingsTab() }
-            Tab("Updates", systemImage: "arrow.down.circle") { UpdatesSettingsTab() }
-            Tab("About", systemImage: "info.circle") { AboutSettingsTab() }
+        TabView(selection: $tab) {
+            Tab("General", systemImage: "gearshape", value: "general") { GeneralSettingsTab() }
+            Tab("Resources", systemImage: "cpu", value: "resources") { ResourcesSettingsTab() }
+            Tab("Engine", systemImage: "doc.text", value: "engine") { EngineSettingsTab() }
+            Tab("Network", systemImage: "network", value: "network") { NetworkSettingsTab() }
+            Tab("Updates", systemImage: "arrow.down.circle", value: "updates") { UpdatesSettingsTab() }
+            Tab("About", systemImage: "info.circle", value: "about") { AboutSettingsTab() }
         }
         .frame(width: 640, height: 500)
     }

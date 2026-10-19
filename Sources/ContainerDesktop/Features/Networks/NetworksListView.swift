@@ -3,104 +3,147 @@ import ContainerKit
 import AppCore
 import DesignSystem
 
-/// Phase-1 networks list (features-resources replaces this in phase 2).
+/// Networks: table with attached containers, create/delete/prune, detail with the DNS caveat.
 struct NetworksListView: View {
     @Environment(AppModel.self) private var model
     @State private var selection = Set<Network.ID>()
+    @State private var sortOrder = [KeyPathComparator(\NetworkRow.sortKey)]
     @State private var pendingDelete: [String] = []
     @State private var showCreate = false
     @State private var confirmPrune = false
 
     private var store: NetworksStore { model.networks }
-    private var selected: [Network] { store.items.filter { selection.contains($0.id) } }
+
+    private var rows: [NetworkRow] {
+        let containers = model.containers.items
+        return store.filtered.map { NetworkRow(network: $0, attached: ResourceUsage.containers(attachedTo: $0, in: containers)) }
+            .sorted(using: sortOrder)
+    }
+
+    private var selectedRows: [NetworkRow] { rows.filter { selection.contains($0.id) } }
+    private var pruneCandidates: [NetworkRow] { rows.filter { !$0.network.isBuiltin && $0.attached.isEmpty } }
 
     var body: some View {
-        Table(store.filtered, selection: $selection) {
-            TableColumn("Name") { n in
-                HStack {
-                    Text(n.name).fontWeight(.medium)
-                    if n.isBuiltin { TagBadge("default") }
+        let rows = rows
+        Table(rows, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Name", value: \.sortKey) { r in
+                HStack(spacing: Spacing.xs) {
+                    Text(r.name).fontWeight(.medium)
+                    if r.network.isBuiltin { TagBadge("built-in", tint: .accentColor) }
                 }
+                .accessibilityElement(children: .combine)
             }
             .width(min: 140, ideal: 200)
-            TableColumn("Subnet") { n in Text(n.status?.ipv4Subnet ?? emDash).font(.monoCaption) }
+            TableColumn("Subnet", value: \.subnet) { r in Text(r.subnet.isEmpty ? emDash : r.subnet).font(.monoCaption) }
                 .width(min: 110, ideal: 140)
-            TableColumn("Gateway") { n in Text(n.status?.ipv4Gateway ?? emDash).font(.monoCaption) }
+            TableColumn("Gateway", value: \.gateway) { r in Text(r.gateway.isEmpty ? emDash : r.gateway).font(.monoCaption) }
                 .width(min: 100, ideal: 120)
-            TableColumn("Mode") { n in Text(n.configuration.mode) }
-                .width(60)
-            TableColumn("Containers") { n in
-                let attached = store.attachedContainers(n)
-                Text(attached.isEmpty ? emDash : attached.joined(separator: ", ")).foregroundStyle(attached.isEmpty ? .secondary : .primary)
+            TableColumn("IPv6 subnet", value: \.subnetV6) { r in
+                Text(r.subnetV6.isEmpty ? emDash : r.subnetV6).font(.monoCaption).lineLimit(1).truncationMode(.middle)
             }
-        }
-        .contextMenu(forSelectionType: Network.ID.self) { ids in
-            Button("Copy name") { copyToPasteboard(ids.joined(separator: "\n")) }
-            Divider()
-            Button("Delete…", role: .destructive) { pendingDelete = Array(ids) }
-        }
-        .overlay {
-            if store.filtered.isEmpty && !store.isLoading {
-                EmptyStateView(symbol: "network", title: "No networks", message: "The default network appears once the engine runs.")
-            }
-        }
-        .inspector(isPresented: .constant(selected.count == 1)) {
-            if let n = selected.first {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.m) {
-                        Text(n.name).font(.title3.bold())
-                        InspectorSection("Network") {
-                            KeyValueGrid([("Mode", n.configuration.mode), ("Subnet", n.status?.ipv4Subnet ?? ""),
-                                          ("IPv6 subnet", n.status?.ipv6Subnet ?? ""), ("Gateway", n.status?.ipv4Gateway ?? ""),
-                                          ("Plugin", n.configuration.plugin ?? ""),
-                                          ("Containers", store.attachedContainers(n).joined(separator: ", "))])
-                        }
-                        Text(n.isBuiltin
-                             ? "The default network gives containers DNS names under your DNS domain and outbound access."
-                             : "Containers on separate networks cannot reach each other. Name resolution between containers needs a DNS domain (Settings → Network).")
-                            .font(.caption).foregroundStyle(.secondary)
+            .width(min: 100, ideal: 160)
+            TableColumn("Containers", value: \.attachedCount) { r in
+                if r.attached.isEmpty {
+                    Text(emDash).foregroundStyle(.secondary).accessibilityLabel("No containers")
+                } else {
+                    HStack(spacing: Spacing.xs) {
+                        Text("\(r.attached.count)").monospacedDigit().fontWeight(.medium)
+                        Text(r.attached.map(\.id).joined(separator: ", ")).foregroundStyle(.secondary).lineLimit(1)
                     }
-                    .padding(Spacing.l)
+                    .help(r.attached.map(\.id).joined(separator: ", "))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(r.attached.count) containers: \(r.attached.map(\.id).joined(separator: ", "))")
                 }
+            }
+        }
+        .contextMenu(forSelectionType: Network.ID.self) { ids in contextMenu(ids) }
+        .overlay {
+            if rows.isEmpty && !store.isLoading {
+                EmptyStateView(symbol: "network", title: store.items.isEmpty ? "No networks" : "No matching networks",
+                               message: "The default network appears once the engine runs.",
+                               actionTitle: "Create network…") { showCreate = true }
+            }
+        }
+        .inspector(isPresented: .constant(selectedRows.count == 1)) {
+            if let row = selectedRows.first {
+                NetworkDetailView(network: row.network, attached: row.attached)
+                    .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
             }
         }
         .toolbar {
             ToolbarItemGroup {
-                ToolbarActionButton("Create", systemImage: "plus") { showCreate = true }
-                ToolbarActionButton("Delete", systemImage: "trash", role: .destructive) { pendingDelete = Array(selection) }
-                    .disabled(selection.isEmpty || selected.contains(where: \.isBuiltin))
-                ToolbarActionButton("Prune", systemImage: "scissors") { confirmPrune = true }
+                ToolbarActionButton("Create…", systemImage: "plus") { showCreate = true }
+                ToolbarActionButton("Delete", systemImage: "trash", role: .destructive) { requestDelete(selection) }
+                    .disabled(selectedRows.isEmpty || selectedRows.contains { $0.blockReason != nil })
+                ToolbarActionButton("Prune…", systemImage: "scissors") { confirmPrune = true }
+                    .disabled(pruneCandidates.isEmpty)
             }
         }
         .storeChrome(store)
         .deepLinkSelection(.networks, navigation: model.navigation, selection: $selection) { $0 }
-        .sheet(isPresented: $showCreate) {
-            CreateNetworkSheet { name, subnet in Task { await store.create(name: name, subnet: subnet) } }
-        }
-        .confirmDestructive(title: "Delete \(pendingDelete.count == 1 ? "network “\(pendingDelete[0])”" : "\(pendingDelete.count) networks")?",
-                            message: "Deletes \(pendingDelete.joined(separator: ", ")). Attached containers lose that network.",
+        .sheet(isPresented: $showCreate) { CreateNetworkSheet { name in selection = [name] } }
+        .confirmDestructive(title: pendingDelete.count == 1 ? "Delete network “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) networks?",
+                            message: "Deletes \(pendingDelete.joined(separator: ", ")). No containers are attached.",
                             actionTitle: "Delete",
                             isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
             let names = pendingDelete
             Task { await store.delete(names); selection.subtract(names) }
         }
-        .confirmDestructive(title: "Prune unused networks?", message: "Deletes networks with no containers. The default network is kept.",
+        .confirmDestructive(title: "Prune \(pruneCandidates.count) unused network\(pruneCandidates.count == 1 ? "" : "s")?",
+                            message: "Deletes \(pruneCandidates.map(\.name).joined(separator: ", ")). The default network is kept.",
                             actionTitle: "Prune", isPresented: $confirmPrune) {
             Task { await store.prune() }
         }
     }
-}
 
-private struct CreateNetworkSheet: View {
-    let create: (String, String?) -> Void
-    @State private var name = ""
-    @State private var subnet = ""
-
-    var body: some View {
-        FormSheet(title: "Create network", actionTitle: "Create", canSubmit: !name.isEmpty,
-                  submit: { create(name, subnet.isEmpty ? nil : subnet) }) {
-            TextField("Name", text: $name, prompt: Text("backend"))
-            TextField("IPv4 subnet", text: $subnet, prompt: Text("automatic, e.g. 192.168.70.0/24"))
+    @ViewBuilder
+    private func contextMenu(_ ids: Set<String>) -> some View {
+        let picked = rows.filter { ids.contains($0.id) }
+        if !picked.isEmpty {
+            Button(picked.count == 1 ? "Copy name" : "Copy names") { copyToPasteboard(picked.map(\.name).joined(separator: "\n")) }
+            if let row = picked.first, picked.count == 1, !row.subnet.isEmpty {
+                Button("Copy subnet") { copyToPasteboard(row.subnet) }
+                Button("Copy --network flag") { copyToPasteboard("--network \(row.name)") }
+            }
+            Divider()
+            if let reason = picked.lazy.compactMap(\.blockReason).first {
+                Button("Delete — \(reason)") {}.disabled(true)
+            } else {
+                Button("Delete…", role: .destructive) { requestDelete(ids) }
+            }
         }
     }
+
+    private func requestDelete(_ ids: Set<String>) {
+        let picked = rows.filter { ids.contains($0.id) }
+        guard !picked.isEmpty, picked.allSatisfy({ $0.blockReason == nil }) else { return }
+        pendingDelete = picked.map(\.name)
+    }
+}
+
+/// Table row with sortable keys.
+struct NetworkRow: Identifiable {
+    let network: Network
+    let attached: [Container]
+    var id: String { network.id }
+    var name: String { network.name }
+    /// Built-in first, then by name.
+    var sortKey: String { (network.isBuiltin ? "0" : "1") + network.name }
+    var subnet: String { network.status?.ipv4Subnet ?? "" }
+    var gateway: String { network.status?.ipv4Gateway ?? "" }
+    var subnetV6: String { network.status?.ipv6Subnet ?? "" }
+    var attachedCount: Int { attached.count }
+
+    /// Why this network cannot be deleted, if it cannot.
+    var blockReason: String? {
+        if network.isBuiltin { return "the built-in network can't be removed" }
+        if !attached.isEmpty { return "attached to \(attached.map(\.id).joined(separator: ", "))" }
+        return nil
+    }
+}
+
+#Preview("Networks") {
+    NavigationStack { NetworksListView() }
+        .appModelEnvironment(ResourcePreview.model())
+        .frame(width: 1100, height: 500)
 }
