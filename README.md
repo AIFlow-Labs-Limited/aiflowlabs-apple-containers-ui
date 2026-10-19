@@ -16,8 +16,8 @@
   <img src="https://img.shields.io/badge/platform-macOS%2026%20%C2%B7%20Apple%20silicon-lightgrey.svg" alt="Platform: macOS 26, Apple silicon">
 </p>
 
-> **Status: early development.** The packaging, backend contract and mock backend are in place; the dashboard
-> UI is being built toward v0.1. Expect rough edges and breaking changes until 1.0.
+> **Status: pre-1.0.** Every section in the table below works against `container` 1.5. Expect rough edges and
+> breaking changes until 1.0, and builds that are not yet notarized (see [Install](#install)).
 
 ## Why
 
@@ -51,12 +51,13 @@ shipping when.
 
 ## Screenshots
 
-<!-- Screenshots land with v0.1. -->
-| Containers | Settings | Activity |
+| Containers | Images | Builds |
 |---|---|---|
-| ![Containers](docs/screenshots/containers.png) | ![Settings](docs/screenshots/settings.png) | ![Activity](docs/screenshots/activity.png) |
+| ![Containers](docs/screenshots/containers-list.png) | ![Images](docs/screenshots/images.png) | ![Builds](docs/screenshots/builds.png) |
 
-*Screenshots land with v0.1.*
+| Machines | Settings | Activity |
+|---|---|---|
+| ![Machines](docs/screenshots/machines.png) | ![Settings](docs/screenshots/settings.png) | ![Activity](docs/screenshots/activity.png) |
 
 ## Install
 
@@ -65,13 +66,22 @@ shipping when.
 
 - **DMG:** download `Container-Desktop-<version>-arm64.dmg` from
   [Releases](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/releases), open it and drag
-  *Container Desktop* to *Applications*. Pre-1.0 builds may not be notarized yet — if macOS refuses to open the
-  app, right-click it and choose **Open** once.
-- **Homebrew (coming soon):**
+  *Container Desktop* to *Applications*.
+- **Homebrew:** a tap is coming — for now, use the DMG.
 
-  ```bash
-  brew install --cask container-desktop
-  ```
+**First launch of an unsigned build.** Until a Developer ID is configured, release builds are ad-hoc signed and not
+notarized, so macOS blocks them the first time (right-click → Open no longer bypasses this on recent macOS, and a
+quarantined ad-hoc app can be reported as "damaged"). Either:
+
+1. Open the app once, then go to **System Settings → Privacy & Security**, scroll to the message about
+   *Container Desktop* and click **Open Anyway**; or
+2. remove the quarantine flag in Terminal:
+
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/Container Desktop.app"
+   ```
+
+Check the download against the `.sha256` file published with each release before doing either.
 
 After installing `container`, run `container system start` once (or press **Start** in the app).
 
@@ -107,7 +117,8 @@ don't break decoding. Details in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 ## Roadmap
 
 - **v0.1** — the dashboard: Containers, Images, Volumes, Networks, Builds, Machines, Registries, engine control,
-  settings, signed DMG.
+  settings; an ad-hoc signed DMG.
+- **Next** — a signed + notarized DMG once a Developer ID is configured, and the Homebrew tap.
 - **v0.2** — compose-file import, a file browser inside containers.
 - **v0.3** — XPC backend (no CLI round-trips), menu-bar-only mode.
 - **Later** — remote hosts.

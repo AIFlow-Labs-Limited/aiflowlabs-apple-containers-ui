@@ -14,6 +14,8 @@ struct BuilderCard: View {
 
     private var store: BuildsStore { model.builds }
     private var builder: Container? { store.builder }
+    /// Resetting deletes the builder container out from under a running build, so it waits.
+    private var buildRunning: Bool { store.history.contains { $0.status == .running } }
     private var hostCPUs: Int { model.system.status?.host?.cpus ?? ProcessInfo.processInfo.activeProcessorCount }
 
     private var statusText: String {
@@ -62,8 +64,9 @@ struct BuilderCard: View {
                         .popover(isPresented: $showStartOptions, arrowEdge: .bottom) { startOptions }
                 }
                 Button("Reset…", systemImage: "arrow.counterclockwise", role: .destructive) { confirmReset = true }
-                    .disabled(builder == nil)
-                    .help("Stop and delete the builder, clearing the layer cache")
+                    .disabled(builder == nil || buildRunning)
+                    .help(buildRunning ? "Wait for the running build to finish (or cancel it in Activity) before resetting"
+                                       : "Stop and delete the builder, clearing the layer cache")
             }
             .labelStyle(.titleAndIcon)
             .frame(width: 110, alignment: .leading)
@@ -73,8 +76,10 @@ struct BuilderCard: View {
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: Radius.large))
         .confirmDestructive(title: "Reset the builder?",
                             message: "Stops and deletes the BuildKit builder container “\(builder?.id ?? "buildkit")”. "
-                                + "This clears the build layer cache; the next build starts from scratch. Images are kept.",
+                                + "This clears the build layer cache; the next build starts from scratch. Images are kept. "
+                                + "Not available while a build is running.",
                             actionTitle: "Reset", isPresented: $confirmReset) {
+            guard !buildRunning else { return }
             act {
                 if store.builderRunning { await store.stopBuilder() }
                 await store.resetBuilder()

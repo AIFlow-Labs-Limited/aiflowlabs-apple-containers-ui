@@ -14,6 +14,9 @@ struct MachineDetailView: View {
     @Binding var tab: MachineDetailTab
     let onResize: () -> Void
     let onStop: () -> Void
+    /// The terminal is created the first time its tab is shown and then kept alive (hidden) while other tabs are
+    /// shown, so switching to Overview or Logs doesn't kill the shell session.
+    @State private var terminalStarted = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -26,12 +29,25 @@ struct MachineDetailView: View {
             .labelsHidden()
             .padding(Spacing.l)
             Divider()
-            switch tab {
-            case .overview: MachineOverview(machine: machine, onResize: onResize)
-            case .terminal: MachineTerminalTab(machine: machine).id(machine.name)
-            case .logs: MachineLogsTab(name: machine.name).id(machine.name)
+            ZStack {
+                if terminalStarted {
+                    MachineTerminalTab(machine: machine)
+                        .id(machine.name)
+                        .opacity(tab == .terminal ? 1 : 0)
+                        .allowsHitTesting(tab == .terminal)
+                        .accessibilityHidden(tab != .terminal)
+                }
+                switch tab {
+                case .overview: MachineOverview(machine: machine, onResize: onResize).background(.background)
+                case .terminal: EmptyView()
+                case .logs: MachineLogsTab(name: machine.name).id(machine.name).background(.background)
+                }
             }
+            .frame(maxHeight: .infinity)
         }
+        .onChange(of: tab, initial: true) { if tab == .terminal { terminalStarted = true } }
+        // Another machine selected: its terminal starts fresh, and only once its tab is opened.
+        .onChange(of: machine.name) { terminalStarted = tab == .terminal }
     }
 
     private var header: some View {
@@ -214,6 +230,6 @@ private struct MachineLogsTab: View {
     MachineDetailView(machine: Machine(id: "dev", status: .running, cpus: 4, memory: 8 << 30, diskSize: 1 << 30, isDefault: true,
                                        createdDate: .now),
                       tab: $tab, onResize: {}, onStop: {})
-        .environment(AppModel.platformPreview())
+        .appModelEnvironment(ResourcePreview.model())
         .frame(width: 460, height: 700)
 }

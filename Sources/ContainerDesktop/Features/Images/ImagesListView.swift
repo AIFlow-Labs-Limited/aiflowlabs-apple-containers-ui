@@ -80,7 +80,7 @@ struct ImagesListView: View {
         .confirmDestructive(title: deleteTitle, message: "Deletes \(pendingDelete.joined(separator: ", ")). "
                                 + "Layers shared with other tags are kept.",
                             actionTitle: "Delete",
-                            isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+                            isPresented: $pendingDelete.isPresent) {
             let refs = pendingDelete
             Task { await store.delete(refs); selection.subtract(refs) }
         }

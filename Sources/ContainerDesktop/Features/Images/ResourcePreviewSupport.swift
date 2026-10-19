@@ -5,7 +5,7 @@ import ContainerKit
 import ContainerKitMock
 import AppCore
 
-/// Shared helpers for the Images / Volumes / Networks / Builds features.
+/// The one `#Preview` factory for every feature in this folder group (resources + platform).
 @MainActor
 enum ResourcePreview {
     /// An `AppModel` on `MockBackend` that loads every section (for `#Preview`s).
@@ -30,6 +30,7 @@ enum FilePanels {
     static func openFile(title: String, types: [String] = []) -> URL? {
         let panel = NSOpenPanel()
         panel.title = title
+        panel.message = title
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false

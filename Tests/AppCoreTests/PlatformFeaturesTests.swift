@@ -37,47 +37,132 @@ import ContainerKitMock
         form.memoryGB = 2
         form.setDefault = true
         #expect(form.previewCommand() ==
-            "container machine create --name cd-ui-test --cpus 2 --memory 2g --home-mount rw --set-default ghcr.io/linuxcontainers/alpine:3.20")
+            "container machine create --name cd-ui-test --cpus 2 --memory 2G --home-mount rw --set-default ghcr.io/linuxcontainers/alpine:3.20")
         #expect(form.previewCommand() == CommandLine(executable: "container",
                                                      arguments: ["machine", "create"] + form.spec.cliArguments).display)
     }
 
-    @Test func machineFormBootUserAndVirtualization() {
+    @Test func machineFormBootAndVirtualization() {
         var form = MachineForm(host: HostResources(cpus: 8, memoryBytes: 16 << 30))
         form.bootNow = false
         form.homeMount = .none
-        form.uid = "1000"
-        form.gid = "1000"
         #expect(form.spec.noBoot)
-        #expect(form.spec.user == "1000:1000")
-        form.username = "me"
-        form.gid = ""
-        #expect(form.spec.user == "me")
         form.virtualization = true
         #expect(form.kernelError != nil)
         #expect(!form.isValid)
         form.kernelPath = "/k/vmlinux"
         #expect(form.isValid)
-        #expect(form.previewCommand().contains("--home-mount none --no-boot --virtualization --kernel /k/vmlinux --user me"))
+        #expect(form.previewCommand().hasSuffix("--home-mount none --no-boot --virtualization --kernel /k/vmlinux ghcr.io/linuxcontainers/alpine:3.20"))
+        #expect(!form.previewCommand().contains("--user"))
     }
 
-    @Test func machineFormRejectsBadUID() {
-        var form = MachineForm(host: HostResources(cpus: 4, memoryBytes: 8 << 30))
-        form.uid = "abc"
-        #expect(form.userError != nil)
+    @Test func machineFormRejectsDuplicateNames() {
+        var form = MachineForm(host: HostResources(cpus: 4, memoryBytes: 8 << 30), existingNames: ["dev", "Box"])
+        #expect(form.nameError?.contains("already exists") == true)
         #expect(!form.isValid)
+        form.name = "box"
+        #expect(form.nameError != nil)
+        form.name = "dev-2"
+        #expect(form.nameError == nil && form.isValid)
     }
 
-    @Test func curatedImagesAndBrokenAlpine() {
+    @Test func machineFormValidatesImage() {
+        var form = MachineForm(host: HostResources(cpus: 4, memoryBytes: 8 << 30))
+        form.image = "  "
+        #expect(form.imageError != nil && !form.isValid)
+        form.image = "Not A Ref!"
+        #expect(form.imageError != nil && !form.isValid)
+        form.image = "docker.io/library/alpine:3.22"
+        #expect(form.imageIsKnownBroken && !form.isValid)
+        form.image = MachineImageOption.verified.reference
+        #expect(form.imageError == nil && form.isValid)
+        form.image = "registry.example.com/team/box:1"
+        #expect(form.imageError == nil && form.isValid)
+    }
+
+    @Test(arguments: ["alpine", "alpine:latest", "alpine:3.22", "Alpine:3.20", "docker.io/alpine", "docker.io/alpine:3.19",
+                      "docker.io/library/alpine", "docker.io/library/alpine:latest", "docker.io/library/alpine:3.20",
+                      "index.docker.io/library/alpine:3.18", "alpine@sha256:abc", " alpine:edge "])
+    func knownBrokenAlpineSpellings(_ ref: String) {
+        #expect(MachineImageOption.knownBroken(ref))
+    }
+
+    @Test(arguments: ["ghcr.io/linuxcontainers/alpine:3.20", "alpine-sdk:1", "you/alpine:1", "docker.io/you/alpine",
+                      "ubuntu:24.04", "quay.io/alpine/alpine:3"])
+    func notKnownBroken(_ ref: String) {
+        #expect(!MachineImageOption.knownBroken(ref))
+    }
+
+    @Test func curatedImages() {
         #expect(MachineImageOption.curated.first?.support == .verified)
+        #expect(MachineImageOption.verified.reference == "ghcr.io/linuxcontainers/alpine:3.20")
         #expect(MachineImageOption.curated.map(\.reference).contains("ubuntu:24.04"))
-        #expect(MachineImageOption.knownBroken("alpine:latest"))
-        #expect(MachineImageOption.knownBroken("docker.io/library/alpine:3.20"))
-        #expect(!MachineImageOption.knownBroken("ghcr.io/linuxcontainers/alpine:3.20"))
     }
 
-    @Test func resizeSettings() {
-        #expect(MachineResize.settings(cpus: 8, memoryGB: 16) == ["cpus": "8", "memory": "16g"])
+    @Test func resizeSettingsAndPreview() {
+        let settings = MachineResize.settings(cpus: 8, memoryGB: 16)
+        #expect(settings == ["cpus": "8", "memory": "16G"])
+        #expect(MachineResize.previewCommand(name: "dev", settings: settings) == "container machine set -n dev cpus=8 memory=16G")
+    }
+
+    // MARK: CLI 1.5.0 golden flags
+    //
+    // Every flag a create/build sheet can emit must exist in the CLI's own `--help` (Fixtures/CLIHelpFixtures.swift).
+
+    static func helpFlags(_ help: String) -> Set<String> {
+        Set(help.split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "[" || $0 == "]" || $0 == "(" || $0 == ")" })
+            .map(String.init)
+            .filter { $0.wholeMatch(of: /--?[a-zA-Z][a-zA-Z0-9-]*/) != nil })
+    }
+
+    static func flags(in arguments: [String]) -> [String] { arguments.filter { $0.hasPrefix("-") && $0.count > 1 } }
+
+    @Test func machineCreateFlagsExistInHelp() {
+        let help = Self.helpFlags(CLIHelpFixtures.machineCreate)
+        #expect(help.contains("--home-mount") && !help.contains("--user"))
+        var form = MachineForm(host: HostResources(cpus: 8, memoryBytes: 16 << 30))
+        form.setDefault = true
+        form.bootNow = false
+        form.homeMount = .readOnly
+        form.virtualization = true
+        form.kernelPath = "/k/vmlinux"
+        var spec = form.spec
+        spec.platform = .amd64
+        let used = Self.flags(in: spec.cliArguments)
+        #expect(used.count == 9)
+        for flag in used { #expect(help.contains(flag), "machine create has no \(flag)") }
+    }
+
+    @Test func clusterCreateFlagsExistInHelp() {
+        let help = Self.helpFlags(CLIHelpFixtures.k8sCreate)
+        var form = ClusterForm(host: HostResources(cpus: 8, memoryBytes: 16 << 30))
+        form.nodeImage = "docker.io/kindest/node:v1.34.0"
+        form.cniManifestPath = "/tmp/cni.yaml"
+        form.removeOnStop = true
+        let used = Self.flags(in: form.spec.cliArguments)
+        #expect(Set(used) == ["--name", "-c", "-m", "--node-image", "--cni", "--rm"])
+        for flag in used { #expect(help.contains(flag), "k8s create has no \(flag)") }
+        #expect(!help.contains("--workers"))
+    }
+
+    @Test func buildFlagsExistInHelp() {
+        let help = Self.helpFlags(CLIHelpFixtures.build)
+        var spec = BuildSpec(contextDirectory: "/ctx", tag: "app:1")
+        spec.dockerfile = "Dockerfile"
+        spec.platforms = [.arm64, .amd64]
+        spec.buildArgs = ["A=1"]
+        spec.target = "runtime"
+        spec.noCache = true
+        spec.pull = true
+        spec.labels = ["k=v"]
+        spec.secrets = ["id=a,env=B"]
+        spec.forwardSSH = true
+        spec.cpus = 2
+        spec.memory = MemorySize(bytes: 2 << 30)
+        spec.output = "type=oci,dest=/tmp/x.tar"
+        let used = Set(Self.flags(in: spec.resolvingPaths().cliArguments))
+        #expect(used.count == 14)
+        for flag in used { #expect(help.contains(flag), "build has no \(flag)") }
     }
 
     // MARK: Kubernetes
@@ -99,13 +184,13 @@ import ContainerKitMock
     @Test func clusterPreviewOmitsDefaultsAndWorkers() {
         var form = ClusterForm(host: HostResources(cpus: 12, memoryBytes: 64 << 30))
         form.name = "cd-ui-test"
-        #expect(form.previewCommand() == "container k8s create --name cd-ui-test -c 3 -m 16g")
+        #expect(form.previewCommand() == "container k8s create --name cd-ui-test -c 3 -m 16G")
         #expect(form.spec.workers == nil)
         form.nodeImage = "docker.io/kindest/node:v1.34.0"
         form.cniManifestPath = "/tmp/cilium.yaml"
         form.removeOnStop = true
         #expect(form.previewCommand() ==
-            "container k8s create --name cd-ui-test -c 3 -m 16g --node-image docker.io/kindest/node:v1.34.0 --cni /tmp/cilium.yaml --rm")
+            "container k8s create --name cd-ui-test -c 3 -m 16G --node-image docker.io/kindest/node:v1.34.0 --cni /tmp/cilium.yaml --rm")
     }
 
     @Test func kubectlCommands() {

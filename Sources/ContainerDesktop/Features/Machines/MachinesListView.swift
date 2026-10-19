@@ -36,7 +36,8 @@ struct MachinesListView: View {
             .deepLinkSelection(.machines, navigation: model.navigation, selection: $selection) { $0 }
             .task(id: store.items.map(\.name)) { await loadDetails() }
             .sheet(isPresented: $showCreate) {
-                CreateMachineSheet(localImages: model.images.items.map(\.reference)) { spec in
+                CreateMachineSheet(localImages: model.images.items.map(\.reference),
+                                   existingNames: store.items.map(\.name)) { spec in
                     store.create(spec)
                 }
                 .task { await model.images.refresh() }
@@ -49,13 +50,13 @@ struct MachinesListView: View {
                 }
             }
             .confirmDestructive(title: deleteTitle, message: deleteMessage, actionTitle: "Delete",
-                                isPresented: isPresented($pendingDelete)) {
+                                isPresented: $pendingDelete.isPresent) {
                 let names = pendingDelete
                 Task { await store.delete(names); selection.subtract(names) }
             }
             .confirmDestructive(title: "Stop \(listed(pendingStop))?",
                                 message: "Shuts down \(listed(pendingStop)). Open terminal sessions end; files on its disk and in your home folder stay.",
-                                actionTitle: "Stop", isPresented: isPresented($pendingStop)) {
+                                actionTitle: "Stop", isPresented: $pendingStop.isPresent) {
                 let names = pendingStop
                 Task { await store.stop(names) }
             }
@@ -187,13 +188,6 @@ struct MachinesListView: View {
             + "Your home folder is NOT touched."
     }
 
-    private func listed(_ names: [String]) -> String {
-        names.count == 1 ? "“\(names[0])”" : names.map { "“\($0)”" }.joined(separator: ", ")
-    }
-
-    private func isPresented(_ names: Binding<[String]>) -> Binding<Bool> {
-        Binding(get: { !names.wrappedValue.isEmpty }, set: { if !$0 { names.wrappedValue = [] } })
-    }
 }
 
 /// Sort keys for columns whose model fields aren't `Comparable`.
@@ -205,6 +199,6 @@ extension Machine {
 
 #Preview("Machines") {
     MachinesListView()
-        .environment(AppModel.platformPreview())
+        .appModelEnvironment(ResourcePreview.model())
         .frame(width: 1100, height: 600)
 }

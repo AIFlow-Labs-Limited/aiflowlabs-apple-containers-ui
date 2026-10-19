@@ -38,7 +38,7 @@ struct KubernetesListView: View {
             .confirmDestructive(title: deleteTitle,
                                 message: "Deletes \(listed(pendingDelete)) with all \(pendingDelete.count == 1 ? "its" : "their") nodes, workloads and loaded images, and removes the kubectl context.",
                                 actionTitle: "Delete",
-                                isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+                                isPresented: $pendingDelete.isPresent) {
                 let names = pendingDelete
                 Task { await store.delete(names); selection = selection.filter { !names.contains(ClusterRow.clusterName(of: $0)) } }
             }
@@ -162,7 +162,6 @@ struct KubernetesListView: View {
         pendingDelete.count == 1 ? "Delete cluster “\(pendingDelete[0])”?" : "Delete \(pendingDelete.count) clusters?"
     }
 
-    private func listed(_ names: [String]) -> String { names.map { "“\($0)”" }.joined(separator: ", ") }
 }
 
 /// A table row: a cluster (with node children) or one of its nodes.
@@ -210,6 +209,6 @@ struct IdentifiedName: Identifiable { let id: String }
 
 #Preview("Kubernetes") {
     KubernetesListView()
-        .environment(AppModel.platformPreview())
+        .appModelEnvironment(ResourcePreview.model())
         .frame(width: 1100, height: 600)
 }

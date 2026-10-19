@@ -52,7 +52,7 @@ struct BuildsListView: View {
         .confirmDestructive(title: pendingDelete.count == 1 ? "Remove this build from history?" : "Remove \(pendingDelete.count) builds from history?",
                             message: "Removes \(historyNames(pendingDelete)) and their logs from the local history. Built images are kept.",
                             actionTitle: "Remove",
-                            isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } })) {
+                            isPresented: $pendingDelete.isPresent) {
             store.deleteHistory(pendingDelete)
             selection.subtract(pendingDelete)
         }
@@ -152,8 +152,7 @@ struct BuildRecordDetail: View {
 
     /// While running, show the live task output; afterwards the persisted log.
     private var lines: [OutputLine] {
-        if record.status == .running,
-           let task = model.taskCenter.tasks.first(where: { $0.kind == .build && $0.title == "Build \(record.tag)" && $0.state == .running }) {
+        if record.status == .running, let task = BuildTaskMatch.task(for: record, in: model.taskCenter.tasks) {
             return task.lines
         }
         return record.log.map { OutputLine($0) }
@@ -183,6 +182,21 @@ struct BuildRecordDetail: View {
             Divider()
             OutputLogView(lines: lines, follow: record.status == .running)
         }
+    }
+}
+
+/// Finds the live task of a running build record. `BuildsStore.build` creates the record and its task in the same
+/// main-actor turn, so the task started closest to the record's `startedAt` is that record's, even when two builds
+/// share a tag (a title match alone would show one build's log for both).
+enum BuildTaskMatch {
+    static let tolerance: TimeInterval = 2
+
+    @MainActor
+    static func task(for record: BuildRecord, in tasks: [LongRunningTask]) -> LongRunningTask? {
+        tasks.filter { $0.kind == .build && $0.title == "Build \(record.tag)" }
+            .map { (task: $0, gap: abs($0.startedAt.timeIntervalSince(record.startedAt))) }
+            .filter { $0.gap <= tolerance }
+            .min { $0.gap < $1.gap }?.task
     }
 }
 

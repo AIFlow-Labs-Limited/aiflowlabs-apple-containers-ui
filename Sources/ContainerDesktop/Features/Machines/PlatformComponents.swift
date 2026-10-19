@@ -1,7 +1,6 @@
 import SwiftUI
 import ContainerKit
 import AppCore
-import ContainerKitMock
 import DesignSystem
 
 // Small views shared by the Machines, Kubernetes and Registries features.
@@ -112,15 +111,6 @@ struct SectionHeaderBar<Trailing: View>: View {
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.s)
         .background(.bar)
-    }
-}
-
-extension AppModel {
-    /// Fixture-backed model for `#Preview`s of the platform features.
-    static func platformPreview() -> AppModel {
-        let model = AppModel(backend: MockBackend(), observeAppActivation: false)
-        Task { await model.bootstrap(); await model.refreshAll() }
-        return model
     }
 }
 
