@@ -51,8 +51,14 @@ public final class MachinesStore: PollingStore {
     public func setDefault(_ name: String) async { await perform { try await backend.setDefaultMachine(name) } }
 
     /// e.g. `["cpus": "8", "memory": "16g"]` — applies after the next boot.
-    public func configure(_ name: String, settings: [String: String]) async {
+    @discardableResult
+    public func configure(_ name: String, settings: [String: String]) async -> Bool {
         await perform { try await backend.configureMachine(name, settings: settings) }
+    }
+
+    /// Full machine record (`machine ls` omits `image`/`userSetup`; `inspect` has them). `nil` on failure.
+    public func inspect(_ name: String) async -> Machine? {
+        try? await backend.inspectMachine(name)
     }
 
     public func logs(_ name: String) async -> [OutputLine] {

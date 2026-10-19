@@ -1,10 +1,12 @@
 #if DEBUG
 import SwiftUI
 import AppCore
+import ContainerKit
 
 /// DEBUG-only launch hooks for screenshots and UI smoke tests, e.g.
 /// `CONTAINER_DESKTOP_DEBUG_OPEN=palette,section=images swift run ContainerDesktop`.
-/// Tokens: `palette`, `settings`, `activity`, `terminal`, `cleanup`, `stopped`, `toasts`, `pull`, `section=<name>`.
+/// Tokens: `palette`, `settings`, `activity`, `terminal`, `cleanup`, `stopped`, `toasts`, `pull`, `section=<name>`,
+/// platform: `machine-create`, `machine-select`, `cluster-create`, `cluster-select`, `registry-login`, `k8s-demo`.
 @MainActor
 enum DebugLaunchActions {
     static func run(model: AppModel, openWindow: OpenWindowAction, openSettings: OpenSettingsAction) async {
@@ -25,6 +27,12 @@ enum DebugLaunchActions {
             case "stopped":
                 try? await model.backend.systemStop()
                 await model.refreshEngine()
+            case "k8s-demo":
+                // Seed a mock cluster so the Kubernetes screenshot isn't empty.
+                await model.clusters.create(ClusterSpec(name: "k8s-dev")).wait()
+            case "machine-create", "machine-select", "cluster-create", "cluster-select", "registry-login":
+                // Platform sheets/selection (features-platform); the views pick these up.
+                DebugPlatformHooks.request(token)
             default:
                 if token.hasPrefix("section="), let s = SidebarSection(rawValue: String(token.dropFirst(8))) {
                     model.navigation.open(s)

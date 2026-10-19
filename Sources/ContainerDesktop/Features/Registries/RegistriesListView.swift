@@ -3,78 +3,108 @@ import ContainerKit
 import AppCore
 import DesignSystem
 
-/// Phase-1 registry logins list (features-platform replaces this in phase 2).
+/// Registry logins (`container registry ls`): log in / log out / copy server / push an image.
 struct RegistriesListView: View {
     @Environment(AppModel.self) private var model
     @State private var selection = Set<RegistryLogin.ID>()
+    @State private var sortOrder = [KeyPathComparator(\RegistryLogin.server)]
     @State private var pendingLogout: [String] = []
     @State private var showLogin = false
 
     private var store: RegistriesStore { model.registries }
+    private var rows: [RegistryLogin] { store.filtered.sorted(using: sortOrder) }
 
     var body: some View {
-        Table(store.filtered, selection: $selection) {
-            TableColumn("Server") { r in Text(r.server).fontWeight(.medium) }
-                .width(min: 180, ideal: 260)
-            TableColumn("Username") { r in Text(r.username ?? emDash) }
-                .width(min: 120, ideal: 180)
-            TableColumn("Scheme") { r in Text(r.scheme ?? "https").foregroundStyle(.secondary) }
+        Table(rows, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Server", value: \.server) { r in
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: symbol(for: r.server)).foregroundStyle(.secondary).accessibilityHidden(true)
+                    Text(r.server).fontWeight(.medium)
+                }
+                .accessibilityLabel("Registry \(r.server), user \(r.username ?? "unknown")")
+            }
+            .width(min: 180, ideal: 280)
+            TableColumn("Username", value: \.usernameSort) { r in Text(r.username ?? emDash) }
+                .width(min: 120, ideal: 200)
+            TableColumn("Scheme", value: \.schemeSort) { r in Text(r.schemeSort).foregroundStyle(.secondary) }
+                .width(min: 60, ideal: 80)
         }
         .contextMenu(forSelectionType: RegistryLogin.ID.self) { ids in
-            Button("Log out…", role: .destructive) { pendingLogout = Array(ids) }
-        }
-        .overlay {
-            if store.filtered.isEmpty && !store.isLoading {
-                EmptyStateView(symbol: "server.rack", title: "No registry logins",
-                               message: "Log in to push images or pull private ones.", actionTitle: "Log in…") { showLogin = true }
+            if ids.count == 1, let server = ids.first {
+                Button("Copy Server") { copyToPasteboard(server) }
+                Button("Push an Image…") { model.navigation.open(.images) }
+                Divider()
             }
+            Button("Log Out…", role: .destructive) { pendingLogout = Array(ids) }
         }
+        .overlay { emptyState }
         .toolbar {
             ToolbarItemGroup {
-                ToolbarActionButton("Log in", systemImage: "person.badge.key") { showLogin = true }
-                ToolbarActionButton("Log out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                ToolbarActionButton("Log In", systemImage: "person.badge.key") { showLogin = true }
+                ToolbarActionButton("Push an Image", systemImage: "arrow.up.circle") { model.navigation.open(.images) }
+                    .help("Opens Images — choose an image and Push")
+                ToolbarActionButton("Log Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
                     pendingLogout = Array(selection)
                 }
                 .disabled(selection.isEmpty)
             }
         }
         .storeChrome(store)
+        .deepLinkSelection(.registries, navigation: model.navigation, selection: $selection) { $0 }
         .sheet(isPresented: $showLogin) {
-            RegistryLoginSheet { server, user, password in
-                Task { if await store.login(server: server, username: user, password: password) { model.toasts.success("Logged in to \(server)") } }
+            RegistryLoginSheet { server, user, password, scheme in
+                let ok = await store.login(server: server, username: user, password: password, scheme: scheme)
+                if ok {
+                    model.toasts.success("Logged in to \(server)")
+                    return nil
+                }
+                // Show the error in the sheet only, not also as the list banner.
+                let error = store.lastError
+                store.clearError()
+                return error ?? .other("Login to \(server) failed.")
             }
         }
         .confirmDestructive(title: "Log out of \(pendingLogout.joined(separator: ", "))?",
-                            message: "Removes the stored credentials from the Keychain.",
-                            actionTitle: "Log out",
+                            message: "Removes the saved credentials for \(pendingLogout.joined(separator: ", ")) from your macOS Keychain. Pushes and private pulls from \(pendingLogout.count == 1 ? "it" : "them") will fail until you log in again.",
+                            actionTitle: "Log Out",
                             isPresented: Binding(get: { !pendingLogout.isEmpty }, set: { if !$0 { pendingLogout = [] } })) {
             let servers = pendingLogout
             Task { await store.logout(servers); selection.subtract(servers) }
         }
+        #if DEBUG
+        .debugHook("registry-login") { showLogin = true }
+        #endif
     }
-}
 
-/// Server + username + password. The password goes to the backend (stdin to the CLI) and is not kept.
-private struct RegistryLoginSheet: View {
-    let login: (String, String, String) -> Void
-    @State private var server = "docker.io"
-    @State private var username = ""
-    @State private var password = ""
-
-    var body: some View {
-        FormSheet(title: "Log in to a registry", actionTitle: "Log in",
-                  canSubmit: !server.isEmpty && !username.isEmpty && !password.isEmpty,
-                  submit: { login(server, username, password) }) {
-            TextField("Server", text: $server)
-            TextField("Username", text: $username)
-            SecureField("Password or token", text: $password)
-            Text(hint).font(.caption).foregroundStyle(.secondary)
+    @ViewBuilder
+    private var emptyState: some View {
+        if store.filtered.isEmpty && !store.isLoading {
+            if store.searchText.isEmpty {
+                EmptyStateView(symbol: "server.rack", title: "No registry logins",
+                               message: "Log in to push your images to Docker Hub, GHCR or a private registry, and to pull private images. Credentials stay in your macOS Keychain.",
+                               actionTitle: "Log In…") { showLogin = true }
+            } else {
+                ContentUnavailableView.search(text: store.searchText)
+            }
         }
     }
 
-    private var hint: String {
-        if server.contains("ghcr.io") { return "GHCR: use a personal access token with read:packages / write:packages." }
-        if server.contains("docker.io") { return "Docker Hub: use a personal access token (Account settings → Security)." }
-        return "Credentials are stored in the macOS Keychain by the container CLI."
+    private func symbol(for server: String) -> String {
+        switch RegistryPreset.matching(server: server) {
+        case .dockerHub: return "shippingbox"
+        case .ghcr: return "chevron.left.forwardslash.chevron.right"
+        case .custom: return "server.rack"
+        }
     }
+}
+
+extension RegistryLogin {
+    var usernameSort: String { username ?? "" }
+    var schemeSort: String { scheme ?? "https" }
+}
+
+#Preview("Registries") {
+    RegistriesListView()
+        .environment(AppModel.platformPreview())
+        .frame(width: 900, height: 500)
 }
