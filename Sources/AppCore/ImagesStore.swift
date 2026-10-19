@@ -8,7 +8,13 @@ import ContainerKit
 public final class ImagesStore: PollingStore {
     public private(set) var items: [Image] = []
     public var isLoading = false
-    public var lastError: BackendError?
+    public var loadError: BackendError?
+    public var actionError: BackendError?
+    /// Banner error: `actionError ?? loadError`. Setting `nil` clears both; a value becomes the `actionError`.
+    public var lastError: BackendError? {
+        get { actionError ?? loadError }
+        set { actionError = newValue; if newValue == nil { loadError = nil } }
+    }
     public var searchText = ""
 
     @ObservationIgnored private let backend: any ContainerBackend
@@ -17,7 +23,7 @@ public final class ImagesStore: PollingStore {
     @ObservationIgnored public private(set) lazy var poller = Poller(gate: gate) { [weak self] in
         guard let self else { return }
         await self.refresh()
-        if let error = self.lastError { throw error }
+        if let error = self.loadError { throw error }
     }
     @ObservationIgnored private let gate: PollingGate
 
