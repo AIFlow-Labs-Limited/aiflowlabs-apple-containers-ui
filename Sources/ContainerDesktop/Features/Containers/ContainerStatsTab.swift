@@ -6,15 +6,12 @@ import AppCore
 import DesignSystem
 
 /// Stats tab: current values as tiles, then CPU / memory / network / block I/O / PIDs charts over the last
-/// 5 minutes. Samples `containerStats(ids: [id])` every 2 s only while the tab is visible.
+/// 5 minutes. Render-only: samples come from `ContainersStore.refreshStats` (the store's gated poller appends
+/// them to `ContainersStore.statsHistory`), so there is no second polling loop here.
 struct ContainerStatsTab: View {
     let container: Container
-    @Environment(AppModel.self) private var model
-    /// Shared across tab switches (lives in `ContainersUIState`) so the 5-minute history survives.
+    /// `model.containers.statsHistory`.
     let history: ContainerStatsHistory
-    @State private var error: BackendError?
-
-    static let interval: Duration = .seconds(2)
 
     private var points: [StatsPoint] { history.points(for: container.id) }
     /// Rates need two samples; drop the priming point from rate charts.
@@ -28,7 +25,6 @@ struct ContainerStatsTab: View {
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
-                    if let error { ErrorBanner(error) }
                     tiles
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: Spacing.l)], spacing: Spacing.l) {
                         chartCard("CPU", subtitle: "% of one core") { cpuChart }
@@ -44,24 +40,6 @@ struct ContainerStatsTab: View {
                 }
                 .padding(Spacing.l)
             }
-            .task(id: container.id) { await sample() }
-        }
-    }
-
-    private func sample() async {
-        let backend = model.backend
-        let id = container.id
-        while !Task.isCancelled {
-            do {
-                if let s = try await backend.containerStats(ids: [id]).first(where: { $0.id == id }) {
-                    history.append(s)
-                }
-                error = nil
-            } catch {
-                let wrapped = BackendError(wrapping: error)
-                if wrapped != .cancelled { self.error = wrapped }
-            }
-            try? await Task.sleep(for: Self.interval)
         }
     }
 
@@ -185,11 +163,9 @@ struct ContainerStatsTab: View {
 }
 
 #Preview("Stats") {
-    let model = AppModel(backend: MockBackend(), observeAppActivation: false)
     let c = Container(id: "db", configuration: .init(
         id: "db", image: ImageReference(reference: "postgres:16", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
         creationDate: .now, initProcess: .init(executable: "postgres")), status: .init(state: .running, startedDate: .now))
     ContainerStatsTab(container: c, history: ContainerStatsHistory())
-        .appModelEnvironment(model)
         .frame(width: 900, height: 600)
 }
