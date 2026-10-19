@@ -93,7 +93,7 @@ public enum LayerHistoryText {
     public static func shorten(_ createdBy: String, limit: Int = 140) -> String {
         var s = createdBy.trimmingCharacters(in: .whitespacesAndNewlines)
         for prefix in ["/bin/sh -c #(nop) ", "/bin/sh -c ", "|"] where s.hasPrefix(prefix) {
-            s = String(s.dropFirst(prefix.count))
+            s = String(s.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
             if prefix == "|" { s = String(s.drop { $0.isNumber }).trimmingCharacters(in: .whitespaces) }
         }
         if s.hasPrefix("RUN /bin/sh -c ") { s = "RUN " + s.dropFirst("RUN /bin/sh -c ".count) }
