@@ -5,9 +5,16 @@ import SwiftUI
 /// DNS domains (admin prompt happens in the backend), host.container.internal helper, VPN fake-IP warning.
 struct NetworkSettingsTab: View {
     @Environment(AppModel.self) private var model
-    @State private var domain = "test"
+    /// Empty means the placeholder "test". Prefilling "test" made the tab open with that text selected (the field
+    /// is the window's first key view), which read as a pending edit.
+    @State private var domain = ""
     @State private var working = false
     @State private var pendingDelete: String?
+
+    private var effectiveDomain: String {
+        let trimmed = domain.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? "test" : trimmed
+    }
 
     var body: some View {
         Form {
@@ -16,11 +23,11 @@ struct NetworkSettingsTab: View {
                     TextField("Domain", text: $domain, prompt: Text("test"))
                         .frame(maxWidth: 200)
                     Button("Enable DNS names…") { Task { await create() } }
-                        .disabled(domain.trimmingCharacters(in: .whitespaces).isEmpty || working)
+                        .disabled(working)
                     if working { ProgressView().controlSize(.small) }
                 }
                 Text(
-                    "Containers become reachable as <name>.\(domain.isEmpty ? "test" : domain) from your Mac. "
+                    "Containers become reachable as <name>.\(effectiveDomain) from your Mac. "
                         + "macOS asks for an administrator password once."
                 )
                 .font(.caption).foregroundStyle(.secondary)
@@ -88,7 +95,7 @@ struct NetworkSettingsTab: View {
 
     private func create() async {
         working = true
-        let name = domain.trimmingCharacters(in: .whitespaces)
+        let name = effectiveDomain
         if await model.system.createDNSDomain(name) { model.toasts.success("DNS domain .\(name) enabled") }
         working = false
     }
