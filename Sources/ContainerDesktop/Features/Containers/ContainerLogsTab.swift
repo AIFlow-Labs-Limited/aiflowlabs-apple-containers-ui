@@ -18,12 +18,13 @@ struct ContainerLogsTab: View {
     @State private var boot = false
     @State private var query = ""
     @State private var currentMatch = 0
-
-    private var matches: [Int] { logs.buffer.matches(query) }
+    @State private var saving = false
 
     var body: some View {
+        // Read once per render; the model keeps the index up to date incrementally.
+        let matches = logs.matches
         VStack(spacing: 0) {
-            controls
+            controls(matches: matches)
             Divider()
             if let error = logs.error {
                 ErrorBanner(error, retry: restart).padding(Spacing.s)
@@ -34,27 +35,27 @@ struct ContainerLogsTab: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(nsColor: .textBackgroundColor))
             } else {
-                LogConsole(buffer: logs.buffer, wrap: wrap, timestamps: timestamps, follow: follow && query.isEmpty,
-                           query: query, matches: matches, currentMatch: currentMatch)
+                LogConsole(logs: logs, wrap: wrap, timestamps: timestamps, follow: follow && query.isEmpty,
+                           current: matches.isEmpty ? nil : matches[min(currentMatch, matches.count - 1)])
             }
         }
         .task(id: "\(container.id)|\(boot)|\(container.isRunning)") { restart() }
         .onDisappear { logs.stop() }
-        .onChange(of: query) { currentMatch = 0 }
+        .onChange(of: query) { logs.setQuery(query); currentMatch = 0 }
     }
 
     private func restart() {
         logs.start(backend: model.backend, id: container.id, follow: container.isRunning && !boot, boot: boot)
     }
 
-    private var controls: some View {
+    private func controls(matches: [Int]) -> some View {
         HStack(spacing: Spacing.s) {
             Toggle(isOn: $follow) { Label("Follow", systemImage: "arrow.down.to.line") }
                 .help("Keep scrolled to the newest line")
             Toggle(isOn: $wrap) { Label("Wrap", systemImage: "text.word.spacing") }
                 .help("Wrap long lines")
             Toggle(isOn: $timestamps) { Label("Timestamps", systemImage: "clock") }
-                .help("Prefix each line with the local time it was received")
+                .help("Prefix each line with the local time the app received it (lines loaded together share one time)")
             Toggle(isOn: $boot) { Label("Boot log", systemImage: "power") }
                 .help("Show the VM boot log instead of the process output")
             Divider().frame(height: 16)
@@ -64,12 +65,12 @@ struct ContainerLogsTab: View {
                 Text(matches.isEmpty ? "No matches" : "\(min(currentMatch, matches.count - 1) + 1) of \(matches.count)")
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     .fixedSize()
-                Button { step(-1) } label: { SwiftUI.Image(systemName: "chevron.up") }
+                Button { step(-1, matches: matches) } label: { SwiftUI.Image(systemName: "chevron.up") }
                     .help("Previous match (⇧⌘G)")
                     .accessibilityLabel("Previous match")
                     .keyboardShortcut("g", modifiers: [.command, .shift])
                     .disabled(matches.isEmpty)
-                Button { step(1) } label: { SwiftUI.Image(systemName: "chevron.down") }
+                Button { step(1, matches: matches) } label: { SwiftUI.Image(systemName: "chevron.down") }
                     .help("Next match (⌘G)")
                     .accessibilityLabel("Next match")
                     .keyboardShortcut("g", modifiers: .command)
@@ -81,9 +82,11 @@ struct ContainerLogsTab: View {
             }
             Text("\(logs.buffer.count) lines").font(.caption).foregroundStyle(.secondary).monospacedDigit().fixedSize()
             Button { copyToPasteboard(logs.buffer.text(timestamps: timestamps)) } label: { SwiftUI.Image(systemName: "doc.on.doc") }
-                .help("Copy all").accessibilityLabel("Copy all lines")
+                .help("Copy the \(logs.buffer.count) lines in view")
+                .accessibilityLabel("Copy \(logs.buffer.count) lines")
             Button(action: save) { SwiftUI.Image(systemName: "square.and.arrow.down") }
-                .help("Save log…").accessibilityLabel("Save log")
+                .help("Save the full log to a file…").accessibilityLabel("Save full log")
+                .disabled(saving)
             Button { logs.clear() } label: { SwiftUI.Image(systemName: "clear") }
                 .help("Clear the view").accessibilityLabel("Clear")
         }
@@ -95,11 +98,13 @@ struct ContainerLogsTab: View {
         .padding(.vertical, Spacing.xs + 2)
     }
 
-    private func step(_ delta: Int) {
+    private func step(_ delta: Int, matches: [Int]) {
         guard !matches.isEmpty else { return }
         currentMatch = (min(currentMatch, matches.count - 1) + delta + matches.count) % matches.count
     }
 
+    /// Saves the container's *whole* log (a fresh non-following `container logs` with no tail), not just the
+    /// last lines the view keeps.
     private func save() {
         let panel = NSSavePanel()
         panel.title = "Save Log"
@@ -107,38 +112,51 @@ struct ContainerLogsTab: View {
         panel.allowedContentTypes = [.log, .plainText]
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try Data(logs.buffer.text(timestamps: timestamps).utf8).write(to: url, options: .atomic)
-            model.toasts.success("Saved log", message: url.lastPathComponent)
-        } catch {
-            model.toasts.error("Could not save log", message: error.localizedDescription)
+        let backend = model.backend
+        let id = container.id
+        let boot = boot
+        saving = true
+        Task {
+            defer { saving = false }
+            do {
+                var text = ""
+                var count = 0
+                for try await line in backend.containerLogs(id, follow: false, boot: boot, tail: nil) {
+                    if count > 0 { text += "\n" }
+                    text += line.text
+                    count += 1
+                }
+                try Data(text.utf8).write(to: url, options: .atomic)
+                model.toasts.success("Saved \(count) lines", message: url.lastPathComponent)
+            } catch {
+                model.toasts.error("Could not save log", message: BackendError(wrapping: error).errorDescription)
+            }
         }
     }
 }
 
 /// Monospaced lazy log view with stable row ids, wrap on/off, match highlighting and scroll-to-match.
 private struct LogConsole: View {
-    let buffer: LogRingBuffer
+    let logs: ContainerLogsModel
     let wrap: Bool
     let timestamps: Bool
     let follow: Bool
-    let query: String
-    let matches: [Int]
-    let currentMatch: Int
+    /// Absolute line number of the current match.
+    let current: Int?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let bottomID = -1
 
     var body: some View {
-        let base = buffer.droppedCount
-        let matchSet = Set(matches)
-        let current = matches.isEmpty ? nil : matches[min(currentMatch, matches.count - 1)]
+        let buffer = logs.buffer
+        let matchSet = logs.matchSet
         ScrollViewReader { proxy in
             ScrollView(wrap ? .vertical : [.vertical, .horizontal]) {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(buffer.lines.enumerated()), id: \.offset) { index, line in
-                        row(line, highlighted: matchSet.contains(index), current: index == current)
-                            .id(base + index)
+                    // Absolute line numbers: stable ids across ring trims, no per-render array of 20k lines.
+                    ForEach(buffer.droppedCount..<buffer.totalAppended, id: \.self) { n in
+                        row(logs.line(n), highlighted: matchSet.contains(n), current: n == current)
+                            .id(n)
                     }
                     Color.clear.frame(height: 1).id(Self.bottomID)
                 }
@@ -152,7 +170,7 @@ private struct LogConsole: View {
                 scroll(proxy, to: Self.bottomID, anchor: .bottom)
             }
             .onChange(of: current) {
-                if let current { scroll(proxy, to: base + current, anchor: .center) }
+                if let current { scroll(proxy, to: current, anchor: .center) }
             }
             .onAppear { if follow { proxy.scrollTo(Self.bottomID, anchor: .bottom) } }
         }
