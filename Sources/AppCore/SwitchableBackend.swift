@@ -107,11 +107,11 @@ public final class SwitchableBackend: ContainerBackend, Sendable {
     public func inspectImage(_ reference: String) async throws -> Image {
         try await current.inspectImage(reference)
     }
-    public func pullImage(_ reference: String, platform: Platform?) -> LineStream {
-        current.pullImage(reference, platform: platform)
+    public func pullImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream {
+        current.pullImage(reference, platform: platform, scheme: scheme)
     }
-    public func pushImage(_ reference: String, platform: Platform?) -> LineStream {
-        current.pushImage(reference, platform: platform)
+    public func pushImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream {
+        current.pushImage(reference, platform: platform, scheme: scheme)
     }
     public func deleteImage(_ reference: String) async throws {
         try await current.deleteImage(reference)

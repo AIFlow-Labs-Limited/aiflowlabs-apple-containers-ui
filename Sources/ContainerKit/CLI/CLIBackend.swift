@@ -19,6 +19,8 @@ public actor CLIBackend: ContainerBackend {
     public let configPath: String?
     /// Cached answer of the `container commit --help` probe (`supportsCommit()`); `nil` until it is known.
     var commitSupport: Bool?
+    /// Cached answer of the `container clean --help` probe (`supportsClean()`); `nil` until it is known.
+    var cleanSupport: Bool?
 
     /// Kubernetes plugin capabilities read from `--help`, with the fingerprint of the binary they came from
     /// (see `CLIBackend+Kubernetes.swift`). The only things this backend remembers between calls, with `clusterNodes`.

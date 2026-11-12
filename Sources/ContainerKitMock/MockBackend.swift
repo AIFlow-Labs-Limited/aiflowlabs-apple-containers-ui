@@ -64,6 +64,11 @@ public actor MockBackend: ContainerBackend {
     public internal(set) var startCounts: [String: Int] = [:]
     /// Whether the mock pretends its runtime has `container commit` (Apple container 1.6+).
     public var commitSupported = true
+    /// Whether the mock pretends its runtime has `container clean` (Apple container 1.7+): yes when it plays a
+    /// 1.7 CLI, no when it plays 1.5.0. See `MockBackend+Clean.swift`.
+    public var cleanSupported: Bool
+    /// The ids `cleanContainers` has cleaned, in order (tests).
+    public internal(set) var cleanedContainers: [String] = []
     /// Origin of the fake stats counters (see `containerStats`).
     private let statsEpoch = Date.now
 
@@ -71,6 +76,7 @@ public actor MockBackend: ContainerBackend {
     ///   (`1.7` plays the new `cluster` plugin, `none` plays a CLI without one).
     public init(kubernetes: KubernetesCapabilities? = MockBackend.environmentKubernetes()) {
         self.kubernetes = kubernetes
+        cleanSupported = kubernetes?.listsJSON == true
         clusters = MockClusters.seed(for: kubernetes)
         containers = (try? MockBackend.scrubbed([Container].self, "containers.json")) ?? []
         images = (try? Fixtures.images()) ?? []
@@ -308,7 +314,7 @@ public actor MockBackend: ContainerBackend {
         }
         return i
     }
-    public nonisolated func pullImage(_ reference: String, platform: Platform?) -> LineStream {
+    public nonisolated func pullImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream {
         stream([
             "Fetching \(reference)", "[1/3] Fetching manifest", "[2/3] Fetching layers 12.3 MB / 55.0 MB",
             "[2/3] Fetching layers 55.0 MB / 55.0 MB", "[3/3] Unpacking image", "Done",
@@ -327,7 +333,7 @@ public actor MockBackend: ContainerBackend {
                 configuration: .init(name: reference, creationDate: .now, descriptor: desc),
                 variants: [.init(platform: .arm64, digest: desc.digest, size: 55_000_000)]))
     }
-    public nonisolated func pushImage(_ reference: String, platform: Platform?) -> LineStream {
+    public nonisolated func pushImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream {
         stream(["Pushing \(reference)", "Pushing layer 1/6", "Pushing layer 6/6", "Pushing manifest", "Done"])
     }
     public func deleteImage(_ reference: String) async throws {
