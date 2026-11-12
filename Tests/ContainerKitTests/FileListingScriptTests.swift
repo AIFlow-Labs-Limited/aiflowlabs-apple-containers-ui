@@ -127,7 +127,7 @@ struct FileListingScriptTests {
 
     @Test func reportsMissingDirectoryAndMissingTools() async throws {
         let (missing, nonce) = try await run(shell: "/bin/sh", directory: "/no/such/dir-\(UUID().uuidString)")
-        #expect(missing.exitCode == FileListing.cannotEnterExitCode)
+        #expect(missing.exitCode == FileListing.missingExitCode)
         guard
             case .failure(let message) = FileListing.interpret(
                 exitCode: missing.exitCode, stdout: missing.stdout, stderr: missing.stderrText, nonce: nonce,
@@ -136,7 +136,14 @@ struct FileListingScriptTests {
             Issue.record("expected a failure")
             return
         }
-        #expect(message.localizedCaseInsensitiveContains("no such file"))
+        #expect(message == "“/no/such/dir” does not exist.")
+
+        let (file, fileNonce) = try await run(shell: "/bin/sh", directory: "/etc/hosts")
+        #expect(file.exitCode == FileListing.notADirectoryExitCode)
+        #expect(
+            FileListing.interpret(
+                exitCode: file.exitCode, stdout: file.stdout, stderr: file.stderrText, nonce: fileNonce,
+                path: "/etc/hosts", limit: 10) == .failure(message: "“/etc/hosts” is not a directory."))
 
         // An empty PATH: neither stat nor ls can be found, but the shell itself runs.
         let empty = FileManager.default.temporaryDirectory.appending(path: "cd-empty-\(UUID().uuidString)")
