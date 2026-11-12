@@ -24,7 +24,7 @@ struct ContainerDetailView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 640)
+            .frame(maxWidth: 720)
             .padding(.horizontal, Spacing.l)
             .padding(.bottom, Spacing.s)
             .accessibilityLabel("Detail tab")
@@ -132,6 +132,7 @@ private struct DetailTabContent: View {
         case .logs: ContainerLogsTab(container: container)
         case .inspect: ContainerInspectTab(container: container)
         case .terminal: EmptyView()
+        case .files: ContainerFilesTab(container: container, actions: actions)
         case .stats: ContainerStatsTab(container: container, history: statsHistory)
         case .mounts: ContainerMountsTab(container: container)
         case .ports: ContainerPortsTab(container: container, actions: actions)

@@ -57,6 +57,8 @@ struct ContainersListView: View {
                 ui.open(newID, tab: .logs)
             }
         }
+        .sheet(item: $ui.commitRequest) { request in SaveAsImageSheet(container: request.container) }
+        .task { await ui.loadCapabilities(model.backend) }
         .confirmDestructive(
             title: deleteTitle, message: deleteMessage, actionTitle: "Delete",
             isPresented: $ui.pendingDelete.isPresent

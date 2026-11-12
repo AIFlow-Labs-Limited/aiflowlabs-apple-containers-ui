@@ -110,3 +110,20 @@ struct FailingBackend: ContainerBackend {
 
     private func fail() -> LineStream { let e = error; return AsyncThrowingStream { $0.finish(throwing: e) } }
 }
+
+extension FailingBackend {
+    func listDirectory(_ id: String, path: String, limit: Int) async throws -> ContainerDirectoryListing {
+        throw error
+    }
+    func readFile(_ id: String, path: String, maxBytes: Int) async throws -> Data { throw error }
+    func makeDirectory(_ id: String, path: String) async throws { throw error }
+    func moveItem(_ id: String, from source: String, to destination: String) async throws { throw error }
+    func deleteItem(_ id: String, path: String) async throws { throw error }
+    func copyOut(_ id: String, path: String, to localPath: String) async throws { throw error }
+    func copyIn(_ id: String, localPath: String, to path: String) async throws { throw error }
+    func supportsCommit() async -> Bool { false }
+    func commitContainer(_ id: String, reference: String) -> LineStream {
+        let e = error
+        return AsyncThrowingStream { $0.finish(throwing: e) }
+    }
+}

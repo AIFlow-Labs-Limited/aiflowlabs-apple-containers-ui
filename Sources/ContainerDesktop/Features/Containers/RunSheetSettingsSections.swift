@@ -62,7 +62,9 @@ struct RunNetworkSection: View {
                 if !form.network.isEmpty, !networks.contains(form.network) { Text(form.network).tag(form.network) }
             }
             TextField("Aliases", text: $form.aliases, prompt: Text("api, backend"))
+                .accessibilityLabel("Network aliases")
             TextField("MAC address", text: $form.macAddress, prompt: Text("Automatic"))
+                .accessibilityLabel("MAC address")
         }
     }
 }
@@ -104,6 +106,7 @@ struct RunAdvancedSection: View {
             TextField(label, text: text, prompt: Text(prompt))
                 .font(.monoBody)
                 .labelsHidden()
+                .accessibilityLabel(label)
         }
     }
 }
