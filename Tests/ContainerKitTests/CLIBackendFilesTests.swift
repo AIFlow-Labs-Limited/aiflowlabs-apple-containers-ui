@@ -103,80 +103,54 @@ struct CLIBackendFilesTests {
         #expect(runner.calls.isEmpty)
     }
 
-    @Test func copyOutStagesThenMovesIntoPlace() async throws {
-        let workspace = FileManager.default.temporaryDirectory.appending(path: "cd-copy-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: workspace) }
-        // A destination the CLI could not address itself (colon), which already exists.
-        let destination = workspace.appending(path: "notes 12:30.txt").path(percentEncoded: false)
-        try Data("old".utf8).write(to: URL(filePath: destination))
-        let runner = RecordingRunner { arguments in
-            // Play the CLI: write the "copied" file to the staging path it was given.
-            if arguments.dropFirst().first == "copy", let staged = arguments.last {
-                FileManager.default.createFile(atPath: staged, contents: Data("new".utf8))
-            }
-            return ProcessResult()
-        }
-        let backend = try CLIBackend.recording(runner)
-        try await backend.copyOut("web", path: "/etc/my hosts", to: destination)
-        #expect(try String(contentsOfFile: destination, encoding: .utf8) == "new")
-        let argv = try #require(runner.commands.first)
-        #expect(Array(argv.prefix(3)) == ["copy", "--", "web:/etc/my hosts"])
-        #expect(!argv[3].contains(":"))
-        #expect(argv[3].hasSuffix("/payload"))
-        // The staging directory is gone afterwards.
-        #expect(!FileManager.default.fileExists(atPath: (argv[3] as NSString).deletingLastPathComponent))
-    }
-
-    @Test func copyOutFailureLeavesTheDestinationAlone() async throws {
-        let destination = FileManager.default.temporaryDirectory.appending(path: "cd-keep-\(UUID().uuidString).txt")
-        try Data("keep".utf8).write(to: destination)
-        defer { try? FileManager.default.removeItem(at: destination) }
-        let failing = try CLIBackend.recording(
-            RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: "Error: container web is not running")
-            })
-        await #expect(throws: BackendError.self) {
-            try await failing.copyOut("web", path: "/etc/hosts", to: destination.path(percentEncoded: false))
-        }
-        // A copy that "succeeds" without producing anything is reported, not silently accepted.
-        let silent = try CLIBackend.recording(RecordingRunner { _ in ProcessResult() })
-        await #expect(throws: BackendError.self) {
-            try await silent.copyOut("web", path: "/etc/hosts", to: destination.path(percentEncoded: false))
-        }
-        #expect(try String(contentsOf: destination, encoding: .utf8) == "keep")
-    }
-
-    @Test func copyInArgvAndColonHandling() async throws {
-        let workspace = FileManager.default.temporaryDirectory.appending(path: "cd-in-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: workspace) }
-        let plain = workspace.appending(path: "my file.txt").path(percentEncoded: false)
-        let colon = workspace.appending(path: "shot 12:30.png").path(percentEncoded: false)
-        FileManager.default.createFile(atPath: plain, contents: Data("a".utf8))
-        FileManager.default.createFile(atPath: colon, contents: Data("b".utf8))
-        let staged = StagedContents()
-        let runner = RecordingRunner { arguments in
-            if arguments.count == 5, arguments[3].hasSuffix("/payload") {
-                staged.value.withLock { $0 = try? String(contentsOfFile: arguments[3], encoding: .utf8) }
-            }
-            return ProcessResult()
-        }
-        let backend = try CLIBackend.recording(runner)
-        try await backend.copyIn("web", localPath: plain, to: "/app/my file.txt")
-        try await backend.copyIn("web", localPath: colon, to: "/app/shot.png")
+    @Test func precomposedArgumentsTravelAsPrintfEscapes() {
         #expect(
-            runner.commands[0] == ["copy", "--", URL(filePath: plain).standardizedFileURL.path, "web:/app/my file.txt"])
-        #expect(runner.commands[1][3] == "web:/app/shot.png")
-        #expect(!runner.commands[1][2].contains(":"))
-        #expect(staged.value.withLock { $0 } == "b")  // the staged copy held the file's contents
+            CLIBackend.byteExact(["head", "-c", "4", "--", "/etc/my file"]) == [
+                "head", "-c", "4", "--", "/etc/my file",
+            ])
+        #expect(CLIBackend.byteExact(["cat", "/日本語/cafe\u{301}"]) == ["cat", "/日本語/cafe\u{301}"])  // already decomposed
+        #expect(
+            CLIBackend.byteExact(["rm", "-rf", "--", "/a/caf\u{E9} 100%\\\n"])
+                == [
+                    "sh", "-c", CLIBackend.byteExactScript, "sh", "rm", #"\055rf"#, #"\055-"#,
+                    #"/a/caf\303\251 100%%\\\012"#,
+                ])
+        #expect(CLIBackend.printfEscaped("\u{AC00}") == #"\352\260\200"#)  // a Hangul syllable
+        #expect(CLIBackend.printfEscaped("") == "")
+    }
 
-        // Container paths with a colon cannot be addressed by `container cp` at all.
-        await #expect(throws: BackendError.self) { try await backend.copyIn("web", localPath: plain, to: "/app/a:b") }
-        await #expect(throws: BackendError.self) { try await backend.copyOut("web", path: "/app/a:b", to: plain) }
-        await #expect(throws: BackendError.self) {
-            try await backend.copyIn("web", localPath: plain + ".missing", to: "/app/x")
+    /// The decoding script, run for real through the shells an image is likely to have as `sh`.
+    @Test(arguments: ["/bin/sh", "/bin/dash", "/bin/bash"])
+    func printfEscapesDecodeToTheExactBytes(shell: String) async throws {
+        let arguments = ["-n", "caf\u{E9} \u{AC00}", "new\nline\n", "100% \\x", "", "it's \"q\" $HOME `x`"]
+        let command = CLIBackend.byteExact(["/usr/bin/printf", "%s|"] + arguments)
+        #expect(command.first == "sh")
+        let result = try await ProcessRunner().run(
+            [shell] + command.dropFirst(), stdin: nil, timeout: .seconds(20), environment: [:])
+        #expect(result.exitCode == 0, "\(result.stderrText)")
+        #expect(result.stdout == Data(arguments.map { $0 + "|" }.joined().utf8))
+    }
+
+    @Test func mountsAndCommitFailuresAreRecognised() {
+        let mounts = ["/data", "/var/lib/postgresql/data/"]
+        #expect(CLIBackend.isOutsideRootFilesystem("/data/dump.sql", mounts: mounts))
+        #expect(CLIBackend.isOutsideRootFilesystem("/data", mounts: mounts))
+        #expect(CLIBackend.isOutsideRootFilesystem("/var/lib/postgresql/data/base", mounts: mounts))
+        #expect(CLIBackend.isOutsideRootFilesystem("/dev/shm/x", mounts: []))
+        #expect(!CLIBackend.isOutsideRootFilesystem("/database/x", mounts: mounts))
+        #expect(!CLIBackend.isOutsideRootFilesystem("/var/lib/x", mounts: mounts))
+        #expect(!CLIBackend.isOutsideRootFilesystem("/tmp/x", mounts: ["/"]))
+
+        let unknown = BackendError.commandFailed(
+            command: "container commit -- web img", exitCode: 64,
+            message: "unknown command 'commit'\nIf 'commit' is a plugin, check that it exists under:")
+        guard case BackendError.unsupported(let feature, _) = CLIBackend.commitFailure(unknown) else {
+            Issue.record("expected unsupported")
+            return
         }
-        #expect(runner.commands.count == 2)
+        #expect(feature == "Save as Image")
+        let other = BackendError.commandFailed(command: "c", exitCode: 1, message: "container web not found")
+        #expect(CLIBackend.commitFailure(other) as? BackendError == other)
     }
 
     @Test func commitArgvAndValidation() async throws {
@@ -222,11 +196,6 @@ struct CLIBackendFilesTests {
         #expect(await backend.supportsCommit())  // asked again, and now it answers
         #expect(runner.count == 2)
     }
-}
-
-/// What the fake CLI saw at the staging path.
-private final class StagedContents: Sendable {
-    let value = Mutex<String?>(nil)
 }
 
 /// Fails the first `run`, succeeds afterwards.

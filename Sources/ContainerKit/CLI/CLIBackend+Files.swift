@@ -56,62 +56,6 @@ extension CLIBackend {
         try checkExec(id, command, try await execRaw(id, command, timeout: Self.pruneTimeout))
     }
 
-    /// `container copy -- ID:PATH STAGING`, then moves the result to `localPath`.
-    ///
-    /// The CLI appends the source name when the destination is an existing directory and cannot address a
-    /// local path containing `:`, so the copy goes to a fresh staging directory first and is then moved into
-    /// place (replacing an existing item only after the copy succeeded).
-    public func copyOut(_ id: String, path: String, to localPath: String) async throws {
-        try Self.validateOperand(id, "Container")
-        let source = try Self.copyReference(id, path)
-        let stage = try Self.makeStagingDirectory()
-        defer { try? FileManager.default.removeItem(at: stage) }
-        let staged = stage.appending(path: "payload")
-        let arguments = ["copy", "--", source, staged.path(percentEncoded: false)]
-        try await execute(arguments, timeout: nil)
-        let files = FileManager.default
-        guard files.fileExists(atPath: staged.path(percentEncoded: false)) else {
-            throw BackendError.commandFailed(
-                command: display(arguments), exitCode: 0, message: "The copy finished but produced no file.")
-        }
-        let destination = URL(filePath: localPath)
-        do {
-            if files.fileExists(atPath: destination.path(percentEncoded: false)) {
-                _ = try files.replaceItemAt(destination, withItemAt: staged)
-            } else {
-                try files.moveItem(at: staged, to: destination)
-            }
-        } catch {
-            throw BackendError.commandFailed(
-                command: display(arguments), exitCode: 0,
-                message: "Copied, but could not move the result to \(localPath): \(error.localizedDescription)")
-        }
-    }
-
-    /// `container copy -- LOCALPATH ID:PATH`. A local path containing `:` (which the CLI would read as a
-    /// container reference) is copied through a staging directory.
-    public func copyIn(_ id: String, localPath: String, to path: String) async throws {
-        try Self.validateOperand(id, "Container")
-        let destination = try Self.copyReference(id, path)
-        guard FileManager.default.fileExists(atPath: localPath) else {
-            throw BackendError.other("“\(localPath)” does not exist.")
-        }
-        var source = URL(filePath: localPath).standardizedFileURL.path(percentEncoded: false)
-        while source.count > 1, source.hasSuffix("/") { source.removeLast() }
-        var stage: URL?
-        defer { if let stage { try? FileManager.default.removeItem(at: stage) } }
-        if source.contains(":") {
-            let directory = try Self.makeStagingDirectory()
-            stage = directory
-            let staged = directory.appending(path: "payload")
-            do { try FileManager.default.copyItem(at: URL(filePath: source), to: staged) } catch {
-                throw BackendError.other("Could not prepare “\(localPath)” for copying: \(error.localizedDescription)")
-            }
-            source = staged.path(percentEncoded: false)
-        }
-        try await execute(["copy", "--", source, destination], timeout: nil)
-    }
-
     /// `container commit --help` exits 0 only on runtimes that have the command (1.6+); older ones treat
     /// `commit` as a missing plugin. The answer is cached; a failure to run the probe is not.
     public func supportsCommit() async -> Bool {
@@ -122,14 +66,37 @@ extension CLIBackend {
         return supported
     }
 
-    /// `container commit -- ID REFERENCE`.
+    /// `container commit -- ID REFERENCE`. On a runtime without the command (before 1.6) the stream fails with
+    /// `.unsupported` rather than the CLI's "unknown command … if 'commit' is a plugin, check that it exists…".
     public nonisolated func commitContainer(_ id: String, reference: String) -> LineStream {
         validatedStream {
             try Self.validateOperand(id, "Container")
             try Self.validateOperand(reference, "Image reference")
             guard !reference.isEmpty else { throw BackendError.other("Enter a name for the new image.") }
-            return streamCommand(Self.commitArguments(id, reference: reference))
+            let stream = streamCommand(Self.commitArguments(id, reference: reference))
+            return AsyncThrowingStream(bufferingPolicy: .bufferingNewest(ProcessRunner.streamBufferLimit)) {
+                continuation in
+                let task = Task {
+                    do {
+                        for try await line in stream { continuation.yield(line) }
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: Self.commitFailure(error))
+                    }
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
         }
+    }
+
+    /// Turns the CLI's "unknown command 'commit'" into `.unsupported`; any other error is returned unchanged.
+    static func commitFailure(_ error: any Error) -> any Error {
+        guard case BackendError.commandFailed(_, _, let message) = error,
+            message.localizedCaseInsensitiveContains("unknown command")
+        else { return error }
+        return BackendError.unsupported(
+            feature: "Save as Image",
+            reason: "this `container` CLI has no `commit` command. It was added in Apple container 1.6.")
     }
 
     /// argv after the executable for `commitContainer`.
@@ -157,34 +124,46 @@ extension CLIBackend {
         return ContainerPath.normalize(path)
     }
 
-    /// `ID:PATH` for `container copy`, which splits its operands on `:` and so cannot address a container path
-    /// (or id) that contains one.
-    static func copyReference(_ id: String, _ path: String) throws -> String {
-        let path = try validatedContainerPath(path)
-        guard !path.contains(":"), !id.contains(":") else {
-            throw BackendError.unsupported(
-                feature: "Copying “\(path)”",
-                reason: "`container cp` cannot address paths that contain a colon. Rename it first.")
-        }
-        return "\(id):\(path)"
+    /// Decodes its arguments with `printf` and runs them as a command: `sh -c SCRIPT sh ENCODED…`. The `.`
+    /// keeps a trailing newline in a name from being dropped by the command substitution.
+    static let byteExactScript = #"for a do shift; v=$(printf "$a."); set -- "$@" "${v%.}"; done; exec "$@""#
+
+    /// `command`, in a form that reaches the container byte for byte.
+    ///
+    /// Foundation's `Process` hands arguments to the child in decomposed Unicode form (`é` becomes `e` plus a
+    /// combining accent, a Hangul syllable becomes its jamo), so a path that is stored precomposed inside the
+    /// container, which is how Linux tools write it, would name a file that does not exist. A command with
+    /// such an argument is sent as ASCII `printf` escapes and decoded by `sh` inside the container. Commands
+    /// without one are returned unchanged and need no shell.
+    static func byteExact(_ command: [String]) -> [String] {
+        guard command.contains(where: { !$0.decomposedStringWithCanonicalMapping.utf8.elementsEqual($0.utf8) })
+        else { return command }
+        return ["sh", "-c", byteExactScript, "sh"] + command.map(printfEscaped)
     }
 
-    /// A new empty directory under the user's temporary directory.
-    static func makeStagingDirectory() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appending(path: "ContainerDesktop-cp-\(UUID().uuidString)")
-        do {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        } catch {
-            throw BackendError.other("Could not create a temporary folder: \(error.localizedDescription)")
+    /// `text` as an ASCII `printf` format that prints exactly its bytes: non-ASCII bytes and control characters
+    /// as octal escapes, `%` and `\` doubled, and a leading `-` escaped so it is not read as an option.
+    static func printfEscaped(_ text: String) -> String {
+        var result = ""
+        for (index, byte) in text.utf8.enumerated() {
+            switch byte {
+            case UInt8(ascii: "%"): result += "%%"
+            case UInt8(ascii: "\\"): result += "\\\\"
+            case 0x20...0x7E where !(index == 0 && byte == UInt8(ascii: "-")):
+                result.unicodeScalars.append(Unicode.Scalar(byte))
+            default:
+                let octal = String(byte, radix: 8)
+                result += "\\" + String(repeating: "0", count: 3 - octal.count) + octal
+            }
         }
-        return url
+        return result
     }
 
     /// Runs `container exec -- ID COMMAND…` and returns the raw result (binary-safe stdout). Only CLI-level
     /// failures throw: the system is down, or the container does not exist.
     func execRaw(_ id: String, _ command: [String], timeout: Duration?) async throws -> ProcessResult {
         try Self.validateOperand(id, "Container")
-        let arguments = Self.execArguments(id, command)
+        let arguments = Self.execArguments(id, Self.byteExact(command))
         let result = try await runRaw(arguments, timeout: timeout)
         if result.exitCode != 0 {
             let stderr = result.stderrText

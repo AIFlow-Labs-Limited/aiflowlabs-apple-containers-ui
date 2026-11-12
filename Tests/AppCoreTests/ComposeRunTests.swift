@@ -105,6 +105,23 @@ struct ComposeRunTests {
         #expect(environment.networks.contains("default"))
         #expect(environment.images.contains("docker.io/library/postgres:16-alpine"))
         #expect(environment.containers["probe"] != nil)
+        #expect(environment.unregisteredDNSDomain == nil)
+
+        // The `dns.domain` property alone is not enough: an unregistered domain resolves nothing (seen on a
+        // live 1.5.0 engine), so the preview must not promise names.
+        try await backend.deleteDNSDomain("test")
+        let unregistered = await ComposeEnvironment.load(from: backend)
+        #expect(unregistered.dnsDomain == nil)
+        #expect(unregistered.unregisteredDNSDomain == "test")
+        let folder = try folder(small)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = try ComposeParser.parse(small, variables: [:])
+        let plan = ComposePlanner.plan(
+            ComposeProject(file: file, directory: folder.path(percentEncoded: false)), environment: unregistered)
+        #expect(plan.namingSummary.contains("not registered"))
+        #expect(plan.services.allSatisfy { $0.hostnames.isEmpty })
+        #expect(plan.warnings.contains { $0.key == "names" })
+        try await backend.createDNSDomain("test", localhostAddress: nil)
 
         try await backend.systemStop()
         let stopped = await ComposeEnvironment.load(from: backend)

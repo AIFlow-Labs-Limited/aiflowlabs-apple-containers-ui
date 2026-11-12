@@ -18,14 +18,25 @@ import Foundation
 ///    ` -> ` cannot be represented exactly by `ls` and is the documented limit of the fallback.
 /// 3. Neither: the listing is reported as unavailable (`noListingTool`), like an image without `sh` (`noShell`).
 public enum FileListing {
-    /// Exit status the script uses when it cannot enter the directory.
+    /// Exit status the script uses when the directory exists but cannot be entered (permission denied…).
     public static let cannotEnterExitCode: Int32 = 66
+    /// Exit status the script uses when the path does not exist.
+    public static let missingExitCode: Int32 = 67
+    /// Exit status the script uses when the path is not a directory.
+    public static let notADirectoryExitCode: Int32 = 68
 
     /// The script. `$1` nonce, `$2` directory, `$3` entry limit.
+    ///
+    /// Why `cd` failed is worked out by the script: shells word it differently and `dash` (Debian, Ubuntu)
+    /// gives no reason at all (`cd: can't cd to /x`).
     public static let script = """
         LC_ALL=C; export LC_ALL
         N=$1; L=$3
-        cd -- "$2" || exit 66
+        if ! cd -- "$2" 2>/dev/null; then
+          [ -e "$2" ] || [ -L "$2" ] || exit 67
+          [ -d "$2" ] || exit 68
+          cd -- "$2" || exit 66
+        fi
         echo "$N S"
         if stat -c %f -- . >/dev/null 2>&1; then
           echo "$N M stat"
@@ -84,6 +95,8 @@ public enum FileListing {
             return .listing(listing)
         }
         let message = CLIErrorMapper.cleanMessage(stderr)
+        if exitCode == missingExitCode { return .failure(message: "“\(path)” does not exist.") }
+        if exitCode == notADirectoryExitCode { return .failure(message: "“\(path)” is not a directory.") }
         if exitCode == cannotEnterExitCode {
             return .failure(message: message.isEmpty ? "“\(path)” cannot be opened." : message)
         }

@@ -50,10 +50,10 @@ extension MockBackend {
         let fs = try await runningFileSystem(id, command)
         guard fs.hasShell else { return ContainerDirectoryListing(path: path, method: nil, unavailable: .noShell) }
         guard fs.exists(fs.resolve(path)) else {
-            throw failed(id, command, code: 66, "sh: cd: can't cd to \(path): No such file or directory")
+            throw failed(id, command, code: FileListing.missingExitCode, "“\(path)” does not exist.")
         }
         guard fs.isDirectory(path) else {
-            throw failed(id, command, code: 66, "sh: cd: can't cd to \(path): Not a directory")
+            throw failed(id, command, code: FileListing.notADirectoryExitCode, "“\(path)” is not a directory.")
         }
         let children = fs.children(of: path)
         return ContainerDirectoryListing(

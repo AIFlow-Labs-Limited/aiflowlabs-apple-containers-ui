@@ -299,8 +299,14 @@ public final class ContainerFilesModel {
     @discardableResult
     public func upload(_ urls: [URL], into folder: String) -> LongRunningTask {
         let id = containerID, backend = backend
+        var existing: [String] = []
+        if case .loaded(let listing) = folders[folder] { existing = listing.entries.map(\.name) }
         let steps = urls.map { url in
-            let destination = ContainerPath.join(folder, url.lastPathComponent)
+            // The Mac often hands out accented names in decomposed form; Linux tools write them precomposed.
+            // An item that is replaced keeps the exact bytes of its name (`==` on strings ignores the form).
+            let name = url.lastPathComponent
+            let destination = ContainerPath.join(
+                folder, existing.first { $0 == name } ?? name.precomposedStringWithCanonicalMapping)
             let local = url.path(percentEncoded: false)
             return TaskStep("Copying \(local) to \(id):\(destination)") {
                 try await backend.copyIn(id, localPath: local, to: destination)

@@ -119,7 +119,7 @@ struct ContainerFilesModelTests {
             Issue.record("expected a failure state")
             return
         }
-        #expect(error.errorDescription?.contains("No such file or directory") == true)
+        #expect(error.errorDescription?.contains("does not exist") == true)
         #expect(files.canGoBack)
     }
 

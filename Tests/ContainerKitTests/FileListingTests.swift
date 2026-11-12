@@ -220,6 +220,8 @@ struct FileListingTests {
             interpret(66, "", "sh: cd: can't cd to /x: No such file or directory")
                 == .failure(message: "sh: cd: can't cd to /x: No such file or directory"))
         #expect(interpret(66, "", "") == .failure(message: "“/x” cannot be opened."))
+        #expect(interpret(67, "", "") == .failure(message: "“/x” does not exist."))
+        #expect(interpret(68, "", "") == .failure(message: "“/x” is not a directory."))
         #expect(
             interpret(1, "", "Error: container web is not running") == .failure(message: "container web is not running")
         )
