@@ -52,6 +52,15 @@ struct GeneralSettingsTab: View {
                     .onChange(of: settings.showStoppedContainers) {
                         model.containers.showStopped = settings.showStoppedContainers
                     }
+                Toggle("Enforce restart policies", isOn: $settings.restartPoliciesEnabled)
+                Text(
+                    "Containers created with a restart policy (Run sheet, or `restart:` in a compose file) are "
+                        + "started again by Container Desktop when they stop, and when the app or the container "
+                        + "system starts. Apple's runtime has no restart policies, so this only works while the app "
+                        + "or its menu bar item is running. Switching it on starts stopped containers whose policy "
+                        + "is “always”."
+                )
+                .font(.caption).foregroundStyle(.secondary)
                 Toggle("Hide system containers (builder, Kubernetes nodes)", isOn: $settings.hideSystemContainers)
                     .onChange(of: settings.hideSystemContainers) {
                         model.containers.hideSystemManaged = settings.hideSystemContainers

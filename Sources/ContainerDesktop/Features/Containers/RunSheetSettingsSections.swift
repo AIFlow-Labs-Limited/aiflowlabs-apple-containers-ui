@@ -69,6 +69,53 @@ struct RunNetworkSection: View {
     }
 }
 
+/// Restart policy: a picker, the retry limit for "On failure", and who enforces it.
+struct RunRestartSection: View {
+    @Binding var form: RunFormValues
+    /// Whether enforcement is switched on in Settings.
+    let enforcementEnabled: Bool
+
+    private var choice: Binding<RunFormValues.RestartChoice> {
+        Binding(get: { form.restartChoice ?? .no }, set: { form.restartChoice = $0 == .no ? nil : $0 })
+    }
+
+    private var retries: Binding<Int> {
+        Binding(get: { form.restartMaxRetries ?? 0 }, set: { form.restartMaxRetries = $0 > 0 ? $0 : nil })
+    }
+
+    var body: some View {
+        Section("Restart policy") {
+            Picker("Restart", selection: choice) {
+                ForEach(RunFormValues.RestartChoice.allCases) { Text($0.title).tag($0) }
+            }
+            .accessibilityLabel("Restart policy")
+            if form.restartChoice == .onFailure {
+                Stepper(value: retries, in: 0...100) {
+                    LabeledContent(
+                        "Attempts in a row", value: retries.wrappedValue == 0 ? "No limit" : "\(retries.wrappedValue)")
+                }
+            }
+            if form.restartPolicy.isEnforced {
+                Text(
+                    form.restartPolicy.summary
+                        + " Container Desktop does this itself, so it only happens while the app or its menu bar "
+                        + "item is running; a `container stop` in a terminal counts as a crash. The runtime reports "
+                        + "no exit codes, so “On failure” reacts to every stop the app did not make. The policy "
+                        + "cannot be changed after the container is created."
+                )
+                .font(.caption).foregroundStyle(.secondary)
+                if !enforcementEnabled {
+                    Label(
+                        "Restart policies are switched off in Settings › General, so this will have no effect "
+                            + "until they are switched on.", systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.caption).foregroundStyle(.statusWarning)
+                }
+            }
+        }
+    }
+}
+
 /// Advanced: init, read-only, SSH agent, --rm, capabilities, shm, ulimits, extra args (labels are a sibling section).
 struct RunAdvancedSection: View {
     @Binding var form: RunFormValues

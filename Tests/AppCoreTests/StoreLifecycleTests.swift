@@ -224,12 +224,21 @@ func eventually(timeout: Duration = .seconds(3), _ condition: () -> Bool) async 
     @Test func bootstrapAddsBackgroundContainersClient() async {
         let model = TestSupport.model()
         await model.bootstrap()
-        #expect(model.containers.poller.backgroundInterval == AppModel.backgroundPollInterval)
+        // Restart policies are enforced by default, so containers are watched a little more often.
+        #expect(model.containers.poller.backgroundInterval == AppModel.supervisedBackgroundPollInterval)
         #expect(model.enginePoller.backgroundInterval == AppModel.engineBackgroundPollInterval)
         #expect(model.containers.poller.backgroundClientCount == 1)
         model.settings.menuBarEnabled = false
         model.settings.notificationsEnabled = false
+        // Still polling: supervision must go on with the window closed and no menu bar item.
+        #expect(model.containers.poller.backgroundClientCount == 1)
+        model.settings.restartPoliciesEnabled = false
         #expect(model.containers.poller.backgroundClientCount == 0)
+        #expect(model.containers.poller.backgroundInterval == AppModel.backgroundPollInterval)
+        #expect(!model.restarts.isEnabled)
+        model.settings.restartPoliciesEnabled = true
+        #expect(model.containers.poller.backgroundClientCount == 1)
+        #expect(model.restarts.isEnabled)
         model.enginePoller.stopAll()
     }
 }

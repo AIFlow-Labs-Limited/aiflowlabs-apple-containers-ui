@@ -89,6 +89,7 @@ struct RunContainerSheet: View {
                 RunKeyValueSection(title: "Environment variables", rows: $form.environment, allowsDotEnv: true)
                 RunResourcesSection(form: $form, hostCPUs: hostCPUs, hostMemoryMB: hostMemoryMB)
                 RunNetworkSection(form: $form, networks: model.networks.items.map(\.id))
+                RunRestartSection(form: $form, enforcementEnabled: model.settings.restartPoliciesEnabled)
                 RunAdvancedSection(form: $form, expanded: $showAdvanced)
                 if showAdvanced {
                     RunKeyValueSection(title: "Labels", rows: $form.labels, keyPrompt: "com.example.key")
