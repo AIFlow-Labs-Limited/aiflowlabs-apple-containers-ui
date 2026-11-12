@@ -112,6 +112,19 @@ struct FailingBackend: ContainerBackend {
         _ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?
     ) -> LineStream { fail() }
 
+    func clusterWorkloads(_ target: KubectlTarget) async throws -> ClusterWorkloads { throw error }
+    func podEvents(_ target: KubectlTarget, namespace: String, pod: String) async throws -> [KubeEvent] {
+        throw error
+    }
+    func podLogs(_ target: KubectlTarget, namespace: String, pod: String, options: PodLogOptions) -> LineStream {
+        fail()
+    }
+    func deletePod(_ target: KubectlTarget, namespace: String, name: String) async throws { throw error }
+    func restartDeployment(_ target: KubectlTarget, namespace: String, name: String) async throws { throw error }
+    func scaleDeployment(_ target: KubectlTarget, namespace: String, name: String, replicas: Int) async throws {
+        throw error
+    }
+
     private func fail() -> LineStream { let e = error; return AsyncThrowingStream { $0.finish(throwing: e) } }
 }
 

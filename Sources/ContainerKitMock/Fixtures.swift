@@ -13,7 +13,8 @@ public struct FixtureSet: Sendable {
     /// Recorded from CLI 1.7.1 on macOS 27.2 on 2026-11-12: the `cluster` plugin with a two-node cluster
     /// (`cluster-list*.json/.txt`; `-degraded` and `-stopped` variants of the same cluster; `-single` and
     /// `-removed` for a one-node `--rm` cluster before and after its node went away), `commit`, `clean`, stats
-    /// with `cpuUtilization`.
+    /// with `cpuUtilization`; and what `kubectl` prints inside that kind of cluster's control-plane node
+    /// (`kubectl-*.json/.txt`, recorded by `scripts/record-kubectl-fixtures.sh`).
     public static let cli171 = FixtureSet(cliVersion: "1.7.1")
 
     var folder: String { "cli-\(cliVersion)" }
@@ -68,6 +69,17 @@ public struct FixtureSet: Sendable {
     public func clusters(variant: String? = nil) throws -> [KubernetesCluster] {
         let table = clusterNodeTable(variant: variant)
         return try clusterResources(variant: variant).map { KubernetesCluster(resource: $0, nodeTable: table) }
+    }
+
+    /// `kubectl get pods,deployments,services,nodes,namespaces --all-namespaces -o json`, run inside the
+    /// control-plane node of a two-node cluster with a small `shop` namespace. 1.7.1 only.
+    public func clusterWorkloads() throws -> ClusterWorkloads {
+        try decode(ClusterWorkloads.self, "kubectl-workloads.json")
+    }
+
+    /// `kubectl get events` for the crash-looping pod of that recording. 1.7.1 only.
+    public func podEvents() throws -> [KubeEvent] {
+        try decode(KubeList<KubeEvent>.self, "kubectl-pod-events.json").items
     }
 
     private static func suffix(_ variant: String?) -> String { variant.map { "-\($0)" } ?? "" }

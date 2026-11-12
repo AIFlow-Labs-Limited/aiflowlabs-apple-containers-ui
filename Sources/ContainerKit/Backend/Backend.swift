@@ -138,7 +138,7 @@ extension KubernetesOperations {
 public protocol ContainerBackend:
     SystemBackend, ContainerOperations, ImageOperations, VolumeOperations,
     NetworkOperations, RegistryOperations, MachineOperations, KubernetesOperations,
-    ContainerFileOperations
+    KubernetesWorkloadOperations, ContainerFileOperations
 {
     /// Human-readable backend name for the About/diagnostics screens (`CLI 1.5.0`, `Mock`, `XPC`).
     var backendDescription: String { get }

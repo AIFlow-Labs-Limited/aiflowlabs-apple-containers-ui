@@ -1,0 +1,172 @@
+{
+  "apiVersion": "v1",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "count": 1,
+      "eventTime": null,
+      "firstTimestamp": "2026-11-12T06:00:35Z",
+      "involvedObject": {
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "name": "worker",
+        "namespace": "shop",
+        "resourceVersion": "631",
+        "uid": "d4c490e4-88ab-4f36-917d-7e8cc13ce849"
+      },
+      "kind": "Event",
+      "lastTimestamp": "2026-11-12T06:00:35Z",
+      "message": "Successfully assigned shop/worker to cd-it-wl-dev-worker-1",
+      "metadata": {
+        "creationTimestamp": "2026-11-12T06:00:35Z",
+        "name": "worker.18e736ce1c2a5a96",
+        "namespace": "shop",
+        "resourceVersion": "639",
+        "uid": "995d624c-1fae-4869-b0e0-87f9dfabd14f"
+      },
+      "reason": "Scheduled",
+      "reportingComponent": "default-scheduler",
+      "reportingInstance": "",
+      "source": {
+        "component": "default-scheduler"
+      },
+      "type": "Normal"
+    },
+    {
+      "apiVersion": "v1",
+      "count": 7,
+      "eventTime": null,
+      "firstTimestamp": "2026-11-12T06:00:35Z",
+      "involvedObject": {
+        "apiVersion": "v1",
+        "fieldPath": "spec.containers{worker}",
+        "kind": "Pod",
+        "name": "worker",
+        "namespace": "shop",
+        "resourceVersion": "635",
+        "uid": "d4c490e4-88ab-4f36-917d-7e8cc13ce849"
+      },
+      "kind": "Event",
+      "lastTimestamp": "2026-11-12T06:06:27Z",
+      "message": "Container image \"alpine:3.22\" already present on machine and can be accessed by the pod",
+      "metadata": {
+        "creationTimestamp": "2026-11-12T06:00:35Z",
+        "name": "worker.18e736ce38241573",
+        "namespace": "shop",
+        "resourceVersion": "1258",
+        "uid": "bf85d6e1-b990-49a2-9c37-3e6ed1724a60"
+      },
+      "reason": "Pulled",
+      "reportingComponent": "kubelet",
+      "reportingInstance": "cd-it-wl-dev-worker-1",
+      "source": {
+        "component": "kubelet",
+        "host": "cd-it-wl-dev-worker-1"
+      },
+      "type": "Normal"
+    },
+    {
+      "apiVersion": "v1",
+      "count": 7,
+      "eventTime": null,
+      "firstTimestamp": "2026-11-12T06:00:35Z",
+      "involvedObject": {
+        "apiVersion": "v1",
+        "fieldPath": "spec.containers{worker}",
+        "kind": "Pod",
+        "name": "worker",
+        "namespace": "shop",
+        "resourceVersion": "635",
+        "uid": "d4c490e4-88ab-4f36-917d-7e8cc13ce849"
+      },
+      "kind": "Event",
+      "lastTimestamp": "2026-11-12T06:06:27Z",
+      "message": "Container created",
+      "metadata": {
+        "creationTimestamp": "2026-11-12T06:00:35Z",
+        "name": "worker.18e736ce3c82a6a4",
+        "namespace": "shop",
+        "resourceVersion": "1259",
+        "uid": "e978aadd-9904-41d4-a447-5631e8957dd7"
+      },
+      "reason": "Created",
+      "reportingComponent": "kubelet",
+      "reportingInstance": "cd-it-wl-dev-worker-1",
+      "source": {
+        "component": "kubelet",
+        "host": "cd-it-wl-dev-worker-1"
+      },
+      "type": "Normal"
+    },
+    {
+      "apiVersion": "v1",
+      "count": 7,
+      "eventTime": null,
+      "firstTimestamp": "2026-11-12T06:00:35Z",
+      "involvedObject": {
+        "apiVersion": "v1",
+        "fieldPath": "spec.containers{worker}",
+        "kind": "Pod",
+        "name": "worker",
+        "namespace": "shop",
+        "resourceVersion": "635",
+        "uid": "d4c490e4-88ab-4f36-917d-7e8cc13ce849"
+      },
+      "kind": "Event",
+      "lastTimestamp": "2026-11-12T06:06:27Z",
+      "message": "Container started",
+      "metadata": {
+        "creationTimestamp": "2026-11-12T06:00:35Z",
+        "name": "worker.18e736ce3ec61c9a",
+        "namespace": "shop",
+        "resourceVersion": "1260",
+        "uid": "15b92d86-ce10-4eff-a243-bc4c324a98c3"
+      },
+      "reason": "Started",
+      "reportingComponent": "kubelet",
+      "reportingInstance": "cd-it-wl-dev-worker-1",
+      "source": {
+        "component": "kubelet",
+        "host": "cd-it-wl-dev-worker-1"
+      },
+      "type": "Normal"
+    },
+    {
+      "apiVersion": "v1",
+      "count": 10,
+      "eventTime": null,
+      "firstTimestamp": "2026-11-12T06:00:37Z",
+      "involvedObject": {
+        "apiVersion": "v1",
+        "fieldPath": "spec.containers{worker}",
+        "kind": "Pod",
+        "name": "worker",
+        "namespace": "shop",
+        "resourceVersion": "635",
+        "uid": "d4c490e4-88ab-4f36-917d-7e8cc13ce849"
+      },
+      "kind": "Event",
+      "lastTimestamp": "2026-11-12T06:07:47Z",
+      "message": "Back-off restarting failed container worker in pod worker_shop(d4c490e4-88ab-4f36-917d-7e8cc13ce849)",
+      "metadata": {
+        "creationTimestamp": "2026-11-12T06:00:37Z",
+        "name": "worker.18e736ceb436226a",
+        "namespace": "shop",
+        "resourceVersion": "1375",
+        "uid": "f989193e-38fd-4fcf-a587-c9735c0b04ea"
+      },
+      "reason": "BackOff",
+      "reportingComponent": "kubelet",
+      "reportingInstance": "cd-it-wl-dev-worker-1",
+      "source": {
+        "component": "kubelet",
+        "host": "cd-it-wl-dev-worker-1"
+      },
+      "type": "Warning"
+    }
+  ],
+  "kind": "List",
+  "metadata": {
+    "resourceVersion": ""
+  }
+}
