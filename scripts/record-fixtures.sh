@@ -89,10 +89,35 @@ record system-status.json     system status --format json
 record_text system-status.txt  system status
 record_text system-version.txt system version
 
-if "$CLI" k8s --help >/dev/null 2>&1; then
-    record_text k8s-list.txt k8s ls
+# Kubernetes plugin: `cluster` from CLI 1.6.1, `k8s` before. What gets recorded follows what the plugin's own
+# help says it can do (the same checks KubernetesCapabilities.detect makes), never the version number.
+#   <word>-help.txt, <word>-create-help.txt, <word>-list-help.txt[, <word>-load-image-help.txt]   help screens
+#   k8s-list.txt                      `k8s ls` (1.5 / 1.6.0: one row per node)
+#   cluster-list.txt                  `cluster list` (1.6.1: one row per node; 1.7+: one row per cluster)
+#   cluster-list-nodes.txt            `cluster list --nodes`        (when the plugin has --nodes)
+#   cluster-list.json                 `cluster list --format json`  (when the plugin has --format)
+K8S_WORD=""
+for word in cluster k8s; do
+    if "$CLI" "$word" --help >/dev/null 2>&1; then K8S_WORD="$word"; break; fi
+done
+if [[ -n "$K8S_WORD" ]]; then
+    record_text "$K8S_WORD-help.txt"        "$K8S_WORD" --help
+    record_text "$K8S_WORD-create-help.txt" "$K8S_WORD" create --help
+    record_text "$K8S_WORD-list-help.txt"   "$K8S_WORD" list --help
+    plugin_help="$("$CLI" "$K8S_WORD" --help 2>/dev/null || true)"
+    list_help="$("$CLI" "$K8S_WORD" list --help 2>/dev/null || true)"
+    if grep -Eq '^  load-image( |$)' <<<"$plugin_help"; then
+        record_text "$K8S_WORD-load-image-help.txt" "$K8S_WORD" load-image --help
+    fi
+    record_text "$K8S_WORD-list.txt" "$K8S_WORD" ls
+    if grep -q -- '--nodes' <<<"$list_help"; then
+        record_text "$K8S_WORD-list-nodes.txt" "$K8S_WORD" list --nodes
+    fi
+    if grep -q -- '--format' <<<"$list_help"; then
+        record "$K8S_WORD-list.json" "$K8S_WORD" list --format json
+    fi
 else
-    echo "  warning: k8s plugin unavailable; kept existing k8s-list.txt" >&2
+    echo "  warning: Kubernetes plugin (cluster / k8s) unavailable; kept existing cluster fixtures" >&2
 fi
 
 container_id="$(first_id ls -a --format json)"
@@ -114,4 +139,6 @@ network_id="$(first_id network ls --format json)"
 echo "Done. Review with: git diff --stat -- '$OUT'"
 if [[ "$OUT" == "$ROOT/Sources/ContainerKitMock/Resources/"* && "$VERSION" != "1.5.0" ]]; then
     echo "note: new CLI version — add Resources/cli-$VERSION to Package.swift and Fixtures.cliVersion." >&2
+    echo "note: recorded cluster-*/stats files replace the hand-written Resources/cli-1.7.1-derived samples:" >&2
+    echo "      point DerivedFixtures at cli-$VERSION and delete that folder (see its README.md)." >&2
 fi
