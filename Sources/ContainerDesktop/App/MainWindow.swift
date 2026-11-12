@@ -65,6 +65,8 @@ struct MainWindow: View {
                 await DebugLaunchActions.run(model: model, openWindow: openWindow, openSettings: openSettings)
             #endif
         }
+        // Update checks: at most one request per day, and none against the mock backend (demos, screenshots).
+        .task { if BackendSelection.fromEnvironment != .mock { await model.updates.runAutomaticChecks() } }
         .onDisappear {
             // Balances the `startPolling()` above (pollers are reference counted). The menu bar keeps its data fresh
             // through AppModel's background client on the containers poller, which this does not remove.

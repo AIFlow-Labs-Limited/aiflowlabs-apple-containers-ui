@@ -15,7 +15,7 @@ struct EngineGateView<Content: View>: View {
             ProgressView("Checking the container system…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .notInstalled(let paths):
-            notInstalled(paths)
+            RuntimeInstallGuide(searchedPaths: paths)
         case .stopped:
             stopped
         case .starting:
@@ -42,37 +42,6 @@ struct EngineGateView<Content: View>: View {
             .padding(Spacing.xxl)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-    }
-
-    private func notInstalled(_ paths: [String]) -> some View {
-        VStack(spacing: Spacing.l) {
-            Image(systemName: "shippingbox")
-                .font(.system(size: 52))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            Text("Install Apple’s container runtime").font(.title.bold())
-            Text(
-                "Container Desktop is a dashboard for the `container` command-line tool. Install it from the official "
-                    + "GitHub releases (a signed .pkg), then check again."
-            )
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: 480)
-            .foregroundStyle(.secondary)
-            HStack(spacing: Spacing.m) {
-                Link(destination: URL(string: "https://github.com/apple/container/releases")!) {
-                    Label("Download container", systemImage: "arrow.down.circle")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                Button("Check again") { Task { await model.refreshEngine() } }
-                    .controlSize(.large)
-            }
-            Text("Looked in: \(paths.joined(separator: ", "))")
-                .font(.monoCaption)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(Spacing.xxl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var stopped: some View {

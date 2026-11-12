@@ -9,6 +9,7 @@ struct AppCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) { CheckForUpdatesCommand(model: model) }
         // Single main window: no File > New Window. ⌘N runs a container from anywhere.
         CommandGroup(replacing: .newItem) {
             Button("Run Container…") {
