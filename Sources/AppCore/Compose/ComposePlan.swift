@@ -56,8 +56,12 @@ public struct ComposeEnvironment: Hashable, Sendable {
     public var volumes: Set<String> = []
     /// Local images in canonical form (`docker.io/library/redis:7`).
     public var images: Set<String> = []
-    /// The engine's default DNS domain (`test`), when one is configured.
+    /// The engine's default DNS domain (`test`), when one is set **and** registered (`container system dns
+    /// list`). Only then do containers on the `default` network resolve each other by name.
     public var dnsDomain: String?
+    /// The engine's default DNS domain when it is set as a property but not registered: containers get it as
+    /// their search domain, but nothing answers for it, so names do not resolve (seen on CLI 1.5.0).
+    public var unregisteredDNSDomain: String?
     /// `false` when the engine could not be asked (stopped / not installed): nothing is known to exist.
     public var isLoaded = false
 
@@ -81,8 +85,12 @@ public struct ComposeEnvironment: Hashable, Sendable {
         } catch {
             return ComposeEnvironment()
         }
-        let domain = try? await backend.systemProperties().dns?.domain
-        environment.dnsDomain = domain.flatMap { $0.isEmpty ? nil : $0 }
+        guard let domain = try? await backend.systemProperties().dns?.domain, !domain.isEmpty else {
+            return environment
+        }
+        // A failed `dns list` counts as "not registered": the preview must not promise names that may not work.
+        let registered = (try? await backend.listDNSDomains())?.contains { $0.domain == domain } ?? false
+        if registered { environment.dnsDomain = domain } else { environment.unregisteredDNSDomain = domain }
         return environment
     }
 }

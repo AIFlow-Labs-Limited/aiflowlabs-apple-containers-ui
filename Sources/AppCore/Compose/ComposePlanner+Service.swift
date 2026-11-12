@@ -112,7 +112,7 @@ extension ComposePlanBuilder {
                     note(
                         scope, "volumes",
                         "The host path \(path) does not exist. Docker would create it as an empty folder; this "
-                            + "runtime may refuse to start the container instead, so create it before running.")
+                            + "runtime refuses to start the container instead, so create it before running.")
                 }
                 spec.mounts.append(.init(kind: .bind(hostPath: path), target: mount.target, readOnly: mount.readOnly))
             case .volume(let key):

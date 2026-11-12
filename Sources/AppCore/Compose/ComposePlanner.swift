@@ -366,12 +366,20 @@ struct ComposePlanBuilder {
                 + "each container is reachable from the others by its container name: “\(example)” or "
                 + "“\(example).\(domain)”."
         case (.sharedDefault, nil):
-            plan.namingSummary =
-                environment.isLoaded
-                ? "No DNS domain is configured, so containers cannot find each other by name: “\(example)” will not "
+            if let domain = environment.unregisteredDNSDomain {
+                plan.namingSummary =
+                    "The engine's DNS domain is set to “\(domain)”, but that domain is not registered "
+                    + "(`container system dns list` does not show it), so containers cannot find each other by name: "
+                    + "“\(example)” will not resolve. Enable DNS names under Settings → Network, or connect by IP address."
+            } else if environment.isLoaded {
+                plan.namingSummary =
+                    "No DNS domain is configured, so containers cannot find each other by name: “\(example)” will not "
                     + "resolve. Set one up under Settings → Network, or connect by IP address."
-                : "The engine is not running, so its DNS setup could not be checked. Container names only resolve "
+            } else {
+                plan.namingSummary =
+                    "The engine is not running, so its DNS setup could not be checked. Container names only resolve "
                     + "when a DNS domain is configured (Settings → Network)."
+            }
             note(.file, "names", plan.namingSummary)
         }
         guard options.naming == .projectPrefixed else { return }
