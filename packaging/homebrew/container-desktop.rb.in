@@ -23,6 +23,7 @@ cask "container-desktop" do
 
   zap trash: [
     "~/Library/Application Support/Container Desktop",
+    "~/Library/LaunchAgents/io.aiflowlabs.containerdesktop.supervisor.plist",
     "~/Library/Preferences/io.aiflowlabs.containerdesktop.plist",
   ]
 

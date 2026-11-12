@@ -236,11 +236,6 @@ public final class RestartSupervisor {
         {
             clearMark(container.id)
         }
-        if record.status.gaveUp {
-            // Nothing starts a container the supervisor gave up on, so someone did it by hand: begin again.
-            record.status.gaveUp = false
-            record.status.consecutiveAttempts = 0
-        }
         if !record.sawRunning { record.firstSeenRunning = current }
         record.sawRunning = true
         record.awaitingResult = false

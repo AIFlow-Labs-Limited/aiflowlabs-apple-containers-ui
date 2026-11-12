@@ -32,7 +32,7 @@ identical (details and every difference in [COMPOSE.md](COMPOSE.md)):
 
 | | Container Desktop | The limit |
 |---|---|---|
-| Restart policies (`no`, `always`, `unless-stopped`, `on-failure[:N]`) | Set in the Run sheet or with `restart:` in a compose file. A container that stops is started again with a growing delay; stacks come back when the app launches or the container system starts; stops made in the app are respected. | Enforced by Container Desktop, not by a daemon: it works **only while the app is running** (window closed is fine). A `container stop` typed in a terminal looks like a crash and is undone. The runtime reports no exit codes, so `on-failure` reacts to every unexpected stop. The policy cannot be changed after the container is created. |
+| Restart policies (`no`, `always`, `unless-stopped`, `on-failure[:N]`) | Set in the Run sheet or with `restart:` in a compose file. A container that stops is started again with a growing delay; stacks come back when the app launches or the container system starts; stops made in the app are respected. | Enforced by Container Desktop, not by the runtime: by the app while it is running (window closed is fine), and after you quit it only if you switch on the optional background helper (Settings › General › *Keep enforcing when Container Desktop is closed*). A `container stop` typed in a terminal looks like a crash and is undone. The runtime reports no exit codes, so `on-failure` reacts to every unexpected stop. The policy cannot be changed after the container is created. |
 | Compose health-check ordering (`depends_on` with `condition: service_healthy` / `service_completed_successfully`) | The import runs the dependency's `healthcheck` inside its container and starts the dependent service only once it passes. | Health is checked during the import run, not continuously, and no health status is shown afterwards. "Completed successfully" means "has exited": the exit code is not available. |
 
 ## Where Docker Desktop is ahead
@@ -40,7 +40,7 @@ identical (details and every difference in [COMPOSE.md](COMPOSE.md)):
 | | State in Container Desktop |
 |---|---|
 | Compose | Import and run a compose file with a preview and warnings. No `compose up` engine: no `watch`, scaling, override files or re-running only what changed. See [COMPOSE.md](COMPOSE.md). |
-| Supervision without the app | Docker's daemon restarts containers and tracks their health whether or not Docker Desktop's window is open, and after a `docker stop` from any terminal it knows the stop was meant. Container Desktop does both jobs itself, so they stop when the app is quit (see the table above). |
+| Supervision without the app | Docker's daemon restarts containers and tracks their health whether or not Docker Desktop is open, starts with the machine, and after a `docker stop` from any terminal it knows the stop was meant. Container Desktop has an opt-in background helper (off by default) that keeps restart policies enforced after the app is quit and is started at login. It is narrower than a daemon: it waits for the container system instead of starting it, so after a reboot nothing comes back until the container system runs; a `container stop` typed in a terminal is still undone; its restarts are in the system log, not in the app; and health is not tracked at all. See [COMPOSE.md](COMPOSE.md#restart-policies). |
 | Service names | Containers find each other by name only on the default network with a DNS domain set up. |
 | Kubernetes | Local clusters through Apple's experimental cluster plugin; no dashboard for pods and deployments. |
 | Extensions, Scout, Build Cloud, Dev Environments, Model Runner | Not available. |
@@ -53,5 +53,6 @@ identical (details and every difference in [COMPOSE.md](COMPOSE.md)):
 
 - **Yes:** you run a handful of services, databases and one-off images on an Apple silicon Mac, you want
   stronger isolation and no licence question, and your compose files are simple.
-- **Not yet:** your workflow depends on the Docker socket, on containers being restarted while no desktop app is
-  running, on continuous health status, or on Docker Desktop extensions.
+- **Not yet:** your workflow depends on the Docker socket, on containers coming back by themselves after a
+  reboot, on a `stop` from the terminal being respected by restart policies, on continuous health status, or on
+  Docker Desktop extensions.

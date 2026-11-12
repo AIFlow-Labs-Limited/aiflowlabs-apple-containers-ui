@@ -74,8 +74,18 @@ XPC backend land later for lower latency without touching the UI.
   Activity panel + notifications.
 - `RestartSupervisor`: enforces the restart policy stored in a container's `AppLabel.restart` label (the runtime
   has none). It has no timer: `ContainersStore`'s poller hands it every fresh list, and the store tells it about
-  stops and starts the user makes so those are not undone (the "stopped from the app" set is persisted in
-  `UserDefaults`). With enforcement on, `AppModel` keeps a background client on the containers poller at 10 s.
+  stops and starts the user makes so those are not undone. With enforcement on, `AppModel` keeps a background
+  client on the containers poller at 10 s.
+- `Supervision/`: enforcement without the app. The executable has a windowless mode (`--supervise`, see
+  `App/HeadlessSupervisor.swift`) that runs `BackgroundSupervisor`: the same `RestartSupervisor` around a
+  `CLIBackend`, fed by one `container list` every 10 s (30 s when no container has a policy), ended by SIGTERM
+  (`TerminationSignals`). `LaunchAgentSupervisionService` installs it as a per-user LaunchAgent
+  (`~/Library/LaunchAgents`, loaded with `launchctl`); `SMAppService.agent` was tried first and does not survive
+  an update of an ad-hoc signed app. `EnforcementClaim` makes sure only one process enforces: two `flock` files
+  in `~/Library/Application Support/Container Desktop/Supervision/`, one held by the enforcer, one by the helper
+  for as long as it lives; the app stands down while a helper is alive. `FileSupervisionState` (`state.json` in
+  the same folder) carries the stops and engine stops made in the app to whichever process enforces. Tests and
+  mock runs use neither file (`DefaultsSupervisionState` in `UserDefaults`, no claim).
 - `SettingsStore`: `@AppStorage`-backed preferences + config.toml read/write via the backend.
 - `Diagnostics`: collects versions, `system status`, last errors → text for bug reports.
 - `UpdateChecker`: asks GitHub's `releases/latest` for the app and for `apple/container` through the injected

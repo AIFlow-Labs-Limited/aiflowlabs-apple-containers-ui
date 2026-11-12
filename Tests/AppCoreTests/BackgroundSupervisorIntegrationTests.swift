@@ -10,10 +10,13 @@ import Testing
 /// helper built here is scoped to `cd-it-` containers, so nothing else on the engine can be started.
 /// Run with: `CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`.
 ///
-/// `theRegisteredHelperRestartsAndRespectsAStopFromTheApp` talks to the helper that macOS runs (Settings ›
-/// General › "Keep enforcing when Container Desktop is closed", or `ContainerDesktop --background-supervision
-/// register`), so it needs that helper registered and no Container Desktop window app running; it is skipped
-/// unless `CONTAINER_DESKTOP_HELPER_LIVE=1` is set as well.
+/// The two tests need opposite set-ups, so one of them is always left out:
+///
+/// * `theHelperLoop…` runs its own helper in this process and needs the installed one switched off (two helpers
+///   on different state files would both restart the container).
+/// * `theRegisteredHelper…` talks to the helper that macOS runs (Settings › General › "Keep enforcing when
+///   Container Desktop is closed", or `ContainerDesktop --background-supervision register`). It needs that
+///   helper running and is skipped unless `CONTAINER_DESKTOP_HELPER_LIVE=1` is set as well.
 @MainActor
 @Suite(
     "Background Helper Integration", .serialized,
@@ -64,7 +67,14 @@ struct BackgroundSupervisorIntegrationTests {
         return false
     }
 
-    @Test func theHelperLoopRestartsAStoppedContainerAndRespectsAStopFromTheApp() async throws {
+    @Test(
+        .enabled(
+            if: ProcessInfo.processInfo.environment["CONTAINER_DESKTOP_HELPER_LIVE"] != "1",
+            "runs its own helper; not together with the installed one (CONTAINER_DESKTOP_HELPER_LIVE=1)"))
+    func theHelperLoopRestartsAStoppedContainerAndRespectsAStopFromTheApp() async throws {
+        try #require(
+            !TestSupport.backgroundHelperIsRunning,
+            "the background helper is running and would restart this container too: switch it off first")
         let prefix = uniquePrefix()
         let name = "\(prefix)-svc"
         let paths = SupervisionPaths(
@@ -118,9 +128,7 @@ struct BackgroundSupervisorIntegrationTests {
             "set CONTAINER_DESKTOP_HELPER_LIVE=1 with the background helper registered and the app closed"))
     func theRegisteredHelperRestartsAndRespectsAStopFromTheApp() async throws {
         // Without a live helper this process would become the enforcer for every container on the engine.
-        try #require(
-            FileLock.isLockedElsewhere(SupervisionPaths.standard.helperLock),
-            "the background helper is not running: register it first")
+        try #require(TestSupport.backgroundHelperIsRunning, "the background helper is not running: register it first")
         let prefix = uniquePrefix()
         let name = "\(prefix)-live"
         // The app's own wiring: the standard state file and the app's claim, which yields to the helper.

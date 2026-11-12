@@ -9,7 +9,8 @@ import Testing
 /// Uses the local `alpine:latest` only. Everything is named `cd-it-…` and removed on every exit path. The
 /// supervisor is only ever shown containers whose name starts with `cd-it-`, so nothing else on the engine can
 /// be started by these tests (the one test that uses the app's own supervisor checks first that it is safe).
-/// Run with: `CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`.
+/// Run with: `CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`, with the background helper
+/// switched off (Settings › General): it would restart these containers as well.
 @MainActor
 @Suite(
     "Restart Policy Integration", .serialized,
@@ -20,6 +21,9 @@ struct RestartPolicyIntegrationTests {
     let backend: CLIBackend
 
     init() throws {
+        try #require(
+            !TestSupport.backgroundHelperIsRunning,
+            "the background helper is running and would restart these containers too: switch it off first")
         backend = try CLIBackend()
     }
 

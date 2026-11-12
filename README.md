@@ -187,7 +187,8 @@ Rosetta next to native `arm64`. More screens: [`docs/screenshots/`](docs/screens
   Supported keys and limits: [docs/COMPOSE.md](docs/COMPOSE.md).
 - **Restart policies and health checks.** Always, Unless stopped and On failure for any container, and compose
   services that wait for a healthy dependency. Apple's runtime has neither, so Container Desktop enforces them
-  while it is running (the window can be closed).
+  while it is running (the window can be closed). An optional background helper (Settings › General) keeps
+  restart policies enforced after you quit the app.
 - **Files tab** on every container: browse a running container's filesystem, save files and folders to your Mac,
   upload by file picker or drag from Finder, preview text, Quick Look the rest, rename, delete (with confirmation)
   and export the whole filesystem as a tar.
@@ -288,10 +289,20 @@ running containers stop, so stop what matters first and start the container syst
 | Homebrew | `brew uninstall --cask container-desktop` | `brew uninstall --zap --cask container-desktop` |
 | Installer or DMG | quit the app, then move *Container Desktop* from *Applications* to the Trash | see below |
 
-Container Desktop keeps two things outside the app, both small:
+If you switched on *Keep enforcing when Container Desktop is closed*, switch it off under Settings › General
+**before** you remove the app: that stops the background helper and deletes its LaunchAgent. If the app is
+already gone, or you uninstalled with Homebrew without `--zap`, remove the helper by hand (otherwise a
+LaunchAgent that points at the deleted app stays behind):
 
 ```bash
-rm -rf ~/Library/Application\ Support/Container\ Desktop                 # build history
+launchctl bootout gui/$(id -u)/io.aiflowlabs.containerdesktop.supervisor
+rm -f ~/Library/LaunchAgents/io.aiflowlabs.containerdesktop.supervisor.plist
+```
+
+Container Desktop keeps two more things outside the app, both small:
+
+```bash
+rm -rf ~/Library/Application\ Support/Container\ Desktop                 # build history, restart-policy state
 rm -f ~/Library/Preferences/io.aiflowlabs.containerdesktop.plist         # settings
 ```
 
