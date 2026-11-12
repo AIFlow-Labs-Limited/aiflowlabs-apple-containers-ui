@@ -40,7 +40,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **One-line installer** for Macs without Homebrew: downloads the latest release, verifies its checksum and copies
   the app to Applications (`scripts/install.sh`, with `--dry-run`).
 
+- **Works with container 1.6.0, 1.6.1 and 1.7.1 as well as 1.5.0.** The app asks the installed CLI what its
+  Kubernetes plugin supports instead of assuming a version, and picks up a CLI upgrade without a restart. What each
+  release changes is in `docs/COMPATIBILITY.md`.
+- Kubernetes on container 1.7: Kubernetes version, "Degraded (2 of 3 up)" state and worker nodes in the cluster
+  list and inspector.
+- New cluster: worker nodes (container 1.6+), separately sized worker groups and the shared image store (container
+  1.7+), with Apple's security warning. Options the installed CLI lacks are disabled with a one-line reason.
+
 ### Changed
+- Kubernetes commands and previews use `container cluster` on container 1.6.1 and later (`container k8s` before).
+- "Load Image" is only offered where the CLI still has `load-image` (it was removed in container 1.7).
+- CPU % uses the CLI's own `cpuUtilization` on container 1.7, so it shows from the first sample.
+- The New Cluster sheet opens on a free name instead of a duplicate-name error.
 - The "runtime not installed" screen is now a three-step guide: download Apple's installer or run
   `brew install container`, press **Check Again**, then **Start**.
 - "Export…" is now "Export Filesystem…" and is also offered from the Files tab, including for stopped containers
@@ -49,6 +61,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 - Pressing Return in the Run sheet's Name or Command field now runs the container. (#1)
 - The Run sheet's Image, Name, Command and other fields now have accessibility labels for VoiceOver. (#4)
+- The sidebar said "Beta" and the Kubernetes page "Experimental"; both now say "Experimental". (#11)
+- On container 1.7, cluster nodes stay visible under system containers and keep counting as users of their image,
+  network and volumes; trying to stop or delete one explains that it belongs to a cluster.
 - Engine: after `container system stop` the app showed a connection error with only Retry instead of the Stopped
   screen with Start. CLI 1.5.0 reports `{"status":"unregistered"}` with exit code 1, and list commands fail with an
   XPC connection error; both now mean "stopped". Start from the app works, and "Not installed" names the path that
@@ -62,6 +77,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Networks: "1 containers" grammar; overlapping-subnet warning verified against the default network.
 - Terminal: a readable ANSI palette per appearance (directory colours were invisible on dark backgrounds).
 - Zero byte values read "0 bytes" instead of "Zero KB".
+
+### Known limitations
+- Support for container 1.6 and 1.7 was implemented from Apple's source code and release notes and has not yet
+  been verified against a live 1.6 / 1.7 engine.
 
 ## [0.1.0] - 2026-10-19
 
