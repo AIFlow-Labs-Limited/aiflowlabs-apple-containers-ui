@@ -64,7 +64,9 @@ public enum ComposeLoader {
         let folder = url.deletingLastPathComponent()
         let envData = FileManager.default.contents(atPath: folder.appending(path: ".env").path(percentEncoded: false))
         var dotEnv: [String: String] = [:]
-        for variable in DotEnv.parse(envData.map { String(decoding: $0, as: UTF8.self) } ?? "") {
+        for variable in DotEnv.parse(
+            envData.map { String(decoding: $0, as: UTF8.self) } ?? "", stripInlineComments: true)
+        {
             dotEnv[variable.key] = variable.value ?? ""
         }
         let overrides = overrideFileNames.filter {
