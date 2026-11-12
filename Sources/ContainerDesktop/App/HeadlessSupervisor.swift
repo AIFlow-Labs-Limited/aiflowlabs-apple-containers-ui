@@ -13,7 +13,7 @@ enum HeadlessSupervisor {
     static let controlArgument = "--background-supervision"
 
     static func handles(_ arguments: [String]) -> Bool {
-        arguments.contains(LoginAgentSupervisionService.superviseArgument) || arguments.contains(controlArgument)
+        arguments.contains(LaunchAgentSupervisionService.superviseArgument) || arguments.contains(controlArgument)
     }
 
     static func main(_ arguments: [String]) -> Never {
@@ -63,7 +63,7 @@ enum HeadlessSupervisor {
     // MARK: --background-supervision
 
     private static func control(_ verb: String) -> Int32 {
-        let service = LoginAgentSupervisionService()
+        let service = LaunchAgentSupervisionService()
         do {
             switch verb {
             case "register": try service.enable()
@@ -85,7 +85,8 @@ enum HeadlessSupervisor {
         switch status {
         case .disabled: return "disabled"
         case .enabled: return "enabled"
-        case .requiresApproval: return "requires approval in System Settings › General › Login Items"
+        case .requiresApproval:
+            return "installed, but macOS is not running it (check System Settings › General › Login Items)"
         case .unavailable(let reason): return "unavailable: \(reason)"
         }
     }

@@ -212,6 +212,7 @@ final class FakeSupervisionService: BackgroundSupervisionService {
             $0.status = .disabled
         }
     }
+    func repairIfNeeded() throws {}
 }
 
 @MainActor

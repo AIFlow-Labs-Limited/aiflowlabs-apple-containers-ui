@@ -35,21 +35,22 @@ struct BackgroundSupervisionRows: View {
     /// The honest state of the helper, in one paragraph.
     static func statusText(_ status: BackgroundSupervisionStatus, error: String?) -> String {
         if let error {
-            let outcome = status.isRegistered ? "The helper is still registered." : "The helper is not registered."
-            return "macOS refused the change: \(error) \(outcome)"
+            let outcome = status == .enabled ? "The helper is still running." : "The helper is not running."
+            return "That did not work: \(error) \(outcome)"
         }
         switch status {
         case .disabled:
             return "Off: restart policies are enforced only while Container Desktop is running. Switching this on "
-                + "registers a small background helper that starts at login and takes over the restarts. It "
-                + "appears under System Settings › General › Login Items."
+                + "installs a small background helper (a LaunchAgent in ~/Library/LaunchAgents) that starts at "
+                + "login and takes over the restarts. Switching it off removes it."
         case .enabled:
             return "On: a background helper enforces restart policies, also after you quit Container Desktop and "
                 + "after you log in. It waits for the container system and does not start it. Stops you make in "
                 + "the app are respected; its restarts are in the system log, not in Activity."
         case .requiresApproval:
-            return "Waiting for approval: allow Container Desktop under System Settings › General › Login Items. "
-                + "Until then restart policies are enforced only while the app is running."
+            return "The helper is installed, but macOS is not running it, so restart policies are enforced only "
+                + "while the app is running. Check that it is allowed under System Settings › General › Login "
+                + "Items, or switch this off and on again."
         case .unavailable(let reason):
             return reason
         }

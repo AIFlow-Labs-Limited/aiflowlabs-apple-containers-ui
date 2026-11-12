@@ -108,7 +108,7 @@ public final class SettingsStore {
     public init(
         defaults: UserDefaults = .standard,
         loginItemStatus: @escaping @MainActor () -> SMAppService.Status = { SMAppService.mainApp.status },
-        supervisionService: any BackgroundSupervisionService = LoginAgentSupervisionService()
+        supervisionService: any BackgroundSupervisionService = LaunchAgentSupervisionService()
     ) {
         self.defaults = defaults
         self.loginItemStatus = loginItemStatus
@@ -137,10 +137,12 @@ public final class SettingsStore {
         automaticUpdateChecks = defaults.bool(forKey: Key.automaticUpdateChecks)
         restartPoliciesEnabled = defaults.bool(forKey: Key.restartPoliciesEnabled)
         refreshLaunchAtLogin()
+        // An app that was moved or updated takes its helper along.
+        try? supervisionService.repairIfNeeded()
         refreshBackgroundSupervision()
     }
 
-    /// Re-reads the helper's state from the system (the user may switch it off under Login Items at any time).
+    /// Re-reads the helper's state from the system (it can be switched off outside the app at any time).
     /// Call when the Settings window appears.
     public func refreshBackgroundSupervision() {
         let status = supervisionService.status()
