@@ -53,12 +53,32 @@ extension CLIBackend {
     }
 
     /// `container image save --output TAR [--platform P] -- REFS…`.
+    ///
+    /// Without a platform the CLI saves every platform in the image's index. For an image that was pulled for
+    /// this Mac only, the other platforms' layers are not on disk and the CLI stops with nothing more than
+    /// `content with digest sha256:…` (seen on container 1.7.1); that message is completed here.
     public func saveImages(_ references: [String], to tarPath: String, platform: Platform?) async throws {
         try Self.validateOperands(references, "Image reference")
         let arguments =
             ["image", "save", "--output", tarPath] + (platform.map { ["--platform", $0.slug] } ?? []) + ["--"]
             + references
-        try await execute(arguments, timeout: nil)
+        do {
+            try await execute(arguments, timeout: nil)
+        } catch let error as BackendError {
+            throw Self.saveFailure(error, platform: platform)
+        }
+    }
+
+    /// Explains the CLI's bare `content with digest sha256:…` when all platforms were asked for.
+    static func saveFailure(_ error: BackendError, platform: Platform?) -> BackendError {
+        guard platform == nil, case .commandFailed(let command, let exitCode, let message) = error,
+            message.localizedCaseInsensitiveContains("content with digest")
+        else { return error }
+        return .commandFailed(
+            command: command, exitCode: exitCode,
+            message: message
+                + " is not in the local image store. The image lists platforms that were never downloaded, so "
+                + "“All platforms” cannot be saved. Choose a single platform (for example linux/arm64).")
     }
 
     /// `container image load --input TAR`.
