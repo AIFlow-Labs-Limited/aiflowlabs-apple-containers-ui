@@ -1,0 +1,3 @@
+CLUSTER        NODE                    ROLE           STATE    CPUS  MEMORY  ADDR  PORTS
+cd-it-v17-k8s  cd-it-v17-k8s           control-plane  stopped  2     2 GB          
+cd-it-v17-k8s  cd-it-v17-k8s-worker-1  worker         stopped  2     2 GB          

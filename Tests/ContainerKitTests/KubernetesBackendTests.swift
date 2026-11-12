@@ -16,9 +16,9 @@ struct KubernetesBackendTests {
                 switch Array(arguments.dropFirst()) {
                 case ["k8s", "ls"]: return ProcessResult(stdout: Fixtures.data("k8s-list.txt"))
                 case ["cluster", "list", "--format", "json"]:
-                    return ProcessResult(stdout: DerivedFixtures.data("cluster-list.compact.json"))
+                    return ProcessResult(stdout: ClusterSamples.data("cluster-list.compact.json"))
                 case ["cluster", "list", "--nodes"]:
-                    return ProcessResult(stdout: DerivedFixtures.data("cluster-list-nodes.txt"))
+                    return ProcessResult(stdout: ClusterSamples.data("cluster-list-nodes.txt"))
                 default: return extra(arguments)
                 }
             })
@@ -165,7 +165,7 @@ struct KubernetesBackendTests {
             handler: KubernetesCLIFake.cli171.handler { arguments in
                 switch Array(arguments.dropFirst()) {
                 case ["cluster", "list", "--format", "json"]:
-                    return ProcessResult(stdout: DerivedFixtures.data("cluster-list.json"))
+                    return ProcessResult(stdout: ClusterSamples.data("cluster-list.json"))
                 case ["cluster", "list", "--nodes"]:
                     return ProcessResult(exitCode: 1, stdout: "", stderr: "Error: boom\n")
                 default: return ProcessResult(stdout: "[]")

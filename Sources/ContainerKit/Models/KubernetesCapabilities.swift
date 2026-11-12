@@ -124,7 +124,10 @@ extension KubernetesCapabilities {
             guard inSection, line.hasPrefix("  "), !line.hasPrefix("   ") else { continue }
             let label = trimmed.split(separator: /\s{2,}/, maxSplits: 1).first.map(String.init) ?? trimmed
             for name in label.split(separator: ",") {
-                names.insert(name.trimmingCharacters(in: .whitespaces))
+                let name = name.trimmingCharacters(in: .whitespaces)
+                // The section ends with a two-space-indented sentence ("See 'cluster help <subcommand>' for
+                // detailed help."), which is not a command name.
+                if !name.isEmpty, !name.contains(" ") { names.insert(name) }
             }
         }
         return names

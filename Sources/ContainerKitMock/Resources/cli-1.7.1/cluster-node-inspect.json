@@ -1,0 +1,208 @@
+[
+  {
+    "configuration": {
+      "capAdd": [
+        "ALL"
+      ],
+      "capDrop": [],
+      "creationDate": "2026-11-12T05:24:00Z",
+      "dns": {
+        "domain": "test",
+        "nameservers": [],
+        "options": [],
+        "searchDomains": []
+      },
+      "id": "cd-it-v17-k8s-worker-1",
+      "image": {
+        "descriptor": {
+          "digest": "sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95",
+          "mediaType": "application/vnd.oci.image.index.v1+json",
+          "size": 703
+        },
+        "reference": "docker.io/kindest/node@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95"
+      },
+      "initProcess": {
+        "arguments": [
+          "-c",
+          "set -e\nlog_info()  { echo \"INFO: $1\" >&2; }\nlog_error() { echo \"ERROR: $1\" >&2; }\n\n# Disable the createContainer hook that copies /kind/product_* into every\n# container's rootfs. Testing whether container cluster needs this at all --\n# unconfirmed whether container's VMs already assign a unique product_uuid\n# per node without it.\nif [ -f /etc/containerd/cri-base.json ]; then\nif jq 'del(.hooks.createContainer)' /etc/containerd/cri-base.json > /tmp/cri-base.json.new; then\n    mv /tmp/cri-base.json.new /etc/containerd/cri-base.json\n    log_info \"removed createContainer hook from cri-base.json\"\nelse\n    log_error \"jq failed to patch cri-base.json, leaving it unmodified\"\nfi\nfi\n\n# Proxy propagation.\nmkdir -p /etc/systemd/system.conf.d/\ncat <<EOF >/etc/systemd/system.conf.d/proxy-default-environment.conf\n[Manager]\nDefaultEnvironment=\"HTTP_PROXY=${HTTP_PROXY:-}\" \"HTTPS_PROXY=${HTTPS_PROXY:-}\" \"NO_PROXY=${NO_PROXY:-}\"\nEOF\n\n# Mount propagation. Unverified whether this is needed in container's VM boot.\nmount --make-rshared /\n\n# Detect the node's current IPv4 address, preferring the default-route interface.\nDEFAULT_IFACE=$(ip -4 route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i==\"dev\") print $(i+1)}' | head -1)\nif [ -n \"$DEFAULT_IFACE\" ]; then\nCURRENT_IP=$(ip -4 -o addr show dev \"$DEFAULT_IFACE\" | awk '{print $4}' | head -1 | cut -d/ -f1)\nelse\nCURRENT_IP=$(ip -4 -o addr show | awk '$2 != \"lo\" && $2 !~ /^veth/ {print $4}' | head -1 | cut -d/ -f1)\nfi\n# Read the IP recorded on the previous boot, if any.\nIP_MARKER=/etc/.container-cluster-last-ip\nOLD_IP=\"\"\n[ -f \"$IP_MARKER\" ] && OLD_IP=$(cat \"$IP_MARKER\")\n\n# If the node IP changed across a restart, rewrite the old IP in the cluster\n# config files and regenerate the apiserver certificate for the new IP.\nif [ -n \"$OLD_IP\" ] && [ -n \"$CURRENT_IP\" ] && [ \"$OLD_IP\" != \"$CURRENT_IP\" ] && [ -f /etc/kubernetes/pki/apiserver.crt ]; then\nlog_info \"node IP changed ($OLD_IP -> $CURRENT_IP), reconciling cluster config\"\n# Escape dots so OLD_IP matches literally, and anchor on word boundaries so it\n# cannot match inside a longer address.\nOLD_RE=$(printf '%s' \"$OLD_IP\" | sed 's/\\./\\\\./g')\nfor f in /etc/kubernetes/kubeadm-config.yaml \\\n        /etc/kubernetes/manifests/etcd.yaml \\\n        /etc/kubernetes/manifests/kube-apiserver.yaml \\\n        /etc/kubernetes/manifests/kube-controller-manager.yaml \\\n        /etc/kubernetes/manifests/kube-scheduler.yaml \\\n        /etc/kubernetes/controller-manager.conf \\\n        /etc/kubernetes/scheduler.conf \\\n        /etc/kubernetes/kubelet.conf \\\n        /etc/kubernetes/admin.conf \\\n        /root/.kube/config \\\n        /var/lib/kubelet/kubeadm-flags.env; do\n    [ -f \"$f\" ] && sed -i \"s#\\b${OLD_RE}\\b#${CURRENT_IP}#g\" \"$f\"\ndone\n# Regenerate the apiserver certificate so its SANs include the new IP.\nrm -f /etc/kubernetes/pki/apiserver.crt /etc/kubernetes/pki/apiserver.key\nif ! kubeadm init phase certs apiserver --config /etc/kubernetes/kubeadm-config.yaml; then\n    log_error \"apiserver cert regeneration failed after IP change\"\n    exit 1\nfi\nlog_info \"reconciliation complete\"\nfi\n\n# Record the current IP for the next boot, then hand off to the original command.\n[ -n \"$CURRENT_IP\" ] && echo \"$CURRENT_IP\" > \"$IP_MARKER\"\nexec  \"$@\"",
+          "sh",
+          "/sbin/init"
+        ],
+        "environment": [
+          "no_proxy=192.168.0.0/16,10.244.0.0/16,10.96.0.0/12",
+          "container=docker",
+          "HTTP_PROXY=",
+          "HTTPS_PROXY=",
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "NO_PROXY=192.168.0.0/16,10.244.0.0/16,10.96.0.0/12"
+        ],
+        "executable": "/bin/sh",
+        "rlimits": [],
+        "supplementalGroups": [],
+        "terminal": false,
+        "user": {
+          "id": {
+            "gid": 0,
+            "uid": 0
+          }
+        },
+        "workingDirectory": "/"
+      },
+      "labels": {
+        "com.apple.container.plugin": "cluster",
+        "com.apple.container.resource.role": "worker"
+      },
+      "maskedPaths": [],
+      "mounts": [],
+      "networks": [
+        {
+          "network": "default",
+          "options": {
+            "hostname": "cd-it-v17-k8s-worker-1.test.",
+            "mtu": 1280
+          }
+        }
+      ],
+      "platform": {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      "publishedPorts": [],
+      "publishedSockets": [],
+      "readOnly": false,
+      "readonlyPaths": [],
+      "resources": {
+        "cpuOverhead": 1,
+        "cpus": 2,
+        "memoryInBytes": 2147483648
+      },
+      "rosetta": true,
+      "runtimeHandler": "container-runtime-linux",
+      "ssh": false,
+      "stopSignal": "SIGRTMIN+3",
+      "sysctls": {},
+      "useInit": false,
+      "virtualization": false
+    },
+    "id": "cd-it-v17-k8s-worker-1",
+    "status": {
+      "networks": [
+        {
+          "hostname": "cd-it-v17-k8s-worker-1.test.",
+          "ipv4Address": "192.168.64.89/24",
+          "ipv4Gateway": "192.168.64.1",
+          "ipv6Address": "fd39:2018:8755:87f8:f4f9:a4ff:fe9e:32cc/64",
+          "macAddress": "f6:f9:a4:9e:32:cc",
+          "mtu": 1280,
+          "network": "default",
+          "variant": "reserved"
+        }
+      ],
+      "startedDate": "2026-11-12T05:24:00Z",
+      "state": "running"
+    }
+  },
+  {
+    "configuration": {
+      "capAdd": [
+        "ALL"
+      ],
+      "capDrop": [],
+      "creationDate": "2026-11-12T05:23:50Z",
+      "dns": {
+        "domain": "test",
+        "nameservers": [],
+        "options": [],
+        "searchDomains": []
+      },
+      "id": "cd-it-v17-k8s",
+      "image": {
+        "descriptor": {
+          "digest": "sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95",
+          "mediaType": "application/vnd.oci.image.index.v1+json",
+          "size": 703
+        },
+        "reference": "docker.io/kindest/node@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95"
+      },
+      "initProcess": {
+        "arguments": [
+          "-c",
+          "set -e\nlog_info()  { echo \"INFO: $1\" >&2; }\nlog_error() { echo \"ERROR: $1\" >&2; }\n\n# Disable the createContainer hook that copies /kind/product_* into every\n# container's rootfs. Testing whether container cluster needs this at all --\n# unconfirmed whether container's VMs already assign a unique product_uuid\n# per node without it.\nif [ -f /etc/containerd/cri-base.json ]; then\nif jq 'del(.hooks.createContainer)' /etc/containerd/cri-base.json > /tmp/cri-base.json.new; then\n    mv /tmp/cri-base.json.new /etc/containerd/cri-base.json\n    log_info \"removed createContainer hook from cri-base.json\"\nelse\n    log_error \"jq failed to patch cri-base.json, leaving it unmodified\"\nfi\nfi\n\n# Proxy propagation.\nmkdir -p /etc/systemd/system.conf.d/\ncat <<EOF >/etc/systemd/system.conf.d/proxy-default-environment.conf\n[Manager]\nDefaultEnvironment=\"HTTP_PROXY=${HTTP_PROXY:-}\" \"HTTPS_PROXY=${HTTPS_PROXY:-}\" \"NO_PROXY=${NO_PROXY:-}\"\nEOF\n\n# Mount propagation. Unverified whether this is needed in container's VM boot.\nmount --make-rshared /\n\n# Detect the node's current IPv4 address, preferring the default-route interface.\nDEFAULT_IFACE=$(ip -4 route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i==\"dev\") print $(i+1)}' | head -1)\nif [ -n \"$DEFAULT_IFACE\" ]; then\nCURRENT_IP=$(ip -4 -o addr show dev \"$DEFAULT_IFACE\" | awk '{print $4}' | head -1 | cut -d/ -f1)\nelse\nCURRENT_IP=$(ip -4 -o addr show | awk '$2 != \"lo\" && $2 !~ /^veth/ {print $4}' | head -1 | cut -d/ -f1)\nfi\n# Read the IP recorded on the previous boot, if any.\nIP_MARKER=/etc/.container-cluster-last-ip\nOLD_IP=\"\"\n[ -f \"$IP_MARKER\" ] && OLD_IP=$(cat \"$IP_MARKER\")\n\n# If the node IP changed across a restart, rewrite the old IP in the cluster\n# config files and regenerate the apiserver certificate for the new IP.\nif [ -n \"$OLD_IP\" ] && [ -n \"$CURRENT_IP\" ] && [ \"$OLD_IP\" != \"$CURRENT_IP\" ] && [ -f /etc/kubernetes/pki/apiserver.crt ]; then\nlog_info \"node IP changed ($OLD_IP -> $CURRENT_IP), reconciling cluster config\"\n# Escape dots so OLD_IP matches literally, and anchor on word boundaries so it\n# cannot match inside a longer address.\nOLD_RE=$(printf '%s' \"$OLD_IP\" | sed 's/\\./\\\\./g')\nfor f in /etc/kubernetes/kubeadm-config.yaml \\\n        /etc/kubernetes/manifests/etcd.yaml \\\n        /etc/kubernetes/manifests/kube-apiserver.yaml \\\n        /etc/kubernetes/manifests/kube-controller-manager.yaml \\\n        /etc/kubernetes/manifests/kube-scheduler.yaml \\\n        /etc/kubernetes/controller-manager.conf \\\n        /etc/kubernetes/scheduler.conf \\\n        /etc/kubernetes/kubelet.conf \\\n        /etc/kubernetes/admin.conf \\\n        /root/.kube/config \\\n        /var/lib/kubelet/kubeadm-flags.env; do\n    [ -f \"$f\" ] && sed -i \"s#\\b${OLD_RE}\\b#${CURRENT_IP}#g\" \"$f\"\ndone\n# Regenerate the apiserver certificate so its SANs include the new IP.\nrm -f /etc/kubernetes/pki/apiserver.crt /etc/kubernetes/pki/apiserver.key\nif ! kubeadm init phase certs apiserver --config /etc/kubernetes/kubeadm-config.yaml; then\n    log_error \"apiserver cert regeneration failed after IP change\"\n    exit 1\nfi\nlog_info \"reconciliation complete\"\nfi\n\n# Record the current IP for the next boot, then hand off to the original command.\n[ -n \"$CURRENT_IP\" ] && echo \"$CURRENT_IP\" > \"$IP_MARKER\"\nexec  \"$@\"",
+          "sh",
+          "/sbin/init"
+        ],
+        "environment": [
+          "no_proxy=192.168.0.0/16,10.244.0.0/16,10.96.0.0/12",
+          "container=docker",
+          "HTTP_PROXY=",
+          "HTTPS_PROXY=",
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "NO_PROXY=192.168.0.0/16,10.244.0.0/16,10.96.0.0/12"
+        ],
+        "executable": "/bin/sh",
+        "rlimits": [],
+        "supplementalGroups": [],
+        "terminal": false,
+        "user": {
+          "id": {
+            "gid": 0,
+            "uid": 0
+          }
+        },
+        "workingDirectory": "/"
+      },
+      "labels": {
+        "com.apple.container.plugin": "cluster",
+        "com.apple.container.resource.role": "control-plane"
+      },
+      "maskedPaths": [],
+      "mounts": [],
+      "networks": [
+        {
+          "network": "default",
+          "options": {
+            "hostname": "cd-it-v17-k8s.test.",
+            "mtu": 1280
+          }
+        }
+      ],
+      "platform": {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      "publishedPorts": [],
+      "publishedSockets": [],
+      "readOnly": false,
+      "readonlyPaths": [],
+      "resources": {
+        "cpuOverhead": 1,
+        "cpus": 2,
+        "memoryInBytes": 2147483648
+      },
+      "rosetta": true,
+      "runtimeHandler": "container-runtime-linux",
+      "ssh": false,
+      "stopSignal": "SIGRTMIN+3",
+      "sysctls": {},
+      "useInit": false,
+      "virtualization": false
+    },
+    "id": "cd-it-v17-k8s",
+    "status": {
+      "networks": [
+        {
+          "hostname": "cd-it-v17-k8s.test.",
+          "ipv4Address": "192.168.64.88/24",
+          "ipv4Gateway": "192.168.64.1",
+          "ipv6Address": "fd39:2018:8755:87f8:fce0:1cff:fe8c:9951/64",
+          "macAddress": "fe:e0:1c:8c:99:51",
+          "mtu": 1280,
+          "network": "default",
+          "variant": "reserved"
+        }
+      ],
+      "startedDate": "2026-11-12T05:23:51Z",
+      "state": "running"
+    }
+  }
+]

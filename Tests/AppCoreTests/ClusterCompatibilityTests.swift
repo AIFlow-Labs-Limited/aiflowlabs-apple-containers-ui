@@ -100,7 +100,7 @@ import Testing
     // MARK: Presentation
 
     @Test func clusterPresentation() throws {
-        let clusters = try DerivedFixtures.clusters()
+        let clusters = try ClusterSamples.clusters()
         #expect(clusters.map(\.stateTitle) == ["Running", "Degraded (2 of 3 up)", "Stopped"])
         #expect(clusters.map(\.nodesSummary) == ["1 node", "1 control plane + 2 workers", "1 node"])
         #expect(clusters.map(\.cniTitle) == ["kindnet (built in)", "kindnet (built in)", "None"])

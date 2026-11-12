@@ -1,0 +1,2 @@
+NAME          NODES  K8S VERSION  STATE
+cd-it-v17-rm  1      v1.35.5      stopped

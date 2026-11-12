@@ -18,10 +18,10 @@ enum MockClusters {
         }
     }
 
-    /// Clusters a mock starts with: none for the old plugin (as before), the derived 1.7.1 samples for the new one.
+    /// Clusters a mock starts with: none for the old plugin (as before), the hand-written 1.7 scenarios (`ClusterSamples`) for the new one.
     static func seed(for capabilities: KubernetesCapabilities?) -> [KubernetesCluster] {
         guard capabilities?.listsJSON == true else { return [] }
-        return (try? DerivedFixtures.clusters()) ?? []
+        return (try? ClusterSamples.clusters()) ?? []
     }
 
     /// `cpuUtilization` for the mock's stats: `nil` for the old CLI (which has no such field), else the rate curve

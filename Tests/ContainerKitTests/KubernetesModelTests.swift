@@ -10,8 +10,8 @@ import Testing
 struct KubernetesModelTests {
     // MARK: ClusterResource decoding
 
-    @Test func decodesTheDerivedClusterList() throws {
-        let resources = try DerivedFixtures.clusterResources()
+    @Test func decodesTheSampleClusterList() throws {
+        let resources = try ClusterSamples.clusterResources()
         #expect(resources.map(\.id) == ["cluster-dev", "staging", "temp"])
         let staging = resources[1]
         #expect(staging.name == "staging")
@@ -31,11 +31,11 @@ struct KubernetesModelTests {
 
     /// The CLI prints one compact line with sorted keys; it must decode to the same values as the pretty file.
     @Test func compactOutputDecodesLikeThePrettyFixture() throws {
-        let compact = DerivedFixtures.data("cluster-list.compact.json")
+        let compact = ClusterSamples.data("cluster-list.compact.json")
         #expect(compact.split(separator: UInt8(ascii: "\n")).count == 1)
         #expect(
             String(decoding: compact, as: UTF8.self).hasPrefix(#"[{"configuration":{"cni":null,"creationDate":"2026-"#))
-        #expect(try CLIJSON.decode([ClusterResource].self, from: compact) == DerivedFixtures.clusterResources())
+        #expect(try CLIJSON.decode([ClusterResource].self, from: compact) == ClusterSamples.clusterResources())
     }
 
     @Test func decodingIsLenient() throws {
@@ -91,8 +91,8 @@ struct KubernetesModelTests {
     }
 
     @Test func nodeTableMergeMatchesByClusterAndNode() throws {
-        let resources = try DerivedFixtures.clusterResources()
-        let table = DerivedFixtures.clusterNodeTable()
+        let resources = try ClusterSamples.clusterResources()
+        let table = ClusterSamples.clusterNodeTable()
         #expect(table.map(\.name) == ["cluster-dev", "staging", "temp"])
         // Same node name in another cluster's rows must not leak in.
         let other = [
@@ -113,9 +113,13 @@ struct KubernetesModelTests {
     // MARK: Stats
 
     @Test func statsDecodeCPUUtilizationWhenPresent() throws {
-        let new = try DerivedFixtures.stats()
-        #expect(new.map(\.cpuUtilization) == [0.0312, 1.4375])
-        #expect(new[1].reportedCPUPercent == 143.75)
+        // Recorded from 1.7.1: every row has the figure, cluster nodes included (`stats` does not hide them).
+        let new = try FixtureSet.cli171.stats()
+        #expect(new.count >= 2 && new.allSatisfy { $0.cpuUtilization != nil })
+        let first = try #require(new.first)
+        #expect(first.reportedCPUPercent == first.cpuUtilization.map { $0 * 100 })
+        let high = try CLIJSON.decode([ContainerStats].self, from: Data(#"[{"id":"a","cpuUtilization":1.4375}]"#.utf8))
+        #expect(high[0].reportedCPUPercent == 143.75)
         let old = try Fixtures.stats()
         #expect(old.allSatisfy { $0.cpuUtilization == nil && $0.reportedCPUPercent == nil })
         // Junk never becomes a CPU figure.
@@ -159,9 +163,9 @@ struct KubernetesModelTests {
                 switch args {
                 case ["k8s", "ls"]: return ProcessResult(stdout: Fixtures.data("k8s-list.txt"))
                 case ["cluster", "list", "--format", "json"]:
-                    return ProcessResult(stdout: DerivedFixtures.data("cluster-list.json"))
+                    return ProcessResult(stdout: ClusterSamples.data("cluster-list.json"))
                 case ["cluster", "list", "--nodes"]:
-                    return ProcessResult(stdout: DerivedFixtures.data("cluster-list-nodes.txt"))
+                    return ProcessResult(stdout: ClusterSamples.data("cluster-list-nodes.txt"))
                 case ["ls", "-a", "--format", "json"]: return ProcessResult(stdout: list)
                 default: return extra(arguments)
                 }
@@ -214,17 +218,18 @@ struct KubernetesModelTests {
     }
 
     @Test func refusedNodeLifecycleIsExplained() async throws {
-        let notFound: @Sendable (String) -> ProcessResult = { id in
-            ProcessResult(
-                exitCode: 1, stdout: "",
-                stderr:
-                    "Error: internalError: \"failed to stop container\" (cause: \"notFound: \"container with ID \(id) not found\"\")\n"
-            )
+        // What 1.7.1 prints (recorded 2026-11-12): `start` without the `notFound:` prefix, the others with it.
+        let notFound: @Sendable (String, String) -> ProcessResult = { verb, id in
+            let message =
+                verb == "start"
+                ? "Error: container with ID \(id) not found\n"
+                : "Error: notFound: \"container with ID \(id) not found\"\n"
+            return ProcessResult(exitCode: 1, stdout: "", stderr: message)
         }
         let (backend, _) = try make(.cli171, list: Fixtures.data("containers.json")) { arguments in
             let args = Array(arguments.dropFirst())
             return ["start", "stop", "kill", "delete"].contains(args.first ?? "")
-                ? notFound(args.last ?? "") : ProcessResult(stdout: "[]")
+                ? notFound(args.first ?? "", args.last ?? "") : ProcessResult(stdout: "[]")
         }
         _ = try await backend.listClusters()
         do {
@@ -234,8 +239,30 @@ struct KubernetesModelTests {
             guard case .unsupported = error else { Issue.record("expected .unsupported, got \(error)"); return }
             #expect(error.errorDescription?.contains("Kubernetes cluster “staging”") == true)
         }
+        for refused in ["start", "kill", "delete"] {
+            let error = await Self.backendError {
+                switch refused {
+                case "start": try await backend.startContainer("staging")
+                case "kill": try await backend.killContainer("staging", signal: nil)
+                default: try await backend.deleteContainer("staging", force: true)
+                }
+            }
+            guard case .unsupported = error else {
+                Issue.record("\(refused): expected .unsupported, got \(String(describing: error))")
+                continue
+            }
+        }
         await #expect(throws: BackendError.notFound(kind: "container", id: "web")) {
             try await backend.deleteContainer("web", force: false)
+        }
+    }
+
+    private static func backendError(_ body: () async throws -> Void) async -> BackendError? {
+        do {
+            try await body()
+            return nil
+        } catch {
+            return error as? BackendError
         }
     }
 }
