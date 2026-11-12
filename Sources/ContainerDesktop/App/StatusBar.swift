@@ -37,6 +37,8 @@ struct StatusBar: View {
 
             Spacer(minLength: Spacing.s)
 
+            UpdateIndicator()
+
             if model.engine.isRunning, let df = model.system.diskUsage {
                 Label(
                     "Disk \(ByteCount.format(df.totalBytes)) · \(ByteCount.format(df.reclaimableBytes)) reclaimable",

@@ -24,11 +24,13 @@ public final class SettingsStore {
         public static let pollingInterval = "pollingInterval"
         public static let notifications = "notificationsEnabled"
         public static let appearance = "appearance"
+        public static let automaticUpdateChecks = "automaticUpdateChecks"
     }
 
     public static let pollingRange: ClosedRange<Double> = 1...10
 
-    @ObservationIgnored private let defaults: UserDefaults
+    /// Where preferences live; `UpdateChecker` keeps its throttle timestamp in the same store.
+    @ObservationIgnored let defaults: UserDefaults
     /// Hooks for AppModel (polling interval → gate, container filters → store).
     @ObservationIgnored public var onPollingIntervalChange: (@MainActor (Double) -> Void)?
     /// Menu bar / notifications toggled (AppModel starts or stops its background polling client).
@@ -74,6 +76,10 @@ public final class SettingsStore {
         didSet { defaults.set(notificationsEnabled, forKey: Key.notifications); onBackgroundNeedsChange?() }
     }
     public var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
+    /// Ask github.com for new app and runtime releases at most once a day (on by default).
+    public var automaticUpdateChecks: Bool {
+        didSet { defaults.set(automaticUpdateChecks, forKey: Key.automaticUpdateChecks) }
+    }
 
     public init(
         defaults: UserDefaults = .standard,
@@ -90,6 +96,7 @@ public final class SettingsStore {
             Key.pollingInterval: 2.0,
             Key.notifications: true,
             Key.appearance: Appearance.system.rawValue,
+            Key.automaticUpdateChecks: true,
         ])
         launchAtLogin = false
         startEngineOnLaunch = defaults.bool(forKey: Key.startEngineOnLaunch)
@@ -99,6 +106,7 @@ public final class SettingsStore {
         pollingInterval = min(max(defaults.double(forKey: Key.pollingInterval), 1), 10)
         notificationsEnabled = defaults.bool(forKey: Key.notifications)
         appearance = Appearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
+        automaticUpdateChecks = defaults.bool(forKey: Key.automaticUpdateChecks)
         refreshLaunchAtLogin()
     }
 
@@ -139,6 +147,7 @@ public final class SettingsStore {
             ("Show stopped", "\(showStoppedContainers)"), ("Hide system containers", "\(hideSystemContainers)"),
             ("Menu bar", "\(menuBarEnabled)"), ("Polling interval", "\(pollingInterval)s"),
             ("Notifications", "\(notificationsEnabled)"), ("Appearance", appearance.rawValue),
+            ("Automatic update checks", "\(automaticUpdateChecks)"),
         ]
             + (launchAtLoginRequiresApproval ? [("Login item", "requires approval")] : [])
     }

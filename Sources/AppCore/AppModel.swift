@@ -28,6 +28,8 @@ public final class AppModel {
     public let palette = CommandPalette()
     /// "Run" hand-off from Images/Builds to the Containers run sheet.
     public let runRequests = RunRequests()
+    /// App and runtime update checks (GitHub releases); see `AppModel+Updates.swift`.
+    public let updates: UpdateChecker
 
     // Stores are created once and survive backend swaps (they talk to `switchable`), so views' `.task`
     // polling clients stay attached. `storesGeneration` therefore never changes; it exists so views may key
@@ -63,7 +65,8 @@ public final class AppModel {
 
     public init(
         backend: any ContainerBackend, settings: SettingsStore = SettingsStore(),
-        buildsHistoryURL: URL = BuildsStore.defaultHistoryURL, observeAppActivation: Bool = true
+        buildsHistoryURL: URL = BuildsStore.defaultHistoryURL, observeAppActivation: Bool = true,
+        updates: UpdateChecker? = nil
     ) {
         let gate = PollingGate(interval: .seconds(settings.pollingInterval))
         let tasks = TaskCenter()
@@ -71,6 +74,7 @@ public final class AppModel {
         self.settings = settings
         self.gate = gate
         self.taskCenter = tasks
+        self.updates = updates ?? UpdateChecker(settings: settings, defaults: settings.defaults)
         let switchable = SwitchableBackend(backend)
         self.switchable = switchable
         (containers, images, volumes, networks, builds, machines, clusters, registries, system) =

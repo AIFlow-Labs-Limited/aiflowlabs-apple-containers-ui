@@ -70,6 +70,10 @@ XPC backend land later for lower latency without touching the UI.
   Activity panel + notifications.
 - `SettingsStore`: `@AppStorage`-backed preferences + config.toml read/write via the backend.
 - `Diagnostics`: collects versions, `system status`, last errors → text for bug reports.
+- `UpdateChecker`: asks GitHub's `releases/latest` for the app and for `apple/container` through the injected
+  `HTTPFetching` (at most once a day, switchable off, nothing identifying sent), compares with `SemanticVersion`,
+  and exposes the offers as observable state. It never downloads or installs. `RuntimeSupport` is the one place
+  the supported runtime range (minimum, tested up to) is defined.
 
 ## DesignSystem
 
@@ -89,7 +93,9 @@ monospaced log with search), `ByteCount`/`RelativeDate` formatters, `ConfirmDest
 
 `make app` → `swift build -c release` → assemble `build/Container Desktop.app` (Info.plist from
 `Resources/Info.plist.template`, icon from `Resources/AppIcon.icns`, SwiftTerm bundle), ad-hoc sign; `make dmg`
-→ `create-dmg`-free `hdiutil` DMG; `make notarize` (needs Developer ID; env `SIGN_IDENTITY`, `NOTARY_PROFILE`).
+→ `create-dmg`-free `hdiutil` DMG; `make notarize` (needs Developer ID; env `SIGN_IDENTITY`, `NOTARY_PROFILE`);
+`make cask` renders the Homebrew cask from `packaging/homebrew/container-desktop.rb.in` and the DMG's sha256;
+`scripts/install.sh` is the one-line installer for people without Homebrew (see `docs/release/RELEASING.md`).
 CI: GitHub Actions on `macos-26` runner: build + test on PR; release workflow on tag `v*` builds DMG and attaches it.
 
 ## Testing

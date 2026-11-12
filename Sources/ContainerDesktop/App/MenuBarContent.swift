@@ -34,6 +34,7 @@ struct MenuBarContent: View {
             }
             Divider()
         }
+        MenuBarUpdateItem()
         Button("Open Container Desktop") { openMain() }
             .keyboardShortcut("o")
         switch model.engine {
