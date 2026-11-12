@@ -246,17 +246,17 @@ To see what it would do without changing anything, add `-s -- --dry-run` after `
 
 ### First launch
 
-Builds are ad-hoc signed and not notarized yet, so macOS blocks the first launch of a copy installed with
-Homebrew or from the DMG (right-click → Open no longer bypasses this, and a quarantined ad-hoc app can be
-reported as "damaged"). Either open the app once, then go to **System Settings → Privacy & Security** and click
-**Open Anyway**, or remove the quarantine flag:
+Builds are ad-hoc signed and not notarized by Apple yet.
+
+- **Homebrew and the one-line installer** open normally. Both check the download against its published SHA-256
+  checksum; the cask then removes the macOS quarantine flag, and `curl` does not set it in the first place.
+- **A DMG downloaded in a browser** is blocked on first launch (right-click → Open no longer bypasses this, and
+  a quarantined ad-hoc app can be reported as "damaged"). Either open the app once, then go to
+  **System Settings → Privacy & Security** and click **Open Anyway**, or remove the quarantine flag:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/Container Desktop.app"
 ```
-
-A copy installed with the one-line installer normally opens without this step, because `curl` does not mark
-downloads as quarantined.
 
 ### The runtime
 

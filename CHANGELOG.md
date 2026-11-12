@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ## [Unreleased]
 
 ### Added
+- The Homebrew cask removes the macOS quarantine flag after the checksum check, so a Homebrew install opens on
+  first launch without the Gatekeeper step.
 - **Import Compose File** (File › Import Compose File…, ⇧⌘O; also in the Containers toolbar, the ⌘K palette, or drop
   a `compose.yaml` / `docker-compose.yml` on the window). Container Desktop reads the file, shows the services,
   volumes and networks it found, and lists the exact `container` commands it will run before anything starts.

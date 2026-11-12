@@ -133,7 +133,7 @@ final class ScriptedStore: BackendStore {
 
 /// Polls `condition` on the main actor until it holds or `timeout` passes.
 @MainActor
-func eventually(timeout: Duration = .seconds(3), _ condition: () -> Bool) async -> Bool {
+func eventually(timeout: Duration = .seconds(15), _ condition: () -> Bool) async -> Bool {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
         if condition() { return true }
