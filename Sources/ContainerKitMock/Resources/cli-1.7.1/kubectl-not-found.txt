@@ -1,0 +1,1 @@
+Error from server (NotFound): pods "cd-it-no-such-pod" not found

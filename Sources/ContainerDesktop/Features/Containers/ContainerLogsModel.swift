@@ -29,13 +29,17 @@ final class ContainerLogsModel {
 
     /// Starts (or restarts) streaming. Running containers follow; stopped ones return what was recorded.
     func start(backend: any ContainerBackend, id: String, follow: Bool, boot: Bool, tail: Int = 1000) {
+        start(stream: backend.containerLogs(id, follow: follow, boot: boot, tail: boot ? nil : tail))
+    }
+
+    /// Starts (or restarts) on any line stream; a pod's `kubectl logs` uses this.
+    func start(stream: LineStream) {
         stop()
         buffer.removeAll()
         pending.removeAll()
         resetMatches()
         error = nil
         isStreaming = true
-        let stream = backend.containerLogs(id, follow: follow, boot: boot, tail: boot ? nil : tail)
         task = Task { [weak self] in
             do {
                 for try await line in stream {

@@ -9,7 +9,8 @@
     /// `select=<id>` (deep-link selection in the current section), `build-sheet` (opens the Build sheet),
     /// `resources-selftest` (pull/tag/delete + volume/network create/delete through the stores; prints results),
     /// `compose` (opens the Import Compose File sheet on a sample project).
-    /// platform: `machine-create`, `machine-select`, `cluster-create`, `cluster-select`, `registry-login`, `k8s-demo`, `machine-demo`.
+    /// platform: `machine-create`, `machine-select`, `cluster-create`, `cluster-select`, `registry-login`, `k8s-demo`, `machine-demo`,
+    /// `workload-pod` / `workload-logs` (with `cluster-select`: opens the first failing pod's details or logs).
     ///
     /// Tokens that change engine state (`stopped`, `pull`, `*-demo`, `resources-selftest`, `e2e-*`) only run against the
     /// mock backend unless `CONTAINER_DESKTOP_ALLOW_REAL_ENGINE_TESTS=1` is set. This gate is central: the feature hook
@@ -91,7 +92,8 @@
                 case "compose":
                     // The Import Compose File sheet on a sample project (preview only; Run is the user's click).
                     model.composeRequests.request(ComposePreviewSample.url())
-                case "machine-create", "machine-select", "cluster-create", "cluster-select", "registry-login":
+                case "machine-create", "machine-select", "cluster-create", "cluster-select", "registry-login",
+                    "workload-pod", "workload-logs":
                     // Platform sheets/selection (features-platform); the views pick these up.
                     DebugPlatformHooks.request(token)
                 default:

@@ -34,7 +34,8 @@ Swift Package (no `.xcodeproj` checked in; open `Package.swift` in Xcode). macOS
 ## Backend contract
 
 `ContainerBackend` = `SystemBackend & ContainerOperations & ImageOperations & VolumeOperations & NetworkOperations
-& RegistryOperations & MachineOperations & KubernetesOperations`. Every method is `async throws` and returns
+& RegistryOperations & MachineOperations & KubernetesOperations & KubernetesWorkloadOperations
+& ContainerFileOperations`. Every method is `async throws` and returns
 domain models; long-running actions return `LineStream` (`AsyncThrowingStream<OutputLine, Error>`).
 Errors are `BackendError` — the UI switches on `.systemNotRunning` / `.cliNotInstalled` to show full-screen states.
 
@@ -53,6 +54,11 @@ Errors are `BackendError` — the UI switches on `.systemNotRunning` / `.cliNotI
   `system status` fails) → `.systemNotRunning`.
 - `createDNSDomain` runs `container system dns create` as admin via `osascript -e 'do shell script … with
   administrator privileges'`.
+- Workloads (`KubernetesWorkloadOperations`): `container exec -- <control-plane node> kubectl --kubeconfig
+  /etc/kubernetes/admin.conf …`, the `kubectl` and admin kubeconfig that are already in the node image. The Mac's
+  `kubectl`, `~/.kube/config` and DNS domain are not involved, and the kubeconfig is only named, never read.
+  `KubectlAction` builds both the argv that runs and the command the UI shows. One call per poll lists pods,
+  deployments, services, nodes and namespaces; `ClusterWorkloadsStore` filters by namespace.
 - Keeps no resource state; the stores cache. It remembers only the detected Kubernetes capabilities (until the
   CLI binary changes) and which containers are cluster nodes (CLI 1.7+ hides them from `container list`).
 

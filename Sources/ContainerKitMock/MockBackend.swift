@@ -54,6 +54,8 @@ public actor MockBackend: ContainerBackend {
     public var systemRunning = true
     /// Fake filesystems for the Files tab by container id, built on first use (`MockBackend+Files.swift`).
     var fileSystems: [String: MockFileSystem] = [:]
+    /// What runs in each cluster, by cluster name, seeded on first use (`MockBackend+Workloads.swift`).
+    var workloadStates: [String: ClusterWorkloads] = [:]
     /// Scripted `execCapture` results (health-check tests); see `MockBackend+Simulation.swift`.
     var execHandler: ExecHandler?
     /// Ids whose next `startContainer` calls fail (restart-policy tests).

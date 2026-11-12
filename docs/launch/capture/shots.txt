@@ -13,6 +13,8 @@ build-sheet|build-sheet|5||
 machines|machine-demo,section=machines,machine-select|6||
 machine-create|section=machines,machine-create|5||
 kubernetes|k8s-demo,section=kubernetes,cluster-select|6||
+kubernetes-pod|k8s-demo,section=kubernetes,cluster-select,workload-pod|7||
+kubernetes-logs|k8s-demo,section=kubernetes,cluster-select,workload-logs|7||
 registries|section=registries|4||
 settings-resources|settings|4|Resources|-settings.selectedTab resources
 settings-network|settings|4|Network|-settings.selectedTab network

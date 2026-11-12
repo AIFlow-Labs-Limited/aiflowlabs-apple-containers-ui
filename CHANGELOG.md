@@ -9,6 +9,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Added
 - The Homebrew cask removes the macOS quarantine flag after the checksum check, so a Homebrew install opens on
   first launch without the Gatekeeper step.
+- **Kubernetes workloads.** Select a running cluster in the Kubernetes section to see what runs in it: Pods,
+  Deployments, Services and Nodes, filtered by namespace (the cluster's own namespaces such as `kube-system` stay
+  hidden until you ask for them). Pods show ready counts, restarts and the reason they are not running
+  (`CrashLoopBackOff`, `ImagePullBackOff`, …). Double-click a pod for its containers, recent events and logs
+  (per container, followed live, or the previous instance after a crash). Delete a pod, restart a deployment or
+  scale it from the context menu; every action shows the exact command and can copy it.
+  Container Desktop runs the `kubectl` that is already inside the cluster's control-plane node, so this needs no
+  `kubectl` on your Mac and works without the DNS domain that `kubectl --context` needs. Verified on container
+  1.7.1; on older runtimes it uses the same mechanism but was not run. Not included: other resource kinds, YAML,
+  applying manifests, exec into a pod, port-forwarding and metrics.
 - **Import Compose File** (File › Import Compose File…, ⇧⌘O; also in the Containers toolbar, the ⌘K palette, or drop
   a `compose.yaml` / `docker-compose.yml` on the window). Container Desktop reads the file, shows the services,
   volumes and networks it found, and lists the exact `container` commands it will run before anything starts.

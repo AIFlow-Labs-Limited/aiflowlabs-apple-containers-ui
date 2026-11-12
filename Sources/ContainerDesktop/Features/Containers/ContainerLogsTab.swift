@@ -158,7 +158,8 @@ struct ContainerLogsTab: View {
 }
 
 /// Monospaced lazy log view with stable row ids, wrap on/off, match highlighting and scroll-to-match.
-private struct LogConsole: View {
+/// Pod logs (`PodLogsView`) use it too.
+struct LogConsole: View {
     let logs: ContainerLogsModel
     let wrap: Bool
     let timestamps: Bool
