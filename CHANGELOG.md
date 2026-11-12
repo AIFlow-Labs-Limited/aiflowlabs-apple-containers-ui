@@ -62,6 +62,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   1.7+), with Apple's security warning. Options the installed CLI lacks are disabled with a one-line reason.
 
 ### Changed
+- **container 1.7.1 support is verified on a live engine (2026-11-12).** Save as Image, clusters with a worker
+  group and the shared image store, the JSON cluster list, the degraded state, cluster nodes in the container
+  list, CPU % from the runtime, image save and load, machines and builds all ran against a real 1.7.1 runtime, and
+  the 1.7.1 test fixtures are now recorded from it. What was observed is in `docs/COMPATIBILITY.md`.
 - Kubernetes commands and previews use `container cluster` on container 1.6.1 and later (`container k8s` before).
 - "Load Image" is only offered where the CLI still has `load-image` (it was removed in container 1.7).
 - CPU % uses the CLI's own `cpuUtilization` on container 1.7, so it shows from the first sample.
@@ -93,9 +97,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Terminal: a readable ANSI palette per appearance (directory colours were invisible on dark backgrounds).
 - Zero byte values read "0 bytes" instead of "Zero KB".
 
+- Images: saving "All platforms" of an image that was only downloaded for this Mac failed with the runtime's bare
+  `content with digest sha256:…`. The error now says that some platforms were never downloaded and to choose a
+  single platform.
+- Save as Image: a container that no longer exists is reported as "not found" instead of a raw command failure
+  (container 1.7.1 words that error differently).
+
 ### Known limitations
-- Support for container 1.6 and 1.7 was implemented from Apple's source code and release notes and has not yet
-  been verified against a live 1.6 / 1.7 engine.
+- container 1.6.0 and 1.6.1 were never installed: support for them is still read from Apple's source code. 1.5.0
+  and 1.7.1 are verified live.
+- Save as Image keeps the container's running process as the new image's entrypoint and command (that is what
+  `container commit` does). Starting the image with a different command appends it to that entrypoint; set the
+  entrypoint in the Run sheet to replace it.
 
 ## [0.1.0] - 2026-10-19
 

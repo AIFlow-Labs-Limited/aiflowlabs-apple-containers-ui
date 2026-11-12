@@ -36,6 +36,10 @@ struct CLIErrorMapperTests {
         ("Error: image not found: nope-xyz:1", "image", "nope-xyz:1"),
         ("Error: volume not found: nopevol", "volume", "nopevol"),
         ("Error: network not found: nopenet", "network", "nopenet"),
+        // Recorded from container 1.7.1: `commit` of a missing container, and stop / start of one.
+        ("Error: get failed: container cd-it-ghost-1 not found", "container", "cd-it-ghost-1"),
+        (#"Error: notFound: "container with ID cd-it-ghost-2 not found""#, "container", "cd-it-ghost-2"),
+        ("Error: container with ID cd-it-ghost-3 not found", "container", "cd-it-ghost-3"),
         (
             #"Error: failed to inspect container machine (cause: "notFound: "container machine with ID nopem not found"")"#,
             "machine", "nopem"
@@ -47,6 +51,31 @@ struct CLIErrorMapperTests {
     ])
     func notFound(stderr: String, kind: String, id: String) {
         #expect(CLIErrorMapper.map(command: "x", exitCode: 1, stderr: stderr) == .notFound(kind: kind, id: id))
+    }
+
+    /// container 1.7.1, `image save` of all platforms when only this Mac's was pulled: the CLI's whole message is
+    /// `content with digest sha256:…`.
+    @Test func savingAllPlatformsOfAPartlyPulledImageIsExplained() async throws {
+        let stderr =
+            "Error: content with digest sha256:350f747a86e8774d359a4f452dec12a2585e73bf072e71c5f628455843b88c71\n"
+        let runner = RecordingRunner { _ in ProcessResult(exitCode: 1, stdout: "", stderr: stderr) }
+        let backend = try CLIBackend.recording(runner)
+        do {
+            try await backend.saveImages(["alpine:latest"], to: "/tmp/a.tar", platform: nil)
+            Issue.record("save must fail")
+        } catch let error as BackendError {
+            guard case .commandFailed(let command, 1, let message) = error else {
+                Issue.record("expected commandFailed, got \(error)")
+                return
+            }
+            #expect(command.hasSuffix("image save --output /tmp/a.tar -- alpine:latest"))
+            #expect(message.hasPrefix("content with digest sha256:350f747a86e8"))
+            #expect(message.contains("“All platforms” cannot be saved. Choose a single platform"))
+        }
+        // With a platform chosen the CLI's message is passed on unchanged.
+        let plain = CLIErrorMapper.map(command: "c", exitCode: 1, stderr: stderr)
+        #expect(CLIBackend.saveFailure(plain, platform: .arm64) == plain)
+        #expect(CLIBackend.saveFailure(.systemNotRunning, platform: nil) == .systemNotRunning)
     }
 
     @Test func cleansProgressNoiseAndPrefix() {

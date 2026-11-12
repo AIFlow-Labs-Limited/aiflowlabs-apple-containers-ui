@@ -55,6 +55,10 @@ enum CLIErrorMapper {
         if let match = text.firstMatch(of: /([A-Za-z]+) not found: ([^\n]+)/) {
             return (normalizeKind(String(match.1)), String(match.2).trimmingCharacters(in: .whitespaces.union(quotes)))
         }
+        // `container commit` on 1.7.1: `Error: get failed: container web not found`.
+        if let match = text.firstMatch(of: /failed: (container|image|volume|network) ([^\s"']+) not found/) {
+            return (String(match.1), String(match.2))
+        }
         return nil
     }
 

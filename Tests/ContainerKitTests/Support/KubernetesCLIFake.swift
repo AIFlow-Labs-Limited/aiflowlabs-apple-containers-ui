@@ -9,7 +9,7 @@ import Foundation
 /// - 1.6.0 / 1.6.1: derived from the ArgumentParser declarations at Apple's tags `1.6.0` / `1.6.1`
 ///   (`Sources/ContainerK8s/Commands/*.swift`, `Sources/ContainerCluster/Commands/*.swift`), laid out like the
 ///   recorded 1.5.0 screens.
-/// - 1.7.1: derived, see `Resources/cli-1.7.1-derived/README.md`.
+/// - 1.7.1: **recorded** from the installed plugin on 2026-11-12 (`Resources/cli-1.7.1/cluster-*-help.txt`).
 enum KubernetesCLIFake: CaseIterable {
     case cli150, cli160, cli161, cli171
 
@@ -25,7 +25,7 @@ enum KubernetesCLIFake: CaseIterable {
         case .cli150: return Fixtures.text("k8s-help.txt")
         case .cli160: return Self.pluginHelp16(word: "k8s", list: "List clusters and their nodes")
         case .cli161: return Self.pluginHelp16(word: "cluster", list: "List clusters and their nodes")
-        case .cli171: return DerivedFixtures.text("cluster-help.txt")
+        case .cli171: return FixtureSet.cli171.text("cluster-help.txt")
         }
     }
 
@@ -34,7 +34,7 @@ enum KubernetesCLIFake: CaseIterable {
         case .cli150: return Fixtures.text("k8s-create-help.txt")
         case .cli160: return Self.createHelp16(word: "k8s", defaultName: "k8s-dev")
         case .cli161: return Self.createHelp16(word: "cluster", defaultName: "cluster-dev")
-        case .cli171: return DerivedFixtures.text("cluster-create-help.txt")
+        case .cli171: return FixtureSet.cli171.text("cluster-create-help.txt")
         }
     }
 
@@ -42,7 +42,7 @@ enum KubernetesCLIFake: CaseIterable {
         switch self {
         case .cli150: return Fixtures.text("k8s-list-help.txt")
         case .cli160, .cli161: return Self.listHelp16(word: word)
-        case .cli171: return DerivedFixtures.text("cluster-list-help.txt")
+        case .cli171: return FixtureSet.cli171.text("cluster-list-help.txt")
         }
     }
 

@@ -1,0 +1,35 @@
+[
+  {
+    "cpus": 2,
+    "createdDate": "2026-11-12T05:20:01Z",
+    "diskSize": 1183023104,
+    "homeMount": "none",
+    "id": "cd-it-v17-m",
+    "image": {
+      "descriptor": {
+        "annotations": {
+          "com.apple.containerization.image.name": "local/alpine-machine:latest",
+          "io.containerd.image.name": "docker.io/local/alpine-machine:latest",
+          "org.opencontainers.image.created": "2026-10-17T18:50:13Z",
+          "org.opencontainers.image.ref.name": "latest"
+        },
+        "digest": "sha256:8d421b14d8f5db4570176e5625145549885e778ce3e77eadef72fd008b6547d8",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 374
+      },
+      "reference": "local/alpine-machine:latest"
+    },
+    "memory": 2147483648,
+    "platform": {
+      "architecture": "arm64",
+      "os": "linux"
+    },
+    "status": "stopped",
+    "userSetup": {
+      "gid": 20,
+      "home": "/home/user",
+      "uid": 501,
+      "username": "user"
+    }
+  }
+]

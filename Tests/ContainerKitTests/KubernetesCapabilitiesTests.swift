@@ -28,9 +28,16 @@ struct KubernetesCapabilitiesTests {
         #expect(KubernetesCapabilities.defaultName(in: cli.createHelp) == "k8s-dev")
     }
 
-    @Test func derived171HelpIsTheModernPlugin() {
+    @Test func recorded171HelpIsTheModernPlugin() {
         let cli = KubernetesCLIFake.cli171
-        #expect(!KubernetesCapabilities.subcommands(in: cli.pluginHelp).contains("load-image"))
+        let subcommands = KubernetesCapabilities.subcommands(in: cli.pluginHelp)
+        #expect(subcommands == ["create", "delete", "rm", "list", "ls", "write-config"])
+        #expect(!subcommands.contains("load-image"))
+        #expect(KubernetesCapabilities.hasOption("--workers", in: cli.createHelp))
+        #expect(cli.createHelp.contains("count=<n>,cpus=<n>,memory=<size>"))
+        #expect(KubernetesCapabilities.hasOption("--shared-image-store", in: cli.createHelp))
+        #expect(KubernetesCapabilities.hasOption("--format", in: cli.listHelp))
+        #expect(KubernetesCapabilities.hasOption("--nodes", in: cli.listHelp))
         #expect(KubernetesCapabilities.defaultName(in: cli.createHelp) == "cluster-dev")
         #expect(cli.expected.displayCommand == "container cluster")
         #expect(cli.expected.workersUnavailableReason == nil)

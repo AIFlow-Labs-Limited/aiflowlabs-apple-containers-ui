@@ -1,0 +1,11 @@
+[
+  {
+    "cpus": 2,
+    "createdDate": "2026-11-12T05:20:01Z",
+    "default": true,
+    "diskSize": 1183023104,
+    "id": "cd-it-v17-m",
+    "memory": 2147483648,
+    "status": "stopped"
+  }
+]

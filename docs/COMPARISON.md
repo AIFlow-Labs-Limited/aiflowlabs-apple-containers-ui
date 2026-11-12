@@ -47,7 +47,7 @@ identical (details and every difference in [COMPOSE.md](COMPOSE.md)):
 | Intel Macs, Windows, Linux | Apple silicon and macOS 26 or later only. |
 | Docker API and socket | Tools that talk to the Docker socket (Testcontainers, IDE plugins, `docker` itself) do not work with Apple's runtime. |
 | Signed installer | Builds are not notarized yet; first launch needs a Gatekeeper step. |
-| Maturity | Pre-1.0, on a runtime that is itself young. Support for runtime 1.6 and 1.7 is not yet verified on a live engine; see [COMPATIBILITY.md](COMPATIBILITY.md). |
+| Maturity | Pre-1.0, on a runtime that is itself young. Verified on live 1.5.0 and 1.7.1 engines; runtime 1.6 support is read from source only. See [COMPATIBILITY.md](COMPATIBILITY.md). |
 
 ## Who should switch today
 

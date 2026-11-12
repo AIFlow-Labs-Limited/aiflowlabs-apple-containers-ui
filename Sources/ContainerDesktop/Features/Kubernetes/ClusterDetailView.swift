@@ -185,7 +185,7 @@ struct ClusterNodesGrid: View {
 
 #Preview("Cluster detail, 1.7 CLI, degraded") {
     ClusterDetailView(
-        cluster: ((try? DerivedFixtures.clusters()) ?? []).first { $0.name == "staging" }
+        cluster: ((try? ClusterSamples.clusters()) ?? []).first { $0.name == "staging" }
             ?? KubernetesCluster(name: "staging", nodes: []),
         capabilities: .modern, onLoadImage: {}, onDelete: {}
     )

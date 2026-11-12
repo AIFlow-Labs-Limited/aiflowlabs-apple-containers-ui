@@ -1,23 +1,24 @@
 import ContainerKit
 import Foundation
 
-/// Samples for container 1.7.1 that were **written from Apple's source code, not recorded** (see
-/// `Resources/cli-1.7.1-derived/README.md`). Replace with `scripts/record-fixtures.sh` output once a 1.7 engine
-/// is available; until then they back the 1.7-style mock and the decoder tests.
-public enum DerivedFixtures {
-    /// The CLI version the samples describe.
-    public static let cliVersion = "1.7.1"
-    static let folder = "cli-1.7.1-derived"
+/// Hand-written cluster scenarios in the shape of container 1.7.1's output (`Resources/samples-1.7/`): a running
+/// single-node cluster, a degraded three-node one with the shared image store, and a stopped one without a CNI.
+///
+/// These are **samples, not recordings**. They exist because one engine rarely has all three situations at once,
+/// and the mock and the presentation tests want them side by side. The recorded truth is `FixtureSet.cli171`
+/// (`Resources/cli-1.7.1/`); a test checks that the samples use no key the recording does not have.
+public enum ClusterSamples {
+    static let folder = "samples-1.7"
 
     public static func url(_ name: String) -> URL {
         guard let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: folder) else {
-            preconditionFailure("Missing derived fixture \(name)")
+            preconditionFailure("Missing sample \(name)")
         }
         return url
     }
 
     public static func data(_ name: String) -> Data {
-        guard let d = try? Data(contentsOf: url(name)) else { preconditionFailure("Unreadable fixture \(name)") }
+        guard let d = try? Data(contentsOf: url(name)) else { preconditionFailure("Unreadable sample \(name)") }
         return d
     }
 
@@ -37,10 +38,5 @@ public enum DerivedFixtures {
     public static func clusters() throws -> [KubernetesCluster] {
         let table = clusterNodeTable()
         return try clusterResources().map { KubernetesCluster(resource: $0, nodeTable: table) }
-    }
-
-    /// `container stats --no-stream --format json` with `cpuUtilization`.
-    public static func stats() throws -> [ContainerStats] {
-        try CLIJSON.decode([ContainerStats].self, from: data("stats.json"))
     }
 }

@@ -1,0 +1,50 @@
+[
+  {
+    "blockReadBytes": 456732672,
+    "blockWriteBytes": 264040448,
+    "cpuUsageUsec": 4095241,
+    "cpuUtilization": 0.01459270399389144,
+    "id": "cd-it-v17-k8s-worker-1",
+    "memoryLimitBytes": 2147483648,
+    "memoryUsageBytes": 882446336,
+    "networkRxBytes": 0,
+    "networkTxBytes": 0,
+    "numProcesses": 113
+  },
+  {
+    "blockReadBytes": 98357248,
+    "blockWriteBytes": 22708224,
+    "cpuUsageUsec": 409823,
+    "cpuUtilization": 5.589999347833409e-05,
+    "id": "buildkit",
+    "memoryLimitBytes": 2147483648,
+    "memoryUsageBytes": 141127680,
+    "networkRxBytes": 140788,
+    "networkTxBytes": 602,
+    "numProcesses": 18
+  },
+  {
+    "blockReadBytes": 691941376,
+    "blockWriteBytes": 482160640,
+    "cpuUsageUsec": 15430244,
+    "cpuUtilization": 0.05992688182069621,
+    "id": "cd-it-v17-k8s",
+    "memoryLimitBytes": 2147483648,
+    "memoryUsageBytes": 1612492800,
+    "networkRxBytes": 0,
+    "networkTxBytes": 0,
+    "numProcesses": 156
+  },
+  {
+    "blockReadBytes": 22340608,
+    "blockWriteBytes": 4096,
+    "cpuUsageUsec": 101844,
+    "cpuUtilization": 9.82329903579499e-05,
+    "id": "cd-it-v17-probe",
+    "memoryLimitBytes": 536870912,
+    "memoryUsageBytes": 34971648,
+    "networkRxBytes": 48500,
+    "networkTxBytes": 602,
+    "numProcesses": 1
+  }
+]

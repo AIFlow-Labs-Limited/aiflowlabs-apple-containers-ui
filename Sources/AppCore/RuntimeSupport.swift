@@ -5,7 +5,8 @@ import Foundation
 public enum RuntimeSupport {
     /// Oldest `container` release the app works with. Older CLIs lack JSON output the app decodes.
     public static let minimum = SemanticVersion(1, 5, 0)
-    /// Newest `container` release the app has been tested against.
+    /// Newest `container` release the app has been tested against. 1.5.0 and 1.7.1 were run on a live engine
+    /// (2026-11-12); 1.6.x in between is supported from source only. See `docs/COMPATIBILITY.md`.
     public static let testedUpTo = SemanticVersion(1, 7, 1)
 
     /// How an installed runtime version relates to the supported range.
