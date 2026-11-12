@@ -44,13 +44,17 @@ Errors are `BackendError` — the UI switches on `.systemNotRunning` / `.cliNotI
 - `ProcessRunner` (actor): `Foundation.Process`, stdout/stderr pipes read on background tasks, cancellation
   kills the process group, timeouts, `--format json` where available, exit code → `BackendError.commandFailed`
   with stderr cleaned of progress lines (`[n/6] …`).
-- Streaming: `logs -f`, `image pull`, `build --progress plain`, `k8s create` → line-by-line `OutputLine`s.
-- Non-JSON commands parsed from tables: `k8s list`, `system dns ls`, `registry ls` (fallback), `system version`.
+- Streaming: `logs -f`, `image pull`, `build --progress plain`, `k8s create` / `cluster create` → line-by-line `OutputLine`s.
+- Non-JSON commands parsed from tables: `k8s ls` (and `cluster list --nodes` for node sizes), `system dns ls`,
+  `registry ls` (fallback), `system version`.
+- Kubernetes commands are built from `KubernetesCapabilities`, detected from the plugin's own `--help` (command
+  word `k8s` or `cluster`, workers, shared image store, `load-image`, JSON listing). See `docs/COMPATIBILITY.md`.
 - Detects "apiserver not running" from stderr (`apiserver is not running`, `Plugins are unavailable` when
   `system status` fails) → `.systemNotRunning`.
 - `createDNSDomain` runs `container system dns create` as admin via `osascript -e 'do shell script … with
   administrator privileges'`.
-- Keeps no state; the stores cache.
+- Keeps no resource state; the stores cache. It remembers only the detected Kubernetes capabilities (until the
+  CLI binary changes) and which containers are cluster nodes (CLI 1.7+ hides them from `container list`).
 
 ### Why not XPC first?
 Apple's `ContainerAPIClient` works for third parties (the server only checks the caller's UID), but pulls in the

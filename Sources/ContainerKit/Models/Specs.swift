@@ -194,28 +194,27 @@ public struct MachineSpec: Hashable, Sendable {
     }
 }
 
-/// `container k8s create` parameters.
+/// `container k8s create` / `container cluster create` parameters. Which of them the installed CLI accepts is
+/// decided by `KubernetesCapabilities` (see `createArguments(for:)` in `ClusterSpec+Arguments.swift`).
 public struct ClusterSpec: Hashable, Sendable {
     public var name: String = "k8s-dev"
+    /// Size of the control-plane node (the only node when there are no workers).
     public var cpus: Int?
     public var memory: MemorySize?
     public var nodeImage: String?
     public var cniManifest: String?
     public var removeOnStop: Bool = false
-    public var workers: Int?  // not in 1.5.0; backend omits if unsupported
+    /// Workers of the default size (`--workers N`, container 1.6 and later).
+    public var workers: Int?
+    /// Groups of separately sized workers (`--workers count=N,cpus=N,memory=SIZE`, container 1.7 and later).
+    public var workerGroups: [ClusterWorkerGroup] = []
+    /// `--shared-image-store` (container 1.7 and later): nodes can use the local image store.
+    public var sharedImageStore: Bool = false
 
     public init(name: String = "k8s-dev") { self.name = name }
 
-    public var cliArguments: [String] {
-        var a: [String] = ["--name", name]
-        if let cpus { a += ["-c", String(cpus)] }
-        if let memory { a += ["-m", memory.cliArgument] }
-        if let nodeImage { a += ["--node-image", nodeImage] }
-        if let cniManifest { a += ["--cni", cniManifest] }
-        if removeOnStop { a.append("--rm") }
-        if let workers, workers > 0 { a += ["--workers", String(workers)] }
-        return a
-    }
+    /// Every option the spec asks for, in the newest CLI syntax and without checking what the CLI supports.
+    public var cliArguments: [String] { createOptions(workerArguments: workerArguments(grouped: true)) }
 }
 
 /// Host-address helpers shared by port mappings and URLs.

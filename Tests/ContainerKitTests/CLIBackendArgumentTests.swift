@@ -7,8 +7,9 @@ import Testing
 /// Exact argv for every `ContainerBackend` method, recorded through a fake runner.
 @Suite("CLIBackend argv")
 struct CLIBackendArgumentTests {
-    /// Answers each command with a fixture-shaped stdout so decoding succeeds.
-    static let fixtureHandler: RecordingRunner.Handler = { arguments in
+    /// Answers each command with a fixture-shaped stdout so decoding succeeds. The Kubernetes plugin is the
+    /// recorded 1.5.0 one (`k8s`; `cluster --help` fails like on the real CLI).
+    static let fixtureHandler: RecordingRunner.Handler = KubernetesCLIFake.cli150.handler { arguments in
         let args = Array(arguments.dropFirst())
         func fixture(_ name: String) -> ProcessResult { ProcessResult(stdout: Fixtures.data(name)) }
         switch args.prefix(3).joined(separator: " ") {
@@ -306,8 +307,7 @@ struct CLIBackendArgumentTests {
         _ = await drain(backend.loadImage("app:1", intoCluster: nil, nodes: [], platform: nil))
         _ = await drain(backend.loadImage("app:1", intoCluster: "dev", nodes: [], platform: .arm64))
         #expect(
-            runner.commands == [
-                ["k8s", "--help"],
+            runner.commands == KubernetesCLIFake.cli150.probes + [
                 ["k8s", "ls"],
                 ["k8s", "create", "--name", "dev", "-c", "4", "-m", "4G", "--rm"],
                 ["k8s", "delete", "--name", "dev"],
@@ -324,7 +324,8 @@ struct CLIBackendArgumentTests {
         #expect(created.error.map { if case BackendError.unsupported = $0 { true } else { false } } == true)
         let loaded = await drain(backend.loadImage("app:1", intoCluster: nil, nodes: ["n1"], platform: nil))
         #expect(loaded.error.map { if case BackendError.unsupported = $0 { true } else { false } } == true)
-        #expect(runner.calls.isEmpty)
+        // Only the help probes that detect what the plugin supports ran; nothing was created or loaded.
+        #expect(runner.commands == KubernetesCLIFake.cli150.probes)
     }
 
     @Test func terminalCommands() throws {

@@ -1,0 +1,39 @@
+OVERVIEW: Manage local Kubernetes development clusters (EXPERIMENTAL)
+
+EXAMPLES:
+  Create a cluster by name and list clusters:
+    $ container cluster create --name my-cluster
+    $ container cluster list
+
+  Switch between clusters:
+    $ container cluster create --name second-cluster
+    $ kubectl config use-context my-cluster
+
+  Write the cluster context to an alternate configuration file:
+    $ container cluster write-config --name my-cluster --kubeconfig
+~/.kube/my-cluster.kubeconfig
+    $ KUBECONFIG=~/.kube/my-cluster.kubeconfig kubectl cluster-info
+
+  Run a locally built image in a cluster that shares the local image store:
+    $ container cluster create --name my-cluster --shared-image-store
+    $ container build -t my-hello:dev .
+    $ kubectl run hello --image=my-hello:dev --restart=Never --attach --rm -i
+
+  Stop and delete the cluster:
+    $ container cluster delete --name my-cluster
+
+USAGE: cluster <subcommand>
+
+OPTIONS:
+  --version               Show the version.
+  -h, --help              Show help information.
+
+SUBCOMMANDS:
+  create                  Create and start a local Kubernetes cluster and
+                          optional worker nodes
+  delete, rm              Delete a Kubernetes cluster and its nodes
+  list, ls                List clusters
+  write-config            Write the cluster context to a Kubernetes
+                          configuration file
+
+  See 'cluster help <subcommand>' for detailed help.

@@ -2,12 +2,16 @@ import ContainerKit
 import Foundation
 import Observation
 
-/// Local Kubernetes clusters (`container k8s`). `available` is false when the CLI lacks the plugin.
+/// Local Kubernetes clusters (`container k8s`, or `container cluster` on newer CLIs). `available` is false when
+/// the CLI lacks the plugin; `capabilities` says what the installed plugin can do.
 @MainActor
 @Observable
 public final class ClustersStore: PollingStore {
     public private(set) var items: [KubernetesCluster] = []
     public private(set) var available = false
+    /// What the installed plugin supports, detected by the backend from the CLI's own help. `nil` until known
+    /// (and while the plugin is missing).
+    public private(set) var capabilities: KubernetesCapabilities?
     public var isLoading = false
     public var loadError: BackendError?
     public var actionError: BackendError?
@@ -34,21 +38,29 @@ public final class ClustersStore: PollingStore {
         self.gate = gate
     }
 
+    /// The detected capabilities, or the 1.5.0 plugin's while they are unknown (forms and previews need a value).
+    public var effectiveCapabilities: KubernetesCapabilities { capabilities ?? .legacy }
+
     public var filtered: [KubernetesCluster] {
         let q = searchText.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return items }
         return items.filter { $0.name.localizedCaseInsensitiveContains(q) }
     }
 
-    /// Lists clusters when the plugin is available. Availability (`checkKubernetesAvailable`) is cached once
-    /// known (errors leave it unknown and re-probe); call `recheckAvailability()` to probe again (e.g. after the CLI was upgraded).
+    /// Lists clusters when the plugin is available.
+    ///
+    /// A missing plugin is remembered (errors leave it unknown and re-probe); call `recheckAvailability()` to
+    /// probe again. While the plugin is available the capabilities are asked for on every refresh: the backend
+    /// caches them and re-detects when the CLI binary changes, so an upgrade is picked up without a restart.
     public func refresh() async {
-        if !availabilityChecked {
+        if !availabilityChecked || available {
             // A thrown error (e.g. services down) means "unknown": keep the previous value and probe again next time.
-            if let result = try? await backend.checkKubernetesAvailable() {
-                available = result
+            do {
+                let detected = try await backend.kubernetesCapabilities()
+                if capabilities != detected { capabilities = detected }
+                if available != (detected != nil) { available = detected != nil }
                 availabilityChecked = true
-            }
+            } catch {}
         }
         guard available else {
             items = []

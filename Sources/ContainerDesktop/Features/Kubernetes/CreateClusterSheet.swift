@@ -3,13 +3,25 @@ import ContainerKit
 import DesignSystem
 import SwiftUI
 
-/// "New cluster" sheet built on `ClusterForm`; preview = `ClusterSpec.cliArguments`.
+/// "New cluster" sheet built on `ClusterForm`. The command preview is exactly what the backend runs for the
+/// installed CLI (`container k8s create …` or `container cluster create …`).
 struct CreateClusterSheet: View {
     let create: (ClusterSpec) -> Void
 
     private let host = HostResources.current
-    @State private var form = ClusterForm()
+    @State private var form: ClusterForm
     @Environment(\.dismiss) private var dismiss
+
+    /// - Parameters:
+    ///   - capabilities: what the installed CLI's Kubernetes plugin supports (from `ClustersStore`).
+    ///   - existingNames: clusters that already exist, for the duplicate-name check.
+    init(
+        capabilities: KubernetesCapabilities = .legacy, existingNames: [String] = [],
+        create: @escaping (ClusterSpec) -> Void
+    ) {
+        self.create = create
+        _form = State(initialValue: ClusterForm(capabilities: capabilities, existingNames: existingNames))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
@@ -23,7 +35,7 @@ struct CreateClusterSheet: View {
                     FieldError(message: form.name.isEmpty ? nil : form.nameError)
                     Text("Also the kubectl context name.").font(.caption).foregroundStyle(.secondary)
                 }
-                Section("Resources (per node)") {
+                Section(form.totalWorkers == 0 ? "Resources" : "Resources (control-plane node)") {
                     Stepper(value: $form.cpus, in: 1...host.cpus) {
                         LabeledContent("CPUs", value: "\(form.cpus) of \(host.cpus)")
                     }
@@ -40,14 +52,9 @@ struct CreateClusterSheet: View {
                         "Defaults: a quarter of your Mac (\(host.clusterDefaultCPUs) CPUs, \(host.clusterDefaultMemoryGB) GB), at least 2 CPUs and 2 GB."
                     )
                     .font(.caption).foregroundStyle(.secondary)
-                    LabeledContent("Worker nodes") {
-                        Stepper("0", value: .constant(0), in: 0...0).disabled(true)
-                    }
-                    Text(
-                        "Single node only: container 1.5.0's k8s plugin has no --workers option. Extra workers will be enabled when a CLI release adds it."
-                    )
-                    .font(.caption).foregroundStyle(.secondary)
                 }
+                ClusterWorkersSection(form: $form, host: host)
+                ClusterImageStoreSection(form: $form)
                 Section("Node") {
                     TextField("Node image", text: $form.nodeImage)
                     HStack {
@@ -96,6 +103,10 @@ struct CreateClusterSheet: View {
     }
 }
 
-#Preview("Create cluster") {
+#Preview("Create cluster, 1.5 CLI") {
     CreateClusterSheet { _ in }
+}
+
+#Preview("Create cluster, 1.7 CLI") {
+    CreateClusterSheet(capabilities: .modern, existingNames: ["cluster-dev"]) { _ in }
 }

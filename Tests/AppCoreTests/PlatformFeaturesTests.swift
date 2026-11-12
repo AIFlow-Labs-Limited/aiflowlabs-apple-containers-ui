@@ -216,6 +216,10 @@ import Testing
     @Test func kubectlCommands() {
         #expect(KubectlCommands.context("k8s-dev") == "kubectl --context k8s-dev")
         #expect(KubectlCommands.quick("x").contains { $0.command == "kubectl --context x get nodes -o wide" })
+        #expect(
+            KubectlCommands.quick("x").map(\.command).suffix(2) == [
+                "container k8s load-image --name x IMAGE", "container k8s delete --name x",
+            ])
     }
 
     // MARK: Registries

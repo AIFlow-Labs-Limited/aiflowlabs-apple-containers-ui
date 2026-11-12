@@ -109,7 +109,8 @@ public struct Network: Codable, Identifiable, Hashable, Sendable {
 
 // MARK: - Stats
 
-/// `container stats --no-stream --format json` element. CPU is cumulative µs; compute % from two samples.
+/// `container stats --no-stream --format json` element. CPU is cumulative µs; compute % from two samples,
+/// or use `cpuUtilization` when the CLI reports it (container 1.7 and later).
 public struct ContainerStats: Codable, Identifiable, Hashable, Sendable {
     public var id: String
     public var cpuUsageUsec: Int64
@@ -120,16 +121,20 @@ public struct ContainerStats: Codable, Identifiable, Hashable, Sendable {
     public var blockReadBytes: Int64
     public var blockWriteBytes: Int64
     public var numProcesses: Int
+    /// CPU use measured by the CLI itself over its own two samples, as a fraction of one core (`1.0` = one core
+    /// fully used, `2.5` = two and a half). Present from container 1.7; `nil` on older CLIs.
+    public var cpuUtilization: Double?
 
     public init(
         id: String, cpuUsageUsec: Int64, memoryUsageBytes: Int64, memoryLimitBytes: Int64,
         networkRxBytes: Int64 = 0, networkTxBytes: Int64 = 0, blockReadBytes: Int64 = 0,
-        blockWriteBytes: Int64 = 0, numProcesses: Int = 1
+        blockWriteBytes: Int64 = 0, numProcesses: Int = 1, cpuUtilization: Double? = nil
     ) {
         self.id = id; self.cpuUsageUsec = cpuUsageUsec; self.memoryUsageBytes = memoryUsageBytes
         self.memoryLimitBytes = memoryLimitBytes; self.networkRxBytes = networkRxBytes;
         self.networkTxBytes = networkTxBytes
         self.blockReadBytes = blockReadBytes; self.blockWriteBytes = blockWriteBytes; self.numProcesses = numProcesses
+        self.cpuUtilization = cpuUtilization
     }
 
     /// Only `id` is required; missing counters read as 0.
@@ -145,12 +150,20 @@ public struct ContainerStats: Codable, Identifiable, Hashable, Sendable {
         blockReadBytes = int64(.blockReadBytes)
         blockWriteBytes = int64(.blockWriteBytes)
         numProcesses = (try? c.decodeIfPresent(Int.self, forKey: .numProcesses)) ?? 0
+        cpuUtilization = (try? c.decodeIfPresent(Double.self, forKey: .cpuUtilization)).flatMap {
+            $0.isFinite && $0 >= 0 ? $0 : nil
+        }
     }
 
     public var memoryFraction: Double { memoryLimitBytes > 0 ? Double(memoryUsageBytes) / Double(memoryLimitBytes) : 0 }
 
-    /// CPU percent between two samples (100 = one full core).
+    /// `cpuUtilization` as a percentage (100 = one full core); `nil` when the CLI did not report it.
+    public var reportedCPUPercent: Double? { cpuUtilization.map { $0 * 100 } }
+
+    /// CPU percent between two samples (100 = one full core). A CLI-reported `cpuUtilization` on `current` wins:
+    /// it is measured over the CLI's own sampling interval, not over the gap between two of our polls.
     public static func cpuPercent(previous: ContainerStats, current: ContainerStats, interval: TimeInterval) -> Double {
+        if let reported = current.reportedCPUPercent { return reported }
         guard interval > 0 else { return 0 }
         let delta = Double(current.cpuUsageUsec - previous.cpuUsageUsec) / 1_000_000
         return max(0, delta / interval * 100)
@@ -379,36 +392,7 @@ public enum MachineState: String, Codable, Hashable, Sendable {
     }
 }
 
-// MARK: - Kubernetes
-
-/// A local cluster (`container k8s`). Nodes are containers; the CLI prints a table (no JSON in 1.5.0),
-/// so backends may either parse the table or derive clusters from labelled containers.
-public struct KubernetesCluster: Codable, Identifiable, Hashable, Sendable {
-    public var id: String { name }
-    public var name: String
-    public var nodes: [Node]
-
-    public struct Node: Codable, Identifiable, Hashable, Sendable {
-        public var id: String { name }
-        public var name: String
-        public var role: String
-        public var state: ContainerState
-        public var cpus: Int
-        public var memoryMB: Int64
-        public var address: String?
-        public var ports: String?
-        public init(
-            name: String, role: String, state: ContainerState, cpus: Int, memoryMB: Int64, address: String? = nil,
-            ports: String? = nil
-        ) {
-            self.name = name; self.role = role; self.state = state; self.cpus = cpus; self.memoryMB = memoryMB;
-            self.address = address; self.ports = ports
-        }
-    }
-
-    public init(name: String, nodes: [Node]) { self.name = name; self.nodes = nodes }
-    public var isRunning: Bool { nodes.contains { $0.state == .running } }
-}
+// MARK: - Kubernetes: `KubernetesCluster` lives in KubernetesCluster.swift.
 
 // MARK: - Progress / output events
 

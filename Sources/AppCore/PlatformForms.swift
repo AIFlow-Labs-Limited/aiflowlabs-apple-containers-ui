@@ -207,58 +207,7 @@ public enum MachineResize {
     }
 }
 
-// MARK: - Kubernetes
-
-/// State of the "Create cluster" sheet.
-public struct ClusterForm: Hashable, Sendable {
-    public static let defaultNodeImage = "docker.io/kindest/node:v1.35.5"
-
-    public var name = "k8s-dev"
-    public var cpus: Int
-    public var memoryGB: Int
-    public var nodeImage = ClusterForm.defaultNodeImage
-    public var cniManifestPath = ""
-    public var removeOnStop = false
-
-    public init(host: HostResources = .current) {
-        cpus = host.clusterDefaultCPUs
-        memoryGB = host.clusterDefaultMemoryGB
-    }
-
-    public var nameError: String? { MachineNameRule.validate(name) }
-    public var isValid: Bool { nameError == nil && !nodeImage.trimmingCharacters(in: .whitespaces).isEmpty }
-
-    /// Workers are never sent: CLI 1.5.0 has no `--workers`.
-    public var spec: ClusterSpec {
-        var s = ClusterSpec(name: name)
-        s.cpus = cpus
-        s.memory = MemorySize(bytes: Int64(memoryGB) << 30)
-        let image = nodeImage.trimmingCharacters(in: .whitespaces)
-        s.nodeImage = image == Self.defaultNodeImage ? nil : image
-        s.cniManifest = cniManifestPath.isEmpty ? nil : cniManifestPath
-        s.removeOnStop = removeOnStop
-        return s
-    }
-
-    public func previewCommand(executable: String = "container") -> String {
-        CommandLine(executable: executable, arguments: ["k8s", "create"] + spec.cliArguments).display
-    }
-}
-
-/// Copyable kubectl one-liners for a cluster context.
-public enum KubectlCommands {
-    public static func context(_ cluster: String) -> String { "kubectl --context \(cluster)" }
-    public static func quick(_ cluster: String) -> [(title: String, command: String)] {
-        let k = context(cluster)
-        return [
-            ("List nodes", "\(k) get nodes -o wide"),
-            ("All pods", "\(k) get pods -A"),
-            ("Apply a manifest", "\(k) apply -f deploy.yaml"),
-            ("Load a local image", "container k8s load-image --name \(cluster) IMAGE"),
-            ("Delete the cluster", "container k8s delete --name \(cluster)"),
-        ]
-    }
-}
+// MARK: - Kubernetes: `ClusterForm`, `KubectlCommands` and the shared-image-store notes live in ClusterForms.swift.
 
 // MARK: - Registries
 
