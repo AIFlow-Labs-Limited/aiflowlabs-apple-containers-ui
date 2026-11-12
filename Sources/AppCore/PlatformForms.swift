@@ -251,6 +251,28 @@ public enum RegistryPreset: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// Which registries the pull and push sheets offer a plain-HTTP connection for. The CLI defaults to HTTPS and a
+/// registry started on this Mac (`registry:2` on `localhost:5000`) usually serves plain HTTP; a pull or push
+/// over the wrong one fails after about 40 seconds.
+public enum RegistryTransport {
+    /// `true` for a host that is on this Mac or its local network: `localhost`, an IP address, a name without a
+    /// dot, or a name under `.local`, `.localhost`, `.test`, `.internal`, `.lan` or `.home.arpa`. A port is ignored.
+    public static func looksLocal(_ registry: String) -> Bool {
+        var host = registry.lowercased()
+        if host.hasPrefix("[") { return true }  // an IPv6 literal, `[::1]:5000`
+        if let colon = host.lastIndex(of: ":") { host = String(host[..<colon]) }
+        guard !host.isEmpty else { return false }
+        if host == "localhost" || !host.contains(".") { return true }
+        if host.wholeMatch(of: /\d{1,3}(\.\d{1,3}){3}/) != nil { return true }
+        return [".local", ".localhost", ".test", ".internal", ".lan", ".home.arpa"].contains { host.hasSuffix($0) }
+    }
+
+    /// The `scheme` to hand the backend: `"http"` only when the host looks local and HTTP was chosen.
+    public static func scheme(for registry: String, useHTTP: Bool) -> String? {
+        useHTTP && looksLocal(registry) ? "http" : nil
+    }
+}
+
 /// Validates the server field: a host (optionally `:port`), no scheme, no spaces.
 public enum RegistryServerRule {
     public static func normalize(_ server: String) -> String {

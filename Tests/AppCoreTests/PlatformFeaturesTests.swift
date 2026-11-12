@@ -247,6 +247,23 @@ import Testing
         #expect(RegistryServerRule.normalize(" Docker.IO/ ") == "docker.io")
     }
 
+    /// The pull and push sheets offer "Connection: HTTP" only for a registry on this Mac or the local network.
+    @Test func plainHTTPIsOfferedForLocalRegistriesOnly() {
+        for host in [
+            "localhost", "localhost:5000", "127.0.0.1:5057", "192.168.64.90:5000", "[::1]:5000", "registry:5000",
+            "nas.local", "reg.test:443", "build.internal",
+        ] {
+            #expect(RegistryTransport.looksLocal(host), "\(host) should count as local")
+        }
+        for host in ["docker.io", "ghcr.io", "registry.example.com:5000", "quay.io", ""] {
+            #expect(!RegistryTransport.looksLocal(host), "\(host) should not count as local")
+        }
+        #expect(RegistryTransport.scheme(for: "localhost:5000", useHTTP: true) == "http")
+        #expect(RegistryTransport.scheme(for: "localhost:5000", useHTTP: false) == nil)
+        // A choice made for a local host does not follow the user to a public one.
+        #expect(RegistryTransport.scheme(for: "ghcr.io", useHTTP: true) == nil)
+    }
+
     /// Recorded from the real engine (CLI 1.5.0, 2026-10-19): the CLUSTER cell is blank.
     @Test func parsesRealK8sListWithBlankClusterColumn() {
         let text = """

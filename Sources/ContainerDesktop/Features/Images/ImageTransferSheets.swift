@@ -57,12 +57,36 @@ extension LineStream {
     }
 }
 
+/// HTTPS or plain HTTP for a pull or push. Shown only for a registry on this Mac or its local network
+/// (`RegistryTransport.looksLocal`); everything else is always HTTPS.
+struct RegistryConnectionPicker: View {
+    let registry: String
+    @Binding var useHTTP: Bool
+
+    var body: some View {
+        if RegistryTransport.looksLocal(registry) {
+            Picker("Connection", selection: $useHTTP) {
+                Text("HTTPS").tag(false)
+                Text("HTTP (not encrypted)").tag(true)
+            }
+            .help("A registry started on this Mac usually serves plain HTTP (container image … --scheme http)")
+            if useHTTP {
+                Text(
+                    "Plain HTTP works with a registry that needs no login. container does not send credentials over it."
+                )
+                .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 /// Pull an image: reference with history/autocomplete, platform, live output (also in Activity).
 struct PullImageSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var reference: String
     @State private var platform = PlatformChoice.native
+    @State private var useHTTP = false
     @State private var tasks: [LongRunningTask] = []
     private let recents = RecentValues.pulledImages
 
@@ -70,6 +94,7 @@ struct PullImageSheet: View {
 
     private var trimmed: String { reference.trimmingCharacters(in: .whitespaces) }
     private var problem: String? { trimmed.isEmpty ? nil : ResourceValidator.imageReference(trimmed) }
+    private var registry: String { ImageReferenceName.registry(of: trimmed) }
 
     /// Recent pulls first, then repositories already present locally, filtered by what was typed.
     private var suggestions: [String] {
@@ -107,6 +132,7 @@ struct PullImageSheet: View {
                     Text("Pulls the image twice, one architecture after the other.").font(.caption).foregroundStyle(
                         .secondary)
                 }
+                if !trimmed.isEmpty { RegistryConnectionPicker(registry: registry, useHTTP: $useHTTP) }
             }
             .formStyle(.grouped)
             .disabled(!tasks.isEmpty)
@@ -131,14 +157,15 @@ struct PullImageSheet: View {
         recents.add(trimmed)
         let ref = trimmed
         let platforms = platform.platforms.compactMap { $0 }
+        let scheme = RegistryTransport.scheme(for: registry, useHTTP: useHTTP)
         guard platforms.count > 1 else {
-            tasks = [model.images.pull(ref, platform: platform.single)]
+            tasks = [model.images.pull(ref, platform: platform.single, scheme: scheme)]
             return
         }
         // Two concurrent pulls of one reference race on the same content store; run them back to back in one task.
         let backend = model.backend
         let stream = LineStream.sequential(platforms, header: { "==> Pulling \(ref) for \($0.slug)" }) {
-            backend.pullImage(ref, platform: $0)
+            backend.pullImage(ref, platform: $0, scheme: scheme)
         }
         let images = model.images
         tasks = [
@@ -157,6 +184,7 @@ struct PushImageSheet: View {
     let reference: String
     @State private var target: String
     @State private var platform = PlatformChoice.native
+    @State private var useHTTP = false
     @State private var tasks: [LongRunningTask] = []
     @State private var working = false
     /// The tag this sheet created before pushing (it stays on this Mac if the push fails).
@@ -211,6 +239,14 @@ struct PushImageSheet: View {
                         Text($0 == .native ? "All platforms in the image" : $0.title).tag($0)
                     }
                 }
+                if platform == .native {
+                    Text(
+                        "An image pulled for this Mac only has one platform on disk; pushing all of them then fails. "
+                            + "Choose that platform instead."
+                    )
+                    .font(.caption).foregroundStyle(.secondary)
+                }
+                if problem == nil { RegistryConnectionPicker(registry: registry, useHTTP: $useHTTP) }
                 LabeledContent("Registry") {
                     HStack {
                         Text(registry).font(.monoCaption)
@@ -277,7 +313,8 @@ struct PushImageSheet: View {
             }
             createdTag = target
         }
-        tasks = [model.images.push(target, platform: platform.single)]
+        let scheme = RegistryTransport.scheme(for: registry, useHTTP: useHTTP)
+        tasks = [model.images.push(target, platform: platform.single, scheme: scheme)]
     }
 }
 
