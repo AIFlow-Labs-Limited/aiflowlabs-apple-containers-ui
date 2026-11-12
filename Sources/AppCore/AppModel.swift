@@ -45,6 +45,8 @@ public final class AppModel {
     public let builds: BuildsStore
     public let machines: MachinesStore
     public let clusters: ClustersStore
+    /// What runs in the cluster selected in the Kubernetes section.
+    public let workloads: ClusterWorkloadsStore
     public let registries: RegistriesStore
     public let system: SystemStore
     public private(set) var storesGeneration = 0
@@ -92,6 +94,7 @@ public final class AppModel {
         ) { try await switchable.startContainer($0) }
         (containers, images, volumes, networks, builds, machines, clusters, registries, system) =
             Self.makeStores(backend: switchable, gate: gate, tasks: tasks, historyURL: buildsHistoryURL)
+        workloads = ClusterWorkloadsStore(backend: switchable, gate: gate)
         configureStores()
         wireCallbacks()
         if observeAppActivation { observeActivation() }
