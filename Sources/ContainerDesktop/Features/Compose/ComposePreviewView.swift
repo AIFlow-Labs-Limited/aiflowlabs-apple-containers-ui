@@ -109,6 +109,7 @@ struct ComposePreviewView: View {
         if let pulls { parts.append("pulls \(pulls)") }
         if let builds { parts.append("builds \(builds)") }
         if let runs { parts.append("starts \(runs)") }
+        if let waits = count("dependency wait") { $0.isWait } { parts.append("makes \(waits)") }
         var text = parts.isEmpty ? "Nothing to do." : parts.joined(separator: ", ").capitalizedFirst + "."
         if !plan.reused.isEmpty { text += " Already there and reused: \(plan.reused.joined(separator: ", "))." }
         return text
@@ -145,6 +146,7 @@ private struct ComposeServiceRow: View {
                     .font(.monoCaption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 if service.isEnabled {
                     Text(reachability).font(.caption).foregroundStyle(.secondary)
+                    ForEach(lifecycle, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
                 } else {
                     Text("Not started: its profile is switched off.").font(.caption).foregroundStyle(.secondary)
                 }
@@ -156,6 +158,21 @@ private struct ComposeServiceRow: View {
         }
         .opacity(service.isEnabled ? 1 : 0.5)
         .accessibilityElement(children: .combine)
+    }
+
+    /// Health check, what it waits for, and the restart policy: the parts the app does instead of the runtime.
+    private var lifecycle: [String] {
+        var lines: [String] = []
+        if let check = service.healthcheck {
+            lines.append("Health check: \(ShellWords.join(check.command)) (\(check.timingSummary)).")
+        }
+        if !service.waitsFor.isEmpty {
+            lines.append("Starts after waiting for \(service.waitsFor.joined(separator: " and ")).")
+        }
+        if service.restart.isEnforced {
+            lines.append("Restart policy \(service.restart.rawValue), enforced by Container Desktop while it runs.")
+        }
+        return lines
     }
 
     private var reachability: String {

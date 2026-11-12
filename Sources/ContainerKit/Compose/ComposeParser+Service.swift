@@ -3,9 +3,6 @@ import Foundation
 extension ComposeDecoder {
     /// Why each well-known unsupported service key is ignored. Anything else gets a generic message.
     static let unsupportedServiceKeys: [String: String] = [
-        "healthcheck":
-            "Health checks are not run: nothing reports the container's health, and services that wait for "
-            + "`service_healthy` start right after this one.",
         "secrets": "Secrets are not supported; the container starts without them.",
         "configs": "Configs are not supported; the container starts without them.",
         "extends": "`extends` is not resolved: settings inherited from the other service are missing.",
@@ -83,12 +80,8 @@ extension ComposeDecoder {
         _ = reader.take("attach")
         _ = reader.take("annotations")
 
-        if let restart = reader.take("restart")?.string, restart != "no" {
-            warn(
-                scope, "restart",
-                "Restart policy “\(restart)” is ignored: the runtime has no restart policies, so the container "
-                    + "stays stopped when it exits and after a reboot.")
-        }
+        if let value = reader.take("healthcheck") { service.healthcheck = healthcheck(value, scope: scope) }
+        if let value = reader.take("restart") { service.restart = restartPolicy(value, scope: scope) }
         if reader.take("privileged")?.bool == true {
             warn(
                 scope, "privileged",
@@ -179,11 +172,12 @@ extension ComposeDecoder {
         return entries.map { entry in
             let condition =
                 entry.value.mapValue?.first { $0.key == "condition" }?.value.string ?? ComposeDependency.started
-            if condition != ComposeDependency.started {
+            guard ComposeDependency.knownConditions.contains(condition) else {
                 warn(
                     scope, "depends_on.\(entry.key).condition",
-                    "`\(condition)` is not waited for: “\(entry.key)” is started first, and this service starts "
-                        + "as soon as that container is running.", severity: .note)
+                    "`\(condition)` is not a condition Compose defines; “\(entry.key)” is started first and this "
+                        + "service starts right after it.")
+                return ComposeDependency(service: entry.key)
             }
             return ComposeDependency(service: entry.key, condition: condition)
         }

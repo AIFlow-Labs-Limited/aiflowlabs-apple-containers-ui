@@ -25,6 +25,7 @@ public final class SettingsStore {
         public static let notifications = "notificationsEnabled"
         public static let appearance = "appearance"
         public static let automaticUpdateChecks = "automaticUpdateChecks"
+        public static let restartPoliciesEnabled = "restartPoliciesEnabled"
     }
 
     public static let pollingRange: ClosedRange<Double> = 1...10
@@ -81,6 +82,14 @@ public final class SettingsStore {
         didSet { defaults.set(automaticUpdateChecks, forKey: Key.automaticUpdateChecks) }
     }
 
+    /// Enforce restart policies (`AppLabel.restart`) while the app runs (on by default).
+    public var restartPoliciesEnabled: Bool {
+        didSet {
+            defaults.set(restartPoliciesEnabled, forKey: Key.restartPoliciesEnabled)
+            onBackgroundNeedsChange?()
+        }
+    }
+
     public init(
         defaults: UserDefaults = .standard,
         loginItemStatus: @escaping @MainActor () -> SMAppService.Status = { SMAppService.mainApp.status }
@@ -97,6 +106,7 @@ public final class SettingsStore {
             Key.notifications: true,
             Key.appearance: Appearance.system.rawValue,
             Key.automaticUpdateChecks: true,
+            Key.restartPoliciesEnabled: true,
         ])
         launchAtLogin = false
         startEngineOnLaunch = defaults.bool(forKey: Key.startEngineOnLaunch)
@@ -107,6 +117,7 @@ public final class SettingsStore {
         notificationsEnabled = defaults.bool(forKey: Key.notifications)
         appearance = Appearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
         automaticUpdateChecks = defaults.bool(forKey: Key.automaticUpdateChecks)
+        restartPoliciesEnabled = defaults.bool(forKey: Key.restartPoliciesEnabled)
         refreshLaunchAtLogin()
     }
 
@@ -148,6 +159,7 @@ public final class SettingsStore {
             ("Menu bar", "\(menuBarEnabled)"), ("Polling interval", "\(pollingInterval)s"),
             ("Notifications", "\(notificationsEnabled)"), ("Appearance", appearance.rawValue),
             ("Automatic update checks", "\(automaticUpdateChecks)"),
+            ("Restart policies", "\(restartPoliciesEnabled)"),
         ]
             + (launchAtLoginRequiresApproval ? [("Login item", "requires approval")] : [])
     }

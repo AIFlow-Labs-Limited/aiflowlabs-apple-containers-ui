@@ -38,6 +38,8 @@ public final class ComposeRun {
     public let plan: ComposePlan
     /// State per `ComposeStep.id`.
     public private(set) var states: [String: StepState] = [:]
+    /// Live detail per `ComposeStep.id` while a wait step runs ("attempt 3", "12 s").
+    public private(set) var details: [String: String] = [:]
     public private(set) var created = Created()
     /// The Activity task that carries the output; `nil` until `start`.
     public private(set) var task: LongRunningTask?
@@ -53,6 +55,16 @@ public final class ComposeRun {
     }
 
     public func state(of step: ComposeStep) -> StepState { states[step.id] ?? .pending }
+
+    /// What a running wait step is doing right now, e.g. "Waiting for db to be healthy (attempt 3)".
+    public func liveStatus(of step: ComposeStep) -> String? {
+        guard state(of: step) == .running, let detail = details[step.id] else { return nil }
+        switch step.action {
+        case .waitHealthy(let container, _): return "Waiting for \(container) to be healthy (\(detail))"
+        case .waitCompleted(let container): return "Waiting for \(container) to finish (\(detail))"
+        default: return nil
+        }
+    }
 
     public var isRunning: Bool { task?.state == .running }
     public var isFinished: Bool { task?.state.isFinished ?? false }
@@ -134,6 +146,14 @@ public final class ComposeRun {
             // Recorded before the call: a `run` that fails half-way can still leave a (stopped) container behind.
             if let name = spec.name { created.containers.append(name) }
             for try await line in backend.runContainer(spec) { output.yield(line) }
+        case .waitHealthy(let container, let check):
+            try await ComposeWait.untilHealthy(container: container, check: check, backend: backend, output: output) {
+                self.details[step.id] = "attempt \($0)"
+            }
+        case .waitCompleted(let container):
+            try await ComposeWait.untilCompleted(container: container, backend: backend, output: output) {
+                self.details[step.id] = "\($0) s"
+            }
         }
     }
 

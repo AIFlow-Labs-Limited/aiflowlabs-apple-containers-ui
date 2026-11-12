@@ -60,7 +60,7 @@ struct ComposeRunView: View {
                     HStack(spacing: Spacing.s) {
                         ComposeStepIcon(state: run.state(of: step)).frame(width: 18)
                         SwiftUI.Image(systemName: step.symbol).foregroundStyle(.secondary).frame(width: 18)
-                        Text(step.title).lineLimit(1).truncationMode(.middle)
+                        Text(run.liveStatus(of: step) ?? step.title).lineLimit(1).truncationMode(.middle)
                         Spacer()
                         Text(label(for: run.state(of: step))).font(.caption).foregroundStyle(.secondary)
                     }
@@ -143,7 +143,9 @@ enum ComposePreviewSample {
             ports: ["8080:3000"]
             environment:
               DATABASE_URL: postgres://shop:secret@postgres:5432/shop
-            depends_on: [postgres]
+            depends_on:
+              postgres:
+                condition: service_healthy
             restart: unless-stopped
           postgres:
             image: postgres:16-alpine
@@ -152,6 +154,7 @@ enum ComposePreviewSample {
             volumes: ["shop-data:/var/lib/postgresql/data"]
             healthcheck:
               test: ["CMD", "pg_isready"]
+              interval: 2s
         volumes:
           shop-data:
         """

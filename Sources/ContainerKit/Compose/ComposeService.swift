@@ -64,6 +64,10 @@ public struct ComposeService: Hashable, Sendable, Identifiable {
     public var macAddress: String?
     /// `profiles:`. A service with profiles only starts when one of them is enabled.
     public var profiles: [String] = []
+    /// `healthcheck:`; `nil` when the service has none.
+    public var healthcheck: ComposeHealthcheckSetting?
+    /// `restart:` (`.no` when absent). Stored as a label and enforced by the app.
+    public var restart: RestartPolicy = .no
 
     public var id: String { name }
 
@@ -170,8 +174,14 @@ public struct ComposeDependency: Hashable, Sendable {
     /// `service_started` (default), `service_healthy` or `service_completed_successfully`.
     public var condition: String
 
-    /// The only condition the app can honour: the dependency has been started.
+    /// The dependency has been started (the default).
     public static let started = "service_started"
+    /// The dependency's health check has passed.
+    public static let healthy = "service_healthy"
+    /// The dependency has run to completion.
+    public static let completedSuccessfully = "service_completed_successfully"
+    /// The conditions Compose defines.
+    public static let knownConditions: Set<String> = [started, healthy, completedSuccessfully]
 
     /// A dependency on `service`.
     public init(service: String, condition: String = ComposeDependency.started) {

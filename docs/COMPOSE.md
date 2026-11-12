@@ -29,6 +29,10 @@ Last verified on 2026-11-12 against a running `container` CLI 1.5.0 engine: see
 3. `container image pull` for each image that is not available locally; `container build` for each service with
    `build:` (always, the builder cache makes repeats cheap).
 4. `container run -d` for each service, dependencies first (`depends_on`), otherwise in file order.
+5. Before a service whose dependency must be healthy or finished (`depends_on` with `condition:`), the run waits:
+   it runs the dependency's health check inside its container until it passes, or waits for the dependency to
+   stop. The wait is its own step with a live status ("Waiting for db to be healthy (attempt 3)"). See
+   [Health checks and waiting](#health-checks-and-waiting).
 
 A network or volume that already exists is reused and not touched. A container whose name already exists blocks
 the run until you tick **Replace existing container…**; that deletes it (killing it if it is running) and creates
@@ -36,7 +40,8 @@ it again, after a confirmation that names it.
 
 Every container gets the labels `io.aiflowlabs.containerdesktop.project=<project>` (what the Containers list
 groups by), `com.docker.compose.project=<project>` and `com.docker.compose.service=<service>`. Networks and
-volumes the import creates get the project labels too.
+volumes the import creates get the project labels too. A service with `restart:` also gets
+`io.aiflowlabs.containerdesktop.restart=<policy>`, which is what the app's restart supervisor reads.
 
 ## Supported subset
 
@@ -66,7 +71,9 @@ volumes the import creates get the project labels too.
 | `volumes` (short and long syntax) | `-v` / `--tmpfs` | Named volumes, bind mounts (`./relative`, `~/home`, absolute), `:ro`, anonymous volumes, `type: tmpfs` with `size`. |
 | `tmpfs` | `--tmpfs` | |
 | `networks` (list or map) | `--network` (repeated) | Only with "Networks from the file". |
-| `depends_on` (list or map) | start order | Only "has been started" is honoured, see below. |
+| `depends_on` (list or map) | start order, plus a wait step per condition | `service_started` (default), `service_healthy` and `service_completed_successfully`. `restart:` and `required:` inside an entry are ignored. See [Health checks and waiting](#health-checks-and-waiting). |
+| `healthcheck` (`test` as `CMD`, `CMD-SHELL`, string or `NONE`; `interval`, `timeout`, `retries`, `start_period`, `start_interval`; `disable`) | run by the app with `container exec` | Only while another service waits for it during the import. Compose's defaults and duration syntax (`1m30s`, `500ms`). |
+| `restart` (`no`, `always`, `unless-stopped`, `on-failure`, `on-failure:N`) | label `io.aiflowlabs.containerdesktop.restart` | Enforced by Container Desktop while it is running, not by the runtime. See [Restart policies](#restart-policies). |
 | `working_dir`, `user` | `-w`, `-u` | |
 | `labels` (map or list) | `-l` | |
 | `cpus`, `cpu_count`, `deploy.resources.limits.cpus` | `-c` | Whole CPUs only: fractions are rounded up, with a note. |
@@ -97,10 +104,8 @@ Each of these produces a warning in the preview, grouped per service; the stack 
 
 | Key | Why |
 |---|---|
-| `restart` (other than `"no"`) | The runtime has no restart policies. A container that exits, or the Mac rebooting, leaves it stopped. |
-| `healthcheck` | The runtime runs no health checks. |
-| `depends_on` conditions `service_healthy` / `service_completed_successfully` | Without health checks there is nothing to wait for: the dependency is started first and the dependent service right after. Services that need the database to be *ready* must retry on their own. |
-| `deploy` beyond `resources.limits.cpus/memory` (`replicas`, `update_config`, `reservations`, GPUs, …) | Orchestrator settings; one container per service. |
+| A `healthcheck` without `test:` | Docker would use the image's own `HEALTHCHECK`; this runtime does not read it, so the service has no health check. |
+| `deploy` beyond `resources.limits.cpus/memory` (`replicas`, `update_config`, `restart_policy`, `reservations`, GPUs, …) | Orchestrator settings; one container per service. Use the service-level `restart:` for a restart policy. |
 | `secrets`, `configs` (service and top level) | No equivalent. |
 | `extends`, `include`, override files, several `-f` files | One file is read as it is. `compose.override.yaml` next to it is detected and reported, not merged. |
 | `links`, `external_links`, `extra_hosts`, `hostname`, `domainname` | The hostname is the container name; `/etc/hosts` cannot be edited from `container run`. |
@@ -115,6 +120,79 @@ Each of these produces a warning in the preview, grouped per service; the stack 
 
 Not offered at all: `docker compose down -v`, `logs` for a whole project, `scale`, re-running only changed
 services. "Down" is Stop All / Delete All… on the project group; volumes are deleted from the Volumes list.
+
+## Health checks and waiting
+
+Apple's runtime has no health checks (`container run --help` on CLI 1.5.0 has no `--health-*` option, and
+`container inspect` reports no health). Container Desktop therefore runs the check itself, and only where it
+decides something: while a service waits for another one.
+
+- **`condition: service_healthy`**: after the dependency has been started, the run executes its
+  `healthcheck.test` inside the container (`container exec`; exit code 0 means healthy), again and again until it
+  passes, and only then starts the dependent service. `CMD` runs the words as they are, `CMD-SHELL` and the string
+  form run through `/bin/sh -c`.
+- **Timing** follows Compose: a probe that takes longer than `timeout` counts as failed; after `retries` failures
+  in a row the dependency is unhealthy and the run stops at that step, like any failed step, with the last probe's
+  output and the exact command; failures during `start_period` do not count, and probes in that period are
+  `start_interval` apart. Defaults: `interval` 30 s, `timeout` 30 s, `retries` 3, `start_period` 0 s,
+  `start_interval` 5 s.
+- **`condition: service_completed_successfully`**: the run waits until the dependency's container has stopped.
+- A dependency with `service_healthy` but no usable health check (none, `disable: true`, `test: ["NONE"]`) blocks
+  the run, as it does in Docker Compose.
+- **Stop** in the run sheet (or cancelling the task in the Activity window) ends a wait at once.
+- The preview shows each service's health check and what it waits for, and the wait appears in the command list
+  as the equivalent shell loop.
+
+Differences from Docker Compose:
+
+| | Docker Compose | Container Desktop |
+|---|---|---|
+| Who runs the check | The engine, for the container's whole life | The app, during the import run only. Nothing watches the container afterwards, and no health status is shown in the Containers list. |
+| A check nobody waits for | Runs anyway | Is not run; the preview says so. |
+| First probe | One `interval` after the start | At once. That extra probe does not count towards `retries`, so a container is declared unhealthy no earlier than Docker would. In practice a stack with `interval: 30s` comes up sooner. |
+| `service_completed_successfully` | Requires exit code 0 | Any exit counts: `container inspect` on a stopped container has no exit code on CLI 1.5.0 (only `"state": "stopped"`). The preview says so. |
+| A dependency that exits while it is waited for | Fails | Fails at the next probe: "stopped before it became healthy". |
+| `depends_on.<service>.restart` / `.required` | Honoured | Ignored. |
+| Image `HEALTHCHECK` | Used when the service has none | Not read. |
+
+## Restart policies
+
+Apple's runtime has no restart policies either (`container run` and `container create` on CLI 1.5.0 have no
+`--restart`). Container Desktop provides them itself:
+
+- The policy is stored on the container as the label `io.aiflowlabs.containerdesktop.restart`
+  (`always`, `unless-stopped`, `on-failure` or `on-failure:5`). `restart:` in a compose file sets it, and so does
+  the **Restart policy** picker in the Run sheet. CLI 1.5.0 has no command that changes the labels of an existing
+  container, so the policy is fixed when the container is created; to change it, create the container again.
+- While the app is running it watches the Containers list (the same polling that keeps the list fresh; every
+  10 s when no window shows it). A container with a policy that is found stopped, and was not stopped from the
+  app, is started again: after 1 s, then 2 s, 4 s … up to 60 s between attempts. The count starts over once the
+  container has stayed up for 30 s. `on-failure:N` gives up after N attempts in a row; `always` and
+  `unless-stopped` keep trying once a minute.
+- **Stop, Kill, Stop All and Delete in the app are respected**, also across a relaunch of the app: such a
+  container stays stopped. `unless-stopped` stays stopped until you start it again; `always` is started again the
+  next time the app launches or the container system starts, as in Docker.
+- **When the app launches, and when the container system comes up**, stopped containers with `always` are
+  started, and `unless-stopped` ones that were not stopped from the app. This is what brings a stack back after a
+  reboot, provided the app starts with the Mac: switch on *Launch Container Desktop at login* and *Start the
+  container system when the app launches* under Settings › General.
+- Every restart is an entry in the Activity window and a toast ("Restart db, attempt 2"); the container's
+  Inspect tab shows the policy and the number of restarts since the app was opened.
+- **Settings › General › Enforce restart policies** turns all of it off.
+- A container without the label is never started by the app.
+
+What differs from Docker, and cannot be fixed from the app:
+
+| | Docker | Container Desktop |
+|---|---|---|
+| Who enforces it | The daemon, always | The app, **only while it is running** (its window can be closed; the menu bar item is enough). Quit the app and nothing is restarted. |
+| `container stop` in a terminal | Respected like any stop | Cannot be told apart from a crash: the container is started again. Stop it from the app, or delete it. |
+| `on-failure` | Restarts on a non-zero exit code only | The runtime reports no exit code, so it restarts whenever the container stops without the app having stopped it, also after a clean exit. Not started on launch. |
+| Delay before a restart | 100 ms, doubling, up to 1 minute; reset after 10 s of uptime | 1 s, doubling, up to 1 minute; reset after 30 s of uptime. The restart happens at the next look at the list: a few seconds with a window open, up to about 10 s more without. |
+| `always` after a manual stop | Comes back when the daemon restarts | Comes back when the app is launched or the container system starts. |
+| Restart count | Kept by the engine | Counted since the app was opened. |
+| Changing the policy | `docker update --restart` | Not possible; recreate the container. |
+| With `--rm` | Refused | Refused in the Run sheet. |
 
 ## Names and networking
 
@@ -186,6 +264,21 @@ The Mac had `dns.domain = "test"` set as an engine property and no registered DN
 | An image that is not local (`docker.io/library/busybox:1.36`) | Planned as a pull step, pulled from Docker Hub, run; a second look at the engine no longer plans a pull. |
 | A run whose second of three containers cannot start (missing bind-mount folder) | Stops at that step: first two steps succeeded, the third failed with the CLI's message, the fourth is skipped. The output names what was left in place. "Remove What Was Created" removes the container and the volume the run created and leaves a volume that existed before. |
 
+Health checks and restart policies, same day and engine
+(`ComposeHealthIntegrationTests.swift`, `RestartPolicyIntegrationTests.swift`):
+
+| What | Observed |
+|---|---|
+| `app` depends on `cache` with `condition: service_healthy`; `cache` is `redis:7-alpine` started as `sh -c "sleep 4; exec redis-server"` with `test: ["CMD", "redis-cli", "ping"]`, `interval: 1s` | Planned as *run cache, wait for cache to be healthy, run app*. The first probes fail with exit code 1 (connection refused), a later one passes, `redis-cli ping` answers `PONG`, and `app` was started at least 4 s after `cache`. |
+| A dependency whose check never passes (`CMD-SHELL` `echo not ready >&2; exit 3`, `interval: 500ms`, `retries: 2`) | The run stops at the wait step after two counted failures with "did not become healthy … (last result: exit code 3: not ready)" and the exact `container exec` command. The dependent is never started; "Remove What Was Created" removes the dependency. |
+| `condition: service_completed_successfully` on a job that runs `sh -c "sleep 3; exit 7"` | The dependent starts once the job has stopped (3 s later). `container inspect` of the stopped job has `"state": "stopped"` and no exit code, so the non-zero exit goes unnoticed, as the preview warns. |
+| `restart: unless-stopped` in the file | The container carries `io.aiflowlabs.containerdesktop.restart=unless-stopped`. |
+| A container with `always` that runs `sh -c 'sleep 2; exit 1'` | Started again by the supervisor each time it exits, with a longer pause each time (three restarts within about 15 s). A stopped container keeps its `startedDate`, which is how an exit between two looks is noticed. |
+| Containers with `always` and `unless-stopped`, stopped the way the app's Stop does it | Both stay stopped. A second supervisor with the same stored state (an app relaunch) starts the `always` one and leaves the `unless-stopped` one stopped. |
+| `on-failure:2` on a container that always exits | Restarted twice, then left stopped; nothing more happens. |
+| A crashing container without the label | Never started. |
+| The whole path in the app (compose file with `restart: always` → run → Containers polling → supervisor) | Restarted twice with Activity entries "Restart …, attempt 1/2". After Stop through the Containers store it stays stopped. |
+
 Bugs this found:
 
 - The preview used to promise name resolution whenever the engine property `dns.domain` was set. That is not
@@ -203,7 +296,14 @@ Bugs this found:
 - `user`, `platform`, `init`, `read_only`, `cap_add` / `cap_drop`, `shm_size`, `ulimits`, `dns*`, `mac_address`,
   network `ipam` subnets and `external` volumes or networks: their arguments are covered by unit tests against
   `container <command> --help` on 1.5.0, not by a run.
-- Cancelling a run half-way, and replacing an existing container ("Replace existing container…").
+- Cancelling a run half-way (cancelling a health wait is covered by a unit test on the mock engine only), and
+  replacing an existing container ("Replace existing container…").
+- Health checks: `start_period` / `start_interval` and a probe that hangs past its `timeout` are unit-tested on
+  the mock engine, not on a live one.
+- Restart policies: the 60 s ceiling of the delay, the reset after 30 s of uptime, the app stopping and starting
+  the container system, a real reboot with *Launch at login*, and the app left running for hours with its window
+  closed. The logic is unit-tested with a fake clock; the screens (Run sheet picker, Inspect rows, Settings
+  switch, the wait step's live status) were built and compiled but not looked at in a running app in this pass.
 - Anything on CLI 1.6 or 1.7.
 
 ## For contributors
@@ -211,7 +311,8 @@ Bugs this found:
 | Piece | Where |
 |---|---|
 | YAML → `ComposeFile`, interpolation, warnings (no UI; the only code that uses Yams) | `Sources/ContainerKit/Compose/` |
-| `ComposePlanner` (file + options + what exists → ordered `ComposePlan`), `ComposeRun` (execution), `ComposeImport` (sheet state), `ComposeLoader` | `Sources/AppCore/Compose/` |
+| `ComposePlanner` (file + options + what exists → ordered `ComposePlan`), `ComposeRun` (execution), `ComposeWait` (health and completion waits), `ComposeImport` (sheet state), `ComposeLoader` | `Sources/AppCore/Compose/` |
+| `RestartPolicy` (the label) and `RestartSupervisor` (enforcement, fed by the containers poller) | `Sources/ContainerKit/Models/RestartPolicy.swift`, `Sources/AppCore/RestartSupervisor.swift` |
 | Import sheet | `Sources/ContainerDesktop/Features/Compose/` |
 | Sample files and tests | `Tests/ContainerKitTests/Resources/compose/`, `Compose*Tests.swift` in both test targets |
 

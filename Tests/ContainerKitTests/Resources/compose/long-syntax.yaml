@@ -55,6 +55,12 @@ services:
     image: example/app
     networks: [backend]
     profiles: [full]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 4
+      start_period: 1m30s
 networks:
   frontend:
   backend:

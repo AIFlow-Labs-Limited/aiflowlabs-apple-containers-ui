@@ -54,6 +54,14 @@ public actor MockBackend: ContainerBackend {
     public var systemRunning = true
     /// Fake filesystems for the Files tab by container id, built on first use (`MockBackend+Files.swift`).
     var fileSystems: [String: MockFileSystem] = [:]
+    /// Scripted `execCapture` results (health-check tests); see `MockBackend+Simulation.swift`.
+    var execHandler: ExecHandler?
+    /// Ids whose next `startContainer` calls fail (restart-policy tests).
+    var failingStarts = Set<String>()
+    /// The time a container start is stamped with (tests replace it with a fake clock).
+    var currentDate: @Sendable () -> Date = { .now }
+    /// How many times `startContainer` succeeded per id.
+    public internal(set) var startCounts: [String: Int] = [:]
     /// Whether the mock pretends its runtime has `container commit` (Apple container 1.6+).
     public var commitSupported = true
     /// Origin of the fake stats counters (see `containerStats`).
@@ -193,7 +201,7 @@ public actor MockBackend: ContainerBackend {
         containers.append(Container(id: id, configuration: config, status: st))
         return id
     }
-    private func update(_ id: String, _ body: (inout Container) -> Void) throws {
+    func update(_ id: String, _ body: (inout Container) -> Void) throws {
         guard let i = containers.firstIndex(where: { $0.id == id }) else {
             throw BackendError.notFound(kind: "container", id: id)
         }
@@ -201,15 +209,22 @@ public actor MockBackend: ContainerBackend {
     }
     public func startContainer(_ id: String) async throws {
         try requireRunning(); await wait()
+        if failingStarts.contains(id) {
+            throw BackendError.commandFailed(
+                command: "container start \(id)", exitCode: 1, message: "failed to start container \(id)")
+        }
+        startCounts[id, default: 0] += 1
+        let date = currentDate()
         try update(id) {
             $0.status = Container.Status(
-                state: .running, startedDate: .now,
+                state: .running, startedDate: date,
                 networks: [.init(hostname: "\(id).test.", ipv4Address: "192.168.64.60/24")])
         }
     }
     public func stopContainer(_ id: String, timeoutSeconds: Int?, signal: String?) async throws {
         try requireRunning(); await wait()
-        try update(id) { $0.status = Container.Status(state: .stopped) }
+        // Like the real runtime, a stopped container keeps the date of its last start.
+        try update(id) { $0.status = Container.Status(state: .stopped, startedDate: $0.status?.startedDate) }
     }
     public func killContainer(_ id: String, signal: String?) async throws {
         try await stopContainer(id, timeoutSeconds: nil, signal: signal)
@@ -264,6 +279,7 @@ public actor MockBackend: ContainerBackend {
         _ id: String, command: [String], workingDirectory: String?
     ) async throws -> (exitCode: Int32, stdout: String, stderr: String) {
         try requireRunning(); await wait()
+        if let execHandler { return await execHandler(id, command) }
         return (0, "mock output of: \(command.joined(separator: " "))\n", "")
     }
     public func copy(from source: String, to destination: String) async throws { await wait() }

@@ -27,12 +27,20 @@ inspect; an embedded terminal; live CPU, memory, network and disk charts; a **Fi
 upload, preview, delete); images with pull, push, tag, save, load and build; volumes; networks; registry logins;
 disk usage and clean-up; a menu bar item; light and dark mode; update notifications.
 
+Two things Apple's runtime does not have are provided by the app itself, close to Docker's behaviour but not
+identical (details and every difference in [COMPOSE.md](COMPOSE.md)):
+
+| | Container Desktop | The limit |
+|---|---|---|
+| Restart policies (`no`, `always`, `unless-stopped`, `on-failure[:N]`) | Set in the Run sheet or with `restart:` in a compose file. A container that stops is started again with a growing delay; stacks come back when the app launches or the container system starts; stops made in the app are respected. | Enforced by Container Desktop, not by a daemon: it works **only while the app is running** (window closed is fine). A `container stop` typed in a terminal looks like a crash and is undone. The runtime reports no exit codes, so `on-failure` reacts to every unexpected stop. The policy cannot be changed after the container is created. |
+| Compose health-check ordering (`depends_on` with `condition: service_healthy` / `service_completed_successfully`) | The import runs the dependency's `healthcheck` inside its container and starts the dependent service only once it passes. | Health is checked during the import run, not continuously, and no health status is shown afterwards. "Completed successfully" means "has exited": the exit code is not available. |
+
 ## Where Docker Desktop is ahead
 
 | | State in Container Desktop |
 |---|---|
-| Compose | Import and run a compose file with a preview and warnings. No `compose up` engine: no restart policies, health-check ordering, `watch`, scaling or override files. See [COMPOSE.md](COMPOSE.md). |
-| Restart policies | Apple's runtime has none, so a container stays stopped after a crash or a reboot. |
+| Compose | Import and run a compose file with a preview and warnings. No `compose up` engine: no `watch`, scaling, override files or re-running only what changed. See [COMPOSE.md](COMPOSE.md). |
+| Supervision without the app | Docker's daemon restarts containers and tracks their health whether or not Docker Desktop's window is open, and after a `docker stop` from any terminal it knows the stop was meant. Container Desktop does both jobs itself, so they stop when the app is quit (see the table above). |
 | Service names | Containers find each other by name only on the default network with a DNS domain set up. |
 | Kubernetes | Local clusters through Apple's experimental cluster plugin; no dashboard for pods and deployments. |
 | Extensions, Scout, Build Cloud, Dev Environments, Model Runner | Not available. |
@@ -45,5 +53,5 @@ disk usage and clean-up; a menu bar item; light and dark mode; update notificati
 
 - **Yes:** you run a handful of services, databases and one-off images on an Apple silicon Mac, you want
   stronger isolation and no licence question, and your compose files are simple.
-- **Not yet:** your workflow depends on the Docker socket, on compose features such as health-check ordering and
-  restart policies, or on Docker Desktop extensions.
+- **Not yet:** your workflow depends on the Docker socket, on containers being restarted while no desktop app is
+  running, on continuous health status, or on Docker Desktop extensions.

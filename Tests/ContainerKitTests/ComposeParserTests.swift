@@ -119,10 +119,17 @@ struct ComposeParserTests {
         #expect(file.volumes[0].name == "tls-certs")
         #expect(file.volumes[1].isExternal)
 
-        // Only the two things that cannot be honoured are reported.
-        #expect(
-            file.warnings.map(\.key).sorted() == ["depends_on.app.condition", "networks.backend.aliases"])
-        #expect(file.warnings.first { $0.key == "depends_on.app.condition" }?.severity == .note)
+        // The health check is read in full; the app runs it while `proxy` waits (`service_healthy`).
+        var check = ComposeHealthcheck(command: ["curl", "-f", "http://localhost:8000/healthz"])
+        check.interval = .seconds(5)
+        check.timeout = .seconds(2)
+        check.retries = 4
+        check.startPeriod = .seconds(90)
+        #expect(app.healthcheck == .check(check))
+        #expect(check.timingSummary == "every 5s, timeout 2s, 4 retries, start period 1m30s")
+
+        // Only the one thing that cannot be honoured is reported.
+        #expect(file.warnings.map(\.key) == ["networks.backend.aliases"])
     }
 
     @Test func unsupportedKeysBecomeWarningsNotErrors() throws {
@@ -132,12 +139,16 @@ struct ComposeParserTests {
         let appKeys = Set(file.warnings(for: .service("app")).map(\.key))
         #expect(
             appKeys == [
-                "restart", "logging", "healthcheck", "deploy.replicas", "deploy.update_config",
+                "restart", "logging", "deploy.replicas", "deploy.update_config",
                 "deploy.resources.reservations", "secrets", "configs", "extends", "links", "network_mode",
                 "privileged", "extra_hosts", "hostname", "ports", "some_future_key",
             ])
-        // `restart: "no"` and `expose` are fine; the unsupported condition is a note.
-        #expect(file.warnings(for: .service("db")).map(\.key) == ["depends_on.app.condition"])
+        // `restart: "no"`, `expose` and waiting for `app` to finish are all fine.
+        #expect(file.warnings(for: .service("db")).isEmpty)
+        #expect(file.service(named: "db")?.restart == .no)
+        #expect(
+            file.service(named: "db")?.dependsOn
+                == [ComposeDependency(service: "app", condition: ComposeDependency.completedSuccessfully)])
         #expect(Set(file.warnings(for: .file).map(\.key)) == ["include", "secrets", "configs"])
         #expect(Set(file.warnings(for: .network("internal_net")).map(\.key)) == ["internal", "driver"])
         #expect(Set(file.warnings(for: .volume("nfs")).map(\.key)) == ["driver", "driver_opts"])
@@ -147,8 +158,15 @@ struct ComposeParserTests {
         #expect(app.ports.isEmpty)
         #expect(file.warnings(for: .service("app")).filter { $0.key == "ports" }.count == 2)
         // The merge key (`<<: *defaults`) was applied: that is where `restart` came from.
+        // It is honoured by the app, so it is a note that says who enforces it, not an "ignored" warning.
         let restart = try #require(file.warnings.first { $0.key == "restart" })
         #expect(restart.message.contains("unless-stopped"))
+        #expect(restart.severity == .note)
+        #expect(restart.message.contains("enforced by Container Desktop"))
+        #expect(app.restart == .unlessStopped)
+        var check = ComposeHealthcheck(command: ["curl", "-f", "http://localhost"])
+        check.interval = .seconds(10)
+        #expect(app.healthcheck == .check(check))
         // Extension fields (`x-defaults`) and the obsolete `version` are silent.
         #expect(!file.warnings.contains { $0.key.hasPrefix("x-") || $0.key == "version" })
     }
