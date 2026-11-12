@@ -55,6 +55,7 @@ Never run `container` commands that delete/prune real user resources from tests;
 | `Sources/ContainerDesktop/Features/Containers/**` | features-containers |
 | `Sources/ContainerDesktop/Features/{Images,Volumes,Networks,Builds}/**` | features-resources |
 | `Sources/ContainerDesktop/Features/{Machines,Kubernetes,Registries}/**` | features-platform |
+| `Sources/ContainerKit/Compose/**`, `Sources/AppCore/Compose/**`, `Sources/ContainerDesktop/Features/Compose/**`, `docs/COMPOSE.md` | compose (compose-file import) |
 | `Makefile`, `scripts/**`, `.github/**`, `Resources/**`, `README.md`, `docs/release/**` | packaging |
 
 Touch another stream's files only to fix a compile break, and say so in the commit message.

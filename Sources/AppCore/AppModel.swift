@@ -30,6 +30,8 @@ public final class AppModel {
     public let runRequests = RunRequests()
     /// App and runtime update checks (GitHub releases); see `AppModel+Updates.swift`.
     public let updates: UpdateChecker
+    /// "Import Compose File…" hand-off from menus, palette, toolbar and drag-and-drop to the window's sheet.
+    public let composeRequests = ComposeImportRequests()
 
     // Stores are created once and survive backend swaps (they talk to `switchable`), so views' `.task`
     // polling clients stay attached. `storesGeneration` therefore never changes; it exists so views may key

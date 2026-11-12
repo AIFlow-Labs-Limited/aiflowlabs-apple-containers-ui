@@ -19,6 +19,11 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: .command)
             .disabled(!model.engine.isRunning)
+            Button("Import Compose File…") {
+                openWindow(id: SceneID.main)
+                model.composeRequests.request()
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
         }
         CommandGroup(after: .sidebar) {
             Button("Command Palette…") { model.navigation.isPaletteOpen = true }

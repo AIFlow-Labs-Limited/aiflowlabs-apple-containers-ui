@@ -1,0 +1,38 @@
+# A typical web + postgres + redis stack, short syntax everywhere.
+name: shop
+services:
+  web:
+    image: ghcr.io/example/shop-web:1.4
+    command: npm run start -- --port 3000
+    ports:
+      - "8080:3000"
+    environment:
+      DATABASE_URL: postgres://shop:secret@db:5432/shop
+      REDIS_URL: redis://cache:6379
+      NODE_ENV: production
+    depends_on:
+      - db
+      - cache
+    working_dir: /app
+    user: "1000:1000"
+    labels:
+      com.example.tier: frontend
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=shop
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=shop
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    mem_limit: 2g
+    cpus: 2
+  cache:
+    image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+volumes:
+  pgdata:
+  redisdata:

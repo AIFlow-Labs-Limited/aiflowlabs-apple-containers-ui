@@ -1,0 +1,63 @@
+# Everything here is valid Compose that Apple's container runtime cannot do.
+version: "3.9"
+x-defaults: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+include:
+  - other.yaml
+services:
+  app:
+    <<: *defaults
+    image: example/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 10s
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    secrets:
+      - db_password
+    configs:
+      - app_config
+    extends:
+      service: base
+    links:
+      - db
+    network_mode: host
+    privileged: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    hostname: app-host
+    ports:
+      - "not-a-port"
+      - "8080:80/sctp"
+    some_future_key: 1
+  db:
+    image: postgres:16
+    restart: "no"
+    expose:
+      - "5432"
+    depends_on:
+      app:
+        condition: service_completed_successfully
+secrets:
+  db_password:
+    file: ./db_password.txt
+configs:
+  app_config:
+    file: ./app.conf
+networks:
+  internal_net:
+    internal: true
+    driver: overlay
+volumes:
+  nfs:
+    driver: nfs
+    driver_opts:
+      share: "host:/path"
