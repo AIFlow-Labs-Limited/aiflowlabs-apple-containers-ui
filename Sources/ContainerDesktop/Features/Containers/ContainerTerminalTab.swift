@@ -109,6 +109,7 @@ struct ContainerTerminalTab: View {
                     .font(.monoCaption)
                     .frame(width: 160)
                     .onSubmit { if !sessionActive { open() } }
+                    .accessibilityLabel("Custom shell path")
                     .help(shellError ?? "An absolute path or a shell name such as ash, bash, zsh")
                 if let shellError {
                     SwiftUI.Image(systemName: "exclamationmark.triangle.fill")

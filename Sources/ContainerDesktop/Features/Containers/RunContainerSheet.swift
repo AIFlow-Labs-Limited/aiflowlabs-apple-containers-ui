@@ -19,6 +19,8 @@ struct RunContainerSheet: View {
     @State private var loadedLastUsedFor: String?
     /// Remembered settings for the image being typed; decoded on image change, not on every render.
     @State private var lastForImage: RunFormValues?
+    /// Set once Run was triggered, so Return in a field and the default button cannot both launch.
+    @State private var launched = false
 
     init(prefill: RunSpec? = nil, onLaunched: @escaping (String) -> Void = { _ in }) {
         self.onLaunched = onLaunched
@@ -61,6 +63,7 @@ struct RunContainerSheet: View {
                             ForEach(imageSuggestions, id: \.self) { Text($0).textInputCompletion($0) }
                         }
                         .font(.monoBody)
+                        .accessibilityLabel("Image")
                     if !form.image.isEmpty && !imageIsLocal {
                         Label(
                             "Not available locally — it will be pulled when the container starts.",
@@ -68,9 +71,15 @@ struct RunContainerSheet: View {
                         )
                         .font(.caption).foregroundStyle(.secondary)
                     }
+                    // Return runs the container from Name and Command too (the Image field reaches the default
+                    // button on its own); `run()` re-checks validation.
                     TextField("Container name", text: $form.name, prompt: Text("Random if empty"))
+                        .onSubmit(run)
+                        .accessibilityLabel("Container name")
                     TextField("Command", text: $form.command, prompt: Text("Image default, e.g. sleep 300"))
                         .font(.monoBody)
+                        .onSubmit(run)
+                        .accessibilityLabel("Command")
                 }
                 RunPortsSection(form: $form, suggest: suggestPorts, isSuggesting: suggesting)
                 if let suggestMessage {
@@ -195,7 +204,8 @@ struct RunContainerSheet: View {
     }
 
     private func run() {
-        guard self.spec.issues.isEmpty else { return }
+        guard self.spec.issues.isEmpty, !launched else { return }
+        launched = true
         // `~` expanded and the image trimmed: the CLI does neither.
         let spec = self.spec.normalizedForRun()
         form.saveAsLastUsed()
