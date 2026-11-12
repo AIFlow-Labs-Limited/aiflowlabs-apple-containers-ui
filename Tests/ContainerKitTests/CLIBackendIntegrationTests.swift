@@ -132,4 +132,17 @@ struct CLIBackendIntegrationTests {
             throw error
         }
     }
+
+    /// `Process` decomposes Unicode in arguments; the container must still get the bytes the user typed.
+    @Test func accentedEnvironmentValueReachesTheContainerByteExact() async throws {
+        let value = "caf\u{00E9} 한국어"
+        let name = "cd-it-env-\(UUID().uuidString.prefix(8).lowercased())"
+        let result = try await ProcessRunner().run(
+            [
+                backend.executable, "run", "--rm", "--name", name, "-e", "CD_VALUE=\(value)",
+                "docker.io/library/alpine:latest", "printenv", "CD_VALUE",
+            ], timeout: .seconds(120))
+        #expect(result.exitCode == 0, "\(result.stderrText)")
+        #expect(result.stdout == Data((value + "\n").utf8))
+    }
 }
