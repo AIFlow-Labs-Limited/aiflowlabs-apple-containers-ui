@@ -3,16 +3,22 @@
 Container Desktop drives Apple's `container` CLI. This page says which CLI releases it works with, what each
 release changed for the app, and how the app copes.
 
-> **Status, plainly.** The app was built and tested against a live **container 1.5.0** engine, and its recorded
-> fixtures come from 1.5.0. Support for **1.6.0, 1.6.1 and 1.7.1** was implemented by reading Apple's source code
-> at those tags and the 1.7.1 release notes. **It has not yet been run against a live 1.6 or 1.7 engine.** The
-> samples the 1.7 tests use (`Sources/ContainerKitMock/Resources/cli-1.7.1-derived/`) were written from that source,
-> not recorded. See [What still needs a live engine](#what-still-needs-a-live-engine).
+> **Status, plainly.** The app was built against a live **container 1.5.0** engine. Support for **1.6.0, 1.6.1
+> and 1.7.1** was first written from Apple's source code at those tags.
 >
-> **Verified on a live 1.5.0 engine on 2026-11-12** (gated suites, `CONTAINER_DESKTOP_INTEGRATION=1 swift test
-> --filter Integration`): Kubernetes capability detection and a cluster created, listed and deleted
-> ([below](#kubernetes-on-cli-150-verified-live)); the Files tab, export and commit
-> ([below](#files-tab-export-and-commit-on-cli-150)); compose import ([COMPOSE.md](COMPOSE.md#verified-on-a-live-engine)).
+> **Verified on a live 1.7.1 engine on 2026-11-12** (macOS 27.2, the gated suites,
+> `CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`): everything in the 1.7.1 rows below, with
+> recorded fixtures in `Sources/ContainerKitMock/Resources/cli-1.7.1/`. Details and the short list of what could
+> not be checked are in [Verified on a live 1.7.1 engine](#verified-on-a-live-171-engine).
+>
+> **Verified on a live 1.5.0 engine on 2026-11-12**, before that Mac was upgraded: Kubernetes capability
+> detection and a cluster created, listed and deleted ([below](#kubernetes-on-cli-150-verified-live)); the Files
+> tab, export and commit ([below](#files-tab-export-and-commit-on-cli-150)); compose import
+> ([COMPOSE.md](COMPOSE.md#verified-on-a-live-engine)).
+>
+> **1.6.0 and 1.6.1 have never been installed.** Their rows are still read from source only. The same code paths
+> run on 1.5.0 and 1.7.1, which are both verified, but the 1.6 help screens and its `--workers <n>` /
+> `load-image --node` have not been seen live.
 
 ## How the app adapts
 
@@ -93,35 +99,100 @@ accented character there arrives decomposed. It looks the same and compares diff
 The workarounds need `test`, `ln`, `cp`, `mv`, `rm` and, for non-ASCII names, `sh` in the image. A plain ASCII
 path on the root filesystem that does not exist yet is copied directly and needs none of them.
 
-## What still needs a live engine
 
-Everything in the 1.6 and 1.7 rows above. In particular these are read from source, not observed:
+## Verified on a live 1.7.1 engine
 
-- The exact text and layout of the plugin's `--help` screens (the app only looks for option names and the
-  `count=<` syntax, so wording changes are harmless, but a renamed option is not).
-- That `container cluster <sub> --help` works through the `container` binary the way `container k8s --help` does on 1.5.0.
-- The JSON of `cluster list --format json`: key names, `null` for unset `cni` / `fqdn`, omitted `addresses` /
-  `ports`, ISO 8601 dates without fractions, and that nothing else is printed on stdout.
-- The `cluster list --nodes` table: column layout, `8 GB`-style memory (it comes from `ByteCountFormatter`, which
-  is locale-dependent; the app reads CPU / memory as 0 and shows "—" if it cannot parse a cell).
-- That `container inspect <node>` returns a cluster node in the same JSON shape as other containers, and what
-  `container stop <node>` prints when it refuses.
-- That `container stats -- <node>` returns figures for a node that `container list` hides.
-- `cpuUtilization` being present for every container in `stats --no-stream --format json`.
-- Creating a cluster with worker groups and with `--shared-image-store`, end to end.
+Checked on 2026-11-12 against `container` 1.7.1 (commit a15b460) on macOS 27.2, Apple silicon. The DNS property
+`dns.domain` was `test`, but no macOS resolver was registered for it (`container system dns ls` was empty, and
+registering one needs an administrator password). Every item names the gated test that proves it; the tests
+decide what to check from the CLI's `--help`, so they pass or return early on 1.5.0 as well.
 
-Only Kubernetes and stats were compared between releases. Other commands (`run`, `build`, `image`, `volume`,
-`network`, `machine`, `system`) were not audited for 1.6 / 1.7 changes.
+| What | Observed on 1.7.1 | Proven by |
+|---|---|---|
+| Capability detection | `container cluster --help` works through the `container` binary. The real help screens are detected as: `cluster`, `--workers` with `count=<n>,cpus=<n>,memory=<size>` groups, `--shared-image-store`, `--format`, `--nodes`, no `load-image`, default name `cluster-dev`. `container commit --help` exits 0. | `KubernetesIntegrationTests.detectsThePluginOfTheInstalledCLI`; `RecordedCLI171Tests` (recorded help as fixtures) |
+| `cluster create` with a worker group | `--name N -c 2 -m 2G --workers count=1,cpus=2,memory=2G --shared-image-store` creates a control plane and `N-worker-1` in about 70 s and streams its progress. | `KubernetesIntegrationTests.createsAClusterWithASizedWorkerGroup` |
+| `cluster list --format json` | One compact line, nothing else on stdout. Keys are exactly the ones the model mirrors; `cni` is an explicit `null`; `fqdn` is `<name>.<dns.domain>`; dates are ISO 8601 without fractions; a node that is down has no `addresses` key; `ports` is absent when an FQDN is set. A single node has roles `["control-plane","worker"]`. | same test; `RecordedCLI171Tests` |
+| `cluster list --nodes` | `CLUSTER NODE ROLE STATE CPUS MEMORY ADDR PORTS`, memory as `2 GB`. A stopped node keeps its CPUS / MEMORY; a node of a `--rm` cluster is removed when it stops and then both cells are blank (the cluster stays listed as `stopped`). | same test; `RecordedCLI171Tests.singleNodeClusterAndItsRemovedNode` |
+| Degraded state | With one of two nodes down: `status.state` is `degraded`, the table says `degraded (1 of 2 up)`, which is the app's wording too. | same test (it powers the worker off from the inside) |
+| Shared image store | A pod ran an image that existed only as a local tag, without `load-image`. | same test (`kubectl` inside the control-plane node) |
+| Nodes and `container list` | `container list --all` leaves cluster nodes out; `inspect`, `logs`, `exec`, `cp` and `stats` work on them, and `stats` without ids includes them. The app adds running nodes back, so they show under system containers. `start` / `stop` / `kill` / `delete` of a node print `container with ID <node> not found`, which the app turns into "belongs to the Kubernetes cluster". A node that is down is not added back, even with stopped containers shown. | same test |
+| kubeconfig | `create` adds a context named after the cluster to `~/.kube/config` and makes it the current context. `delete` removes it; the file was byte-identical to before afterwards (it had no other contexts). | same test |
+| `cluster delete` | Works for running, degraded and stopped clusters and removes the node containers. | both cluster tests |
+| `commit` (Save as Image) | `container commit -- ID REF` works on running and stopped containers and prints `docker.io/library/<ref>`. The image is listed and runs. The container's process becomes the image's `Entrypoint` (executable) and `Cmd` (arguments) and its labels are copied, so the image runs the same process by default. Volume contents are not included. | `CLIBackendImageIntegrationTests.commitSavesAnImageThatIsListedAndRuns` |
+| Stats | Rows of `stats --no-stream --format json` have `cpuUtilization` (a busy single-core loop read between 0.2 and 1.5). One call takes about 2 s. A container that stops during those 2 s is listed without the key; the app then falls back to its two-sample calculation for that row. | `CLIBackendImageIntegrationTests.statsDecodeWithOrWithoutCPUUtilization` |
+| `image save` / `image load` | One platform saves to an OCI tar and loads back. See the note on "All platforms" below. | `CLIBackendImageIntegrationTests.savesAnImageToATarAndLoadsItBack` |
+| Machines | `machine create --no-boot`, `machine ls --format json`, `machine inspect`, `machine rm`: same JSON as 1.5.0. | `CLIBackendImageIntegrationTests.machineCreatedWithoutBootIsListedInspectedAndDeleted` |
+| `build` | Still a plugin; its step lines arrive while the build runs, not at the end. | `CLIBackendImageIntegrationTests.buildStreamsItsProgress`, `ComposeBuildIntegrationTests` |
+| `cp`, `export`, `exec`, Files tab | Behave as described for 1.5.0 above. | `CLIBackendFilesIntegrationTests`, `CLIBackendFileCopyIntegrationTests`, `CLIBackendExportIntegrationTests` |
+| Volumes, networks, registry list, `system` commands | Same JSON shapes as 1.5.0. `registry ls --format json` is `[]` with no logins (a login was not tried). | `CLIBackendIntegrationTests.readOnlyListings`, `ComposeIntegrationTests`, `RecordedCLI171Tests` |
 
-## When a 1.7 engine is available
+### What 1.7.1 changed outside Kubernetes
+
+Compared with the 1.5.0 recording, key by key:
+
+- **`container inspect` / `container list`**: no new keys except `configuration.platform.variant` (`v8`).
+  There is still **no exit code, no restart count or policy and no health status**: a container that exited with
+  status 3 reports only `"state": "stopped"` and `startedDate`. `container run` has no `--restart` or
+  `--health-*` options. The app's own restart policies and compose health waits stay necessary.
+- **Network aliases**: `--network <net>,alias=<name>` is stored as `<name>.<dns.domain>` in
+  `configuration.networks[].options.aliases`. Passing the stored, fully qualified form back gives the same
+  value (not a doubled suffix), so re-running a container from its inspect data is safe, and a duplicate alias is
+  refused (`alias(es) already exist`). Whether the alias resolves could not be checked without a registered DNS
+  domain.
+- **Stats**: `cpuUtilization` added.
+- **System properties**: a new, empty `container.dns` group. Builder image 0.13.3, init image 0.54.0.
+- **Images**: same shape. The cluster node image is stored by digest, without a tag
+  (`docker.io/kindest/node@sha256:…`), and shows as `<none>` in `container image ls`.
+- **Volumes, networks, machines, `system df`, `system status`, builder**: unchanged.
+- **`machine create`** gained `--user`, `--uid`, `--gid` and `--home`. The app does not pass them.
+- **`container clean`** is new: see below.
+
+### Found on the live engine
+
+- `container image save` without `--platform` saves every platform in the image's index. For an image that was
+  pulled for this Mac only, the CLI fails with just `content with digest sha256:…`. The Save sheet's default is
+  "All platforms", so this is easy to hit. The app now completes the message and tells you to choose a single
+  platform. (Whether 1.5.0 does the same was not checked.)
+- `container commit` reports a missing container as `get failed: container <id> not found`, a wording the app
+  did not recognise as "not found". It does now.
+- The plugin help ends its SUBCOMMANDS list with a sentence indented like a command; the help parser took it for
+  a subcommand name. Harmless (nothing looked that name up), fixed anyway.
+
+### `container clean`
+
+`container clean <id>…` "cleans unused space on the root filesystem and each named volume mount" of running
+containers (Apple's command reference; it fails for a container that is not running). It deletes nothing.
+Container Desktop does not call it and nothing in the app depends on the list of top-level commands, so its
+arrival changes nothing. It was not run during this pass.
+
+### Still not verified
+
+- **1.6.0 and 1.6.1**: never installed. Their help screens in the tests are still written from source.
+- `--workers <n>` as a plain number (1.7.1's help documents it; only the `count=…` form was run).
+- `--cni <file>` / `--cni NONE`, and `cluster write-config`.
+- Reaching the API server with `kubectl` from the Mac: the kubeconfig server is `https://<cluster>.test:6443`,
+  which needs a registered DNS domain. Without one `kubectl` fails with "no such host" (seen), which is what the
+  cluster inspector warns about.
+- That clusters created by an earlier CLI are not listed (the 1.5.0 test clusters were deleted before the
+  upgrade).
+- `registry login` / `logout`, and `image push`.
+- Whether `create` restores the previous current context of a kubeconfig that already had one.
+
+## Fixtures
 
 ```bash
 scripts/record-fixtures.sh     # writes Sources/ContainerKitMock/Resources/cli-<version>/
 ```
 
-The script records the help screens, `cluster list` (table, `--nodes`, JSON) and stats for whatever the installed
-plugin supports. Replace `cli-1.7.1-derived/` with the recording (its `README.md` lists the steps), run `make check`,
-then walk through the list above with `make run`.
+| Folder | What it is |
+|---|---|
+| `cli-1.5.0/` | Recorded from 1.5.0. `MockBackend` and most decoder tests are built on it (`Fixtures`). |
+| `cli-1.7.1/` | Recorded from 1.7.1 on 2026-11-12 (`FixtureSet.cli171`): JSON listings and inspects, the help screens the detectors read, a two-node cluster running, degraded and stopped, and a one-node `--rm` cluster before and after its node went away. |
+| `samples-1.7/` | Three hand-written cluster scenarios in the recorded shape, for the mock and the presentation tests. Not recordings; see its `README.md`. |
+
+The script only runs list, inspect, status and `--help` commands; it records whatever exists on the engine. It
+replaces registry user names and the account in `machine inspect` with `user`. Paths under the engine's
+application-support folder are kept as printed, as in the 1.5.0 recording.
 
 ## Trying the 1.7 behaviour without a 1.7 engine
 
@@ -130,5 +201,6 @@ make app
 CONTAINER_DESKTOP_MOCK_CLI=1.7 open "build/Container Desktop.app" --env CONTAINER_DESKTOP_BACKEND=mock --env CONTAINER_DESKTOP_MOCK_CLI=1.7
 ```
 
-`MockBackend` then plays a 1.7-style `cluster` plugin seeded with the derived samples (a running, a degraded and a
-stopped cluster). Without the variable it plays 1.5.0, and `CONTAINER_DESKTOP_MOCK_CLI=none` plays a CLI without the plugin.
+`MockBackend` then plays a 1.7-style `cluster` plugin seeded with the three sample scenarios (a running, a
+degraded and a stopped cluster). Without the variable it plays 1.5.0, and `CONTAINER_DESKTOP_MOCK_CLI=none` plays a
+CLI without the plugin.
