@@ -43,13 +43,18 @@ public enum ComposePlanner {
     /// - Parameters:
     ///   - home: home folder for `~` in host paths.
     ///   - pathExists: file-system probe for bind-mount sources and env files (injected for tests).
+    ///   - readFile: text of an env file, `nil` when it cannot be read as UTF-8 (injected for tests).
     public static func plan(
         _ project: ComposeProject, options: ComposeOptions = ComposeOptions(),
         environment: ComposeEnvironment = ComposeEnvironment(), home: String = NSHomeDirectory(),
-        pathExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+        pathExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) },
+        readFile: @escaping (String) -> String? = { path in
+            FileManager.default.contents(atPath: path).flatMap { String(data: $0, encoding: .utf8) }
+        }
     ) -> ComposePlan {
         var builder = ComposePlanBuilder(
-            project: project, options: options, environment: environment, home: home, pathExists: pathExists)
+            project: project, options: options, environment: environment, home: home, pathExists: pathExists,
+            readFile: readFile)
         return builder.build()
     }
 
@@ -89,6 +94,7 @@ struct ComposePlanBuilder {
     let environment: ComposeEnvironment
     let home: String
     let pathExists: (String) -> Bool
+    let readFile: (String) -> String?
     var plan: ComposePlan
     /// Compose volume key → real volume name.
     var volumeNames: [String: String] = [:]
@@ -100,13 +106,14 @@ struct ComposePlanBuilder {
 
     init(
         project: ComposeProject, options: ComposeOptions, environment: ComposeEnvironment, home: String,
-        pathExists: @escaping (String) -> Bool
+        pathExists: @escaping (String) -> Bool, readFile: @escaping (String) -> String?
     ) {
         self.project = project
         self.options = options
         self.environment = environment
         self.home = home
         self.pathExists = pathExists
+        self.readFile = readFile
         let name = options.projectName?.trimmingCharacters(in: .whitespaces) ?? ""
         plan = ComposePlan(projectName: name.isEmpty ? ComposePlanner.defaultProjectName(for: project) : name)
     }

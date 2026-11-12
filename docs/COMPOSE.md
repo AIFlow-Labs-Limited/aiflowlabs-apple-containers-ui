@@ -61,7 +61,7 @@ volumes the import creates get the project labels too.
 | `command` (string or list) | arguments after the image | A string is split like a shell would. |
 | `entrypoint` (string or list) | `--entrypoint` | The CLI takes one executable: the first word. Further words are placed before `command`. |
 | `environment` (map or list) | `-e KEY=VALUE` | A key without a value becomes `-e KEY` (taken from the app's own environment, not your shell profile). |
-| `env_file` (string, list, `{path, required}`) | `--env-file` | A missing required file blocks the run; `required: false` files are skipped when missing. |
+| `env_file` (string, list, `{path, required}`) | `--env-file`, or `-e` per variable | A missing required file blocks the run; `required: false` files are skipped when missing. Later files win over earlier ones and `environment:` wins over both. `container run --env-file` takes lines literally (quotes and trailing `# comments` stay in the value, `export KEY=…` is refused), so when a file has such lines the service's env-file variables are read the Compose way and passed as `-e`, with a note in the preview. Variables inside env-file values are not expanded. |
 | `ports` (short and long syntax, ranges, IPv6 host) | `-p [ip:]host:container/proto` | tcp and udp. A port without a host port is published on the same number (Docker would pick a random one). |
 | `volumes` (short and long syntax) | `-v` / `--tmpfs` | Named volumes, bind mounts (`./relative`, `~/home`, absolute), `:ro`, anonymous volumes, `type: tmpfs` with `size`. |
 | `tmpfs` | `--tmpfs` | |
@@ -165,7 +165,8 @@ which runs `sudo container system dns create`). Published ports (`ports:`) are r
 ## Verified on a live engine
 
 Run on 2026-11-12 against a running engine, `container` CLI 1.5.0, through the app's real backend
-(`Tests/AppCoreTests/ComposeIntegrationTests.swift`; `CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`).
+(`Tests/AppCoreTests/ComposeIntegrationTests.swift` and `ComposeBuildIntegrationTests.swift`;
+`CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`).
 The Mac had `dns.domain = "test"` set as an engine property and no registered DNS domain.
 
 | What | Observed |
@@ -177,18 +178,32 @@ The Mac had `dns.domain = "test"` set as an engine property and no registered DN
 | `entrypoint:` without `command:` → `--entrypoint X` and no arguments | The image's default command is dropped, as in Docker (`redis:7-alpine` with `--entrypoint /bin/hostname` runs `hostname` alone). `--entrypoint "echo hi"` is looked up as one executable and fails, so passing only the first word is right. |
 | Names between containers, no registered DNS domain | On the `default` network and on a created network: the name does not resolve (`NXDOMAIN`), the IP address works. The preview said so in both cases. |
 | A second import of the same file | Blocked: both container names are reported as existing, the volume as reused. |
+| `build:` with `context`, `dockerfile`, `target` and `args` (a three-stage Dockerfile `FROM docker.io/library/alpine:latest` with `ARG`, `RUN` and `COPY`) | Built by the existing builder container as `<project>-<service>:latest` and run. The build argument, the copied file and the chosen stage are in the container; the later stage is not. The builder is started when it is stopped and is left running. |
+| `env_file`, string and list form, with a comment line, a blank line, a value with spaces, `a=b=c`, and `café 한` | Values arrive byte for byte. A later file wins over an earlier one, `environment:` wins over both, a missing `required: false` file is skipped. |
+| An env file with `"double"` and `'single'` quotes, `value # comment` and `export KEY=…` | `container run --env-file` alone keeps the quotes and the comment in the value and refuses `export` (`variable 'export KEY' contains whitespaces`) and `KEY = value`; a key without `=` is dropped. Through the app the values arrive as Compose would read them (see the bug below). |
+| `cpus: 2` + `mem_limit: 512m`; `deploy.resources.limits` with `cpus: "1.5"` + `memory: 300M` | `container inspect` reports 2 CPUs / 512 MiB and 2 CPUs (rounded up, with a note) / 300 MiB. Inside, the VM shows a little more than the limit (`-c 2 -m 512M`: `nproc` 3, about 600 MB). |
+| A service with `profiles: [debug]` | Not planned and not started by default; planned once the profile is ticked. |
+| An image that is not local (`docker.io/library/busybox:1.36`) | Planned as a pull step, pulled from Docker Hub, run; a second look at the engine no longer plans a pull. |
+| A run whose second of three containers cannot start (missing bind-mount folder) | Stops at that step: first two steps succeeded, the third failed with the CLI's message, the fourth is skipped. The output names what was left in place. "Remove What Was Created" removes the container and the volume the run created and leaves a volume that existed before. |
 
-A bug this found: the preview used to promise name resolution whenever the engine property `dns.domain` was set.
-That is not enough. The domain must also be registered (`container system dns list`). The preview now checks both.
+Bugs this found:
+
+- The preview used to promise name resolution whenever the engine property `dns.domain` was set. That is not
+  enough. The domain must also be registered (`container system dns list`). The preview now checks both.
+- Env files were handed to `--env-file` unread. A file written for Docker Compose with `PASSWORD="secret"` gave the
+  container a password that includes the quotes, and one with `export` stopped the run. Such files are now read by
+  the app and passed as `-e` options.
 
 ## What has not been verified
 
 - Name resolution with a **registered** DNS domain (the first row of the table above). Registering one needs
   `sudo`, which the test run does not use. That row still rests on earlier manual testing on CLI 1.5.0.
-- `build:` services (the builder was not started) and pulling an image that is not local.
-- `env_file`, `user`, `cpus` / `mem_limit`, `platform`, `init`, `read_only`, `cap_add` / `cap_drop`, `shm_size`,
-  `ulimits`, `dns*`, `mac_address`, network `ipam` subnets and `external` volumes or networks: their arguments are
-  covered by unit tests against `container <command> --help` on 1.5.0, not by a run.
+- `build:` options beyond `context`, `dockerfile`, `target` and `args` (`platforms`, `no_cache`, `pull`, `labels`),
+  a build that fails, and pulling with `platform:` or from a registry that needs a login.
+- `user`, `platform`, `init`, `read_only`, `cap_add` / `cap_drop`, `shm_size`, `ulimits`, `dns*`, `mac_address`,
+  network `ipam` subnets and `external` volumes or networks: their arguments are covered by unit tests against
+  `container <command> --help` on 1.5.0, not by a run.
+- Cancelling a run half-way, and replacing an existing container ("Replace existing container…").
 - Anything on CLI 1.6 or 1.7.
 
 ## For contributors

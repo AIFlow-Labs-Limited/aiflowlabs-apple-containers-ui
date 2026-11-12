@@ -118,7 +118,9 @@ public struct EnvironmentVariable: Hashable, Sendable, Identifiable {
 /// Minimal `.env` parser (Docker `--env-file` semantics plus common quoting): `KEY=VALUE` per line,
 /// `#` comments, blank lines ignored, optional `export` prefix (space or tab), surrounding single/double quotes stripped.
 public enum DotEnv {
-    public static func parse(_ text: String) -> [EnvironmentVariable] {
+    /// Parses `text`. With `stripInlineComments` an unquoted value ends at the first ` #`, as in Docker Compose
+    /// (`docker run --env-file` and `container run --env-file` keep it).
+    public static func parse(_ text: String, stripInlineComments: Bool = false) -> [EnvironmentVariable] {
         text.split(whereSeparator: \.isNewline).compactMap { raw in
             var line = raw.trimmingCharacters(in: .whitespaces)
             guard !line.isEmpty, !line.hasPrefix("#") else { return nil }
@@ -132,10 +134,29 @@ public enum DotEnv {
                 v = v.trimmingCharacters(in: .whitespaces)
                 if v.count >= 2, let first = v.first, first == v.last, first == "\"" || first == "'" {
                     v = String(v.dropFirst().dropLast())
+                } else if stripInlineComments, let comment = v.range(of: " #") ?? v.range(of: "\t#") {
+                    v = String(v[..<comment.lowerBound]).trimmingCharacters(in: .whitespaces)
                 }
                 variable.value = v
             }
             return variable
+        }
+    }
+
+    /// `true` when `container run --env-file` (which takes every `KEY=VALUE` line literally) gives the same
+    /// variables as `parse(_:stripInlineComments: true)`: no quoted values, no trailing comments, no `export`,
+    /// no blanks around the key or value, and no key without `=`. Seen on CLI 1.5.0: quotes and comments end up
+    /// in the value, a key without `=` is dropped, `export KEY=…` and `KEY = …` are refused.
+    public static func isLiteral(_ text: String) -> Bool {
+        text.split(whereSeparator: \.isNewline).allSatisfy { raw in
+            let line = String(raw)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty || trimmed.hasPrefix("#") { return true }
+            guard trimmed == line, let equals = line.firstIndex(of: "=") else { return false }
+            let key = line[..<equals], value = line[line.index(after: equals)...]
+            if key.isEmpty || key.contains(where: \.isWhitespace) { return false }
+            if let first = value.first, first == "\"" || first == "'" { return false }
+            return !value.contains(" #") && !value.contains("\t#")
         }
     }
 }
