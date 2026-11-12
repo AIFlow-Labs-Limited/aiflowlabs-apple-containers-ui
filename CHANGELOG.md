@@ -13,13 +13,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   - Supports the common Compose keys: images and builds, ports, volumes and bind mounts, environment and env files,
     `depends_on` start order, resource limits, profiles, and `${VARIABLE}` values from the `.env` file next to the
     compose file (each can be overridden in the preview).
-  - Everything Apple's runtime cannot do (restart policies, health checks, secrets, host networking, …) is listed
+  - Everything Apple's runtime cannot do (secrets, host networking, override files, …) is listed
     per service in the preview instead of being silently dropped. See `docs/COMPOSE.md`.
   - The preview says which hostname services can use to reach each other on your setup, and warns when no DNS
     domain is configured.
   - Running a project shows progress per step. If a step fails, the run stops, says what was already created, and
     offers to remove it. Existing containers with the same name are never replaced without asking; existing
     volumes and networks are reused.
+- **Restart policies.** Choose No, Always, Unless stopped or On failure (with an optional limit) when you run a
+  container, or use `restart:` in a compose file. Container Desktop starts the container again when it stops
+  (after 1 s, then 2 s, 4 s … up to a minute), and starts `always` / `unless-stopped` containers when the app
+  launches or the container system comes up, so stacks return after a reboot. Containers you stop in the app stay
+  stopped. Each restart appears in Activity; the Inspect tab shows the policy and the restart count.
+  Apple's runtime has no restart policies, so this works only while Container Desktop is running (the window can
+  be closed), a `container stop` typed in a terminal is treated as a crash, and "On failure" reacts to any
+  unexpected stop because the runtime reports no exit codes. Switch it off under Settings › General.
+- **Compose: wait for healthy dependencies.** `depends_on` with `condition: service_healthy` runs the dependency's
+  `healthcheck` inside its container and starts the dependent service only once it passes, with a live "Waiting
+  for db to be healthy (attempt 3)" step. `service_completed_successfully` waits for the dependency to finish. A
+  dependency that never becomes healthy stops the run with the check's last output. Health is checked during the
+  import, not afterwards.
 - **Files tab** on every container: browse the filesystem of a running container with a path bar, back/up, inline
   expandable folders, a hidden-files toggle, and mounted volumes marked. Works with GNU, BusyBox and other minimal
   images; images without a shell show an explanation instead of an error. (#7)

@@ -185,6 +185,9 @@ Rosetta next to native `arm64`. More screens: [`docs/screenshots/`](docs/screens
   `container` commands it will run, and names everything Apple's runtime cannot do instead of dropping it
   silently. The stack then appears as a project group with Start All, Stop All and Delete All.
   Supported keys and limits: [docs/COMPOSE.md](docs/COMPOSE.md).
+- **Restart policies and health checks.** Always, Unless stopped and On failure for any container, and compose
+  services that wait for a healthy dependency. Apple's runtime has neither, so Container Desktop enforces them
+  while it is running (the window can be closed).
 - **Files tab** on every container: browse a running container's filesystem, save files and folders to your Mac,
   upload by file picker or drag from Finder, preview text, Quick Look the rest, rename, delete (with confirmation)
   and export the whole filesystem as a tar.
@@ -332,8 +335,7 @@ Details in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); scope in [`docs/PRD.m
   engine control, settings, menu bar extra; ad-hoc signed DMG.
 - **v0.2 (this release):** compose-file import, a file browser inside containers, Save as Image, update checks,
   Homebrew cask and one-line installer, support for `container` 1.6 and 1.7.
-- **Next:** a signed and notarized DMG, compose health checks and restart policies where the runtime allows,
-  XPC backend (no CLI round-trips), menu-bar-only mode.
+- **Next:** a signed and notarized DMG, XPC backend (no CLI round-trips), menu-bar-only mode.
 - **Later:** remote hosts.
 
 How this compares with Docker Desktop today, including what is still missing: [docs/COMPARISON.md](docs/COMPARISON.md).
