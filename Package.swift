@@ -19,18 +19,21 @@ let package = Package(
     dependencies: [
         // Embedded terminal for `container exec -it` / `container machine run`.
         .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", from: "1.9.0"),
+        // YAML parser for compose-file import (`ContainerKit/Compose`).
+        .package(url: "https://github.com/jpsim/Yams.git", from: "6.0.0"),
     ],
     targets: [
         // MARK: Domain + backend contract + CLI backend (no UI, no AppKit)
         .target(
             name: "ContainerKit",
+            dependencies: [.product(name: "Yams", package: "Yams")],
             swiftSettings: swiftSettings
         ),
         // MARK: Fixture-driven backend for previews, UI development and tests
         .target(
             name: "ContainerKitMock",
             dependencies: ["ContainerKit"],
-            resources: [.copy("Resources/cli-1.5.0")],
+            resources: [.copy("Resources/cli-1.5.0"), .copy("Resources/cli-1.7.1"), .copy("Resources/samples-1.7")],
             swiftSettings: swiftSettings
         ),
         // MARK: Design tokens + reusable SwiftUI components (no business logic)
@@ -57,6 +60,7 @@ let package = Package(
         .testTarget(
             name: "ContainerKitTests",
             dependencies: ["ContainerKit", "ContainerKitMock"],
+            resources: [.copy("Resources/compose")],
             swiftSettings: swiftSettings
         ),
         .testTarget(

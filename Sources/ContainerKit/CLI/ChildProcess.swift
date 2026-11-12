@@ -23,9 +23,16 @@ struct ChildProcess: Sendable {
         }
         let display = CommandLine(executable: executable, arguments: Array(arguments.dropFirst())).display
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = Array(arguments.dropFirst())
-        process.environment = environment
+        // `Process` decomposes Unicode in arguments and environment values; see `ByteExactLaunch`.
+        if let exact = ByteExactLaunch.rewrite(arguments: arguments, environment: environment) {
+            process.executableURL = URL(fileURLWithPath: ByteExactLaunch.shell)
+            process.arguments = Array(exact.arguments.dropFirst())
+            process.environment = exact.environment
+        } else {
+            process.executableURL = URL(fileURLWithPath: executable)
+            process.arguments = Array(arguments.dropFirst())
+            process.environment = environment
+        }
 
         let outPipe = Pipe()
         let errPipe = Pipe()

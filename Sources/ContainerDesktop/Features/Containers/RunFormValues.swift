@@ -51,6 +51,20 @@ struct RunFormValues: Codable, Equatable {
         }
     }
 
+    /// The kinds of restart policy the picker offers (`on-failure` takes its limit from `restartMaxRetries`).
+    enum RestartChoice: String, Codable, CaseIterable, Identifiable {
+        case no, always, unlessStopped, onFailure
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .no: return "No"
+            case .always: return "Always"
+            case .unlessStopped: return "Unless stopped"
+            case .onFailure: return "On failure"
+            }
+        }
+    }
+
     var image = ""
     var name = ""
     var command = ""
@@ -77,8 +91,34 @@ struct RunFormValues: Codable, Equatable {
     var shmSize = ""
     var ulimits = ""
     var extraArguments = ""
+    // Optional so that settings remembered before these existed still decode.
+    var restartChoice: RestartChoice?
+    /// Limit for `on-failure`; `nil` or 0 means no limit.
+    var restartMaxRetries: Int?
 
     init() {}
+
+    /// The policy the picker and the limit field add up to.
+    var restartPolicy: RestartPolicy {
+        switch restartChoice ?? .no {
+        case .no: return .no
+        case .always: return .always
+        case .unlessStopped: return .unlessStopped
+        case .onFailure: return .onFailure(maxRetries: restartMaxRetries.flatMap { $0 > 0 ? $0 : nil })
+        }
+    }
+
+    private mutating func setRestartPolicy(_ policy: RestartPolicy) {
+        restartMaxRetries = nil
+        switch policy {
+        case .no: restartChoice = nil
+        case .always: restartChoice = .always
+        case .unlessStopped: restartChoice = .unlessStopped
+        case .onFailure(let limit):
+            restartChoice = .onFailure
+            restartMaxRetries = limit
+        }
+    }
 
     /// Prefills from an existing spec (image → Run, "Run similar", deep link).
     init(spec: RunSpec) {
@@ -117,7 +157,10 @@ struct RunFormValues: Codable, Equatable {
         readOnly = spec.readOnly
         ssh = spec.ssh
         removeOnExit = spec.removeOnExit
-        labels = spec.labels.sorted { $0.key < $1.key }.map { KeyValueRow(key: $0.key, value: $0.value) }
+        // The restart label is edited through the picker, not as a raw label row.
+        labels = spec.labels.filter { $0.key != AppLabel.restart }.sorted { $0.key < $1.key }
+            .map { KeyValueRow(key: $0.key, value: $0.value) }
+        setRestartPolicy(spec.labels[AppLabel.restart].flatMap { RestartPolicy($0) } ?? .no)
         capAdd = spec.capAdd.joined(separator: ", ")
         capDrop = spec.capDrop.joined(separator: ", ")
         shmSize = spec.shmSize?.cliArgument ?? ""
@@ -207,6 +250,7 @@ struct RunFormValues: Codable, Equatable {
                 let key = row.key.trimmingCharacters(in: .whitespaces)
                 return key.isEmpty ? nil : (key, row.value)
             }, uniquingKeysWith: { $1 })
+        if let policy = restartPolicy.labelValue { s.labels[AppLabel.restart] = policy }
         s.capAdd = Self.list(capAdd)
         s.capDrop = Self.list(capDrop)
         s.shmSize = Self.trimmed(shmSize).flatMap(MemorySize.init(parsing:))
@@ -225,6 +269,9 @@ struct RunFormValues: Codable, Equatable {
         // Image and host-folder checks (`.invalidImage`, `.relativeMountSource`) live in `RunSpec.issues`.
         var result = spec.issues.map(\.description)
         result += malformedPorts.map { "Port mapping “\($0)” must be numbers, e.g. 8080 → 80." }
+        if restartPolicy.isEnforced && removeOnExit {
+            result.append("A restart policy cannot be combined with “Remove when stopped”: choose one.")
+        }
         if let shm = Self.trimmed(shmSize), MemorySize(parsing: shm) == nil {
             result.append("Shared memory size “\(shm)” is not a size like 64m.")
         }

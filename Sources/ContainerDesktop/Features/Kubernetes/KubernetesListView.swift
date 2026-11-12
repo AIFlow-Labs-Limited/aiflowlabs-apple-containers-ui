@@ -3,8 +3,9 @@ import ContainerKit
 import DesignSystem
 import SwiftUI
 
-/// Kubernetes (experimental `container k8s` plugin): clusters with expandable node rows, create / delete /
-/// load image / copy kubectl context, and a detail inspector.
+/// Kubernetes (Apple's experimental plugin: `container k8s` up to 1.6.0, `container cluster` after): clusters with
+/// expandable node rows, create / delete / load image / copy kubectl context, and a detail inspector. What is
+/// offered follows `ClustersStore.capabilities`, detected from the installed CLI.
 struct KubernetesListView: View {
     @Environment(AppModel.self) private var model
     @State private var selection = Set<ClusterRow.ID>()
@@ -15,6 +16,7 @@ struct KubernetesListView: View {
     static let docsURL = URL(string: "https://github.com/apple/container/tree/main/docs")!
 
     private var store: ClustersStore { model.clusters }
+    private var capabilities: KubernetesCapabilities { store.effectiveCapabilities }
     private var rows: [ClusterRow] { store.filtered.map(ClusterRow.init(cluster:)) }
     private var selectedNames: [String] { Array(Set(selection.map(ClusterRow.clusterName(of:)))).sorted() }
     private var selectedCluster: KubernetesCluster? {
@@ -27,10 +29,14 @@ struct KubernetesListView: View {
             .storeChrome(store)
             .deepLinkSelection(.kubernetes, navigation: model.navigation, selection: $selection) { $0 }
             .sheet(isPresented: $showCreate) {
-                CreateClusterSheet { spec in store.create(spec) }
+                CreateClusterSheet(capabilities: capabilities, existingNames: store.items.map(\.name)) { spec in
+                    store.create(spec)
+                }
             }
             .sheet(item: Binding(get: { loadInto.map(IdentifiedName.init) }, set: { loadInto = $0?.id })) { target in
-                LoadImageSheet(cluster: target.id, localImages: model.images.items.map(\.reference)) { ref, platform in
+                LoadImageSheet(
+                    cluster: target.id, localImages: model.images.items.map(\.reference), capabilities: capabilities
+                ) { ref, platform in
                     store.loadImage(ref, into: target.id, platform: platform)
                 }
                 .task { await model.images.refresh() }
@@ -38,7 +44,7 @@ struct KubernetesListView: View {
             .confirmDestructive(
                 title: deleteTitle,
                 message:
-                    "Deletes \(listed(pendingDelete)) with all \(pendingDelete.count == 1 ? "its" : "their") nodes, workloads and loaded images, and removes the kubectl context.",
+                    "Deletes \(listed(pendingDelete)) with all \(pendingDelete.count == 1 ? "its" : "their") nodes and workloads, and removes the kubectl context.",
                 actionTitle: "Delete",
                 isPresented: $pendingDelete.isPresent
             ) {
@@ -61,7 +67,7 @@ struct KubernetesListView: View {
                 Label("Kubernetes isn't available", systemImage: "helm")
             } description: {
                 Text(
-                    "The k8s plugin isn't available in this `container` build, or the engine isn't running. It ships as an experimental plugin with recent releases."
+                    "The Kubernetes plugin (`container cluster`, or `container k8s` on older releases) isn't available in this `container` build, or the engine isn't running. Apple ships it as an experimental plugin with recent releases."
                 )
             } actions: {
                 Link("Read the container docs", destination: Self.docsURL)
@@ -78,7 +84,8 @@ struct KubernetesListView: View {
             .inspector(isPresented: .constant(selectedCluster != nil)) {
                 if let c = selectedCluster {
                     ClusterDetailView(
-                        cluster: c, onLoadImage: { loadInto = c.name }, onDelete: { pendingDelete = [c.name] }
+                        cluster: c, capabilities: capabilities, onLoadImage: { loadInto = c.name },
+                        onDelete: { pendingDelete = [c.name] }
                     )
                     .inspectorColumnWidth(min: 340, ideal: 420, max: 700)
                 }
@@ -90,8 +97,13 @@ struct KubernetesListView: View {
         Table(rows, children: \.children, selection: $selection) {
             TableColumn("Name") { row in
                 HStack(spacing: Spacing.xs) {
-                    StatusDot(row.isRunning ? .statusRunning : .statusStopped, label: row.stateLabel)
+                    StatusDot(row.tint, label: row.stateLabel)
                     Text(row.title).fontWeight(row.node == nil ? .medium : .regular)
+                    if row.node == nil, row.cluster.sharedImageStore == true {
+                        Image(systemName: "shippingbox").font(.caption).foregroundStyle(.secondary)
+                            .help("Shared image store: nodes can use the images on this Mac")
+                            .accessibilityLabel("shared image store")
+                    }
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
@@ -102,13 +114,19 @@ struct KubernetesListView: View {
             TableColumn("Nodes") { row in
                 Text(row.node?.role ?? "\(row.cluster.nodes.count)").monospacedDigit()
             }
-            .width(min: 50, ideal: 90)
-            TableColumn("State") { row in Text(row.stateLabel) }
-                .width(min: 60, ideal: 75)
-            TableColumn("CPUs") { row in Text("\(row.cpus)").monospacedDigit() }
+            .width(min: 44, ideal: 60)
+            TableColumn("State") { row in Text(row.stateLabel).lineLimit(1).help(row.stateLabel) }
+                .width(min: 120, ideal: 150)
+            TableColumn("Kubernetes") { row in
+                Text(row.node == nil ? (row.cluster.kubernetesVersion ?? emDash) : "").monospacedDigit()
+            }
+            .width(min: 84, ideal: 90)
+            TableColumn("CPUs") { row in Text(row.cpus > 0 ? "\(row.cpus)" : emDash).monospacedDigit() }
                 .width(45)
-            TableColumn("Memory") { row in Text(ByteCount.format(row.memoryMB << 20)).monospacedDigit() }
-                .width(min: 60, ideal: 75)
+            TableColumn("Memory") { row in
+                Text(row.memoryMB > 0 ? ByteCount.format(row.memoryMB << 20) : emDash).monospacedDigit()
+            }
+            .width(min: 60, ideal: 75)
             TableColumn("Address") { row in
                 Text(row.address ?? emDash).font(.monoCaption).foregroundStyle(.secondary)
             }
@@ -129,7 +147,7 @@ struct KubernetesListView: View {
         .contextMenu(forSelectionType: ClusterRow.ID.self) { ids in
             let names = Array(Set(ids.map(ClusterRow.clusterName(of:)))).sorted()
             if names.count == 1 {
-                Button("Load Image…") { loadInto = names[0] }
+                if capabilities.supportsLoadImage { Button("Load Image…") { loadInto = names[0] } }
                 Button("Copy kubectl Context") { copyToPasteboard(KubectlCommands.context(names[0])) }
                 Button("Copy “get nodes” Command") {
                     copyToPasteboard("\(KubectlCommands.context(names[0])) get nodes")
@@ -146,10 +164,13 @@ struct KubernetesListView: View {
         ToolbarItemGroup {
             ToolbarActionButton("New Cluster", systemImage: "plus") { showCreate = true }
                 .disabled(!store.available)
-            ToolbarActionButton("Load Image", systemImage: "square.and.arrow.down.on.square") {
-                loadInto = selectedNames.first
+            // container 1.7 dropped `load-image`; clusters created with the shared image store need none.
+            if capabilities.supportsLoadImage {
+                ToolbarActionButton("Load Image", systemImage: "square.and.arrow.down.on.square") {
+                    loadInto = selectedNames.first
+                }
+                .disabled(selectedNames.count != 1)
             }
-            .disabled(selectedNames.count != 1)
             ToolbarActionButton("Copy Context", systemImage: "doc.on.doc") {
                 if let n = selectedNames.first { copyToPasteboard(KubectlCommands.context(n)) }
             }
@@ -211,15 +232,28 @@ struct ClusterRow: Identifiable, Hashable {
 
     var title: String { node?.name ?? cluster.name }
     var isRunning: Bool { node.map { $0.state == .running } ?? cluster.isRunning }
-    var stateLabel: String {
-        if let node { return node.state.displayName }
-        if cluster.nodes.isEmpty { return "Unknown" }
-        return cluster.isRunning ? "Running" : "Stopped"
+    /// Green when everything is up, orange for a degraded cluster (some nodes down), grey otherwise.
+    var tint: Color {
+        if let node { return node.state == .running ? .statusRunning : .statusStopped }
+        return cluster.state.tint
     }
+    /// A node's state, or the cluster's: `Running`, `Stopped`, `Unknown`, `Degraded (2 of 3 up)`.
+    var stateLabel: String { node?.state.displayName ?? cluster.stateTitle }
     var cpus: Int { node?.cpus ?? cluster.nodes.reduce(0) { $0 + $1.cpus } }
     var memoryMB: Int64 { node?.memoryMB ?? cluster.nodes.reduce(0) { $0 + $1.memoryMB } }
     var address: String? {
         node?.address ?? cluster.nodes.first { $0.role.contains("control") }?.address ?? cluster.nodes.first?.address
+    }
+}
+
+extension KubernetesClusterState {
+    /// Status colour: green running, orange degraded, grey stopped or unknown.
+    var tint: Color {
+        switch self {
+        case .running: return .statusRunning
+        case .degraded: return .statusWarning
+        case .stopped, .unknown: return .statusStopped
+        }
     }
 }
 

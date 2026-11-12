@@ -2,7 +2,8 @@ import Foundation
 import os
 
 /// Backend that drives the `container` CLI (`/usr/local/bin/container`), using `--format json` wherever the
-/// CLI offers it and parsing tables elsewhere. It keeps no state; stores cache.
+/// CLI offers it and parsing tables elsewhere. It keeps no resource state (stores cache); it only remembers what
+/// the Kubernetes plugin supports and which containers are cluster nodes.
 ///
 /// Operations live in per-area extensions (`CLIBackend+Containers.swift`, `+Images`, …). Every command goes
 /// through the injected `CommandRunning`, so tests can record the exact argv.
@@ -16,6 +17,14 @@ public actor CLIBackend: ContainerBackend {
     public let runner: any CommandRunning
     /// Explicit `config.toml` location; `nil` means `$CONTAINER_CONFIG_PATH` or `~/.config/container/config.toml`.
     public let configPath: String?
+    /// Cached answer of the `container commit --help` probe (`supportsCommit()`); `nil` until it is known.
+    var commitSupport: Bool?
+
+    /// Kubernetes plugin capabilities read from `--help`, with the fingerprint of the binary they came from
+    /// (see `CLIBackend+Kubernetes.swift`). The only things this backend remembers between calls, with `clusterNodes`.
+    var kubernetesCache: (capabilities: KubernetesCapabilities, fingerprint: String)?
+    /// Node containers of the clusters last listed (see `CLIBackend+ClusterNodes.swift`).
+    var clusterNodes = ClusterNodeIndex()
 
     /// Default timeout for quick, read-only commands (`ls`, `inspect`, …).
     static let queryTimeout: Duration = .seconds(60)

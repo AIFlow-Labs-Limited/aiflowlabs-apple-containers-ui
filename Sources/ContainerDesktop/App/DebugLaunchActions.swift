@@ -7,7 +7,8 @@
     /// `CONTAINER_DESKTOP_DEBUG_OPEN=palette,section=images swift run ContainerDesktop`.
     /// Tokens: `palette`, `settings`, `activity`, `terminal`, `cleanup`, `stopped`, `toasts`, `pull`, `section=<name>`,
     /// `select=<id>` (deep-link selection in the current section), `build-sheet` (opens the Build sheet),
-    /// `resources-selftest` (pull/tag/delete + volume/network create/delete through the stores; prints results).
+    /// `resources-selftest` (pull/tag/delete + volume/network create/delete through the stores; prints results),
+    /// `compose` (opens the Import Compose File sheet on a sample project).
     /// platform: `machine-create`, `machine-select`, `cluster-create`, `cluster-select`, `registry-login`, `k8s-demo`, `machine-demo`.
     ///
     /// Tokens that change engine state (`stopped`, `pull`, `*-demo`, `resources-selftest`, `e2e-*`) only run against the
@@ -87,6 +88,9 @@
                     spec.cpus = 4
                     spec.memory = MemorySize(bytes: 8 << 30)
                     await model.machines.create(spec).wait()
+                case "compose":
+                    // The Import Compose File sheet on a sample project (preview only; Run is the user's click).
+                    model.composeRequests.request(ComposePreviewSample.url())
                 case "machine-create", "machine-select", "cluster-create", "cluster-select", "registry-login":
                     // Platform sheets/selection (features-platform); the views pick these up.
                     DebugPlatformHooks.request(token)

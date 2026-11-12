@@ -33,6 +33,7 @@ launch() {  # launch <appearance> <tokens> [args…] → pid
     local ap=$1 tok=$2; shift 2
     python3 "$HERE/seed-builds.py"
     CFFIXED_USER_HOME="$DEMO_HOME" CONTAINER_DESKTOP_BACKEND=mock CONTAINER_DESKTOP_DEBUG_OPEN="$tok" \
+        CONTAINER_DESKTOP_COMPOSE_SAMPLE_DIR="$DEMO_HOME/src/shop" \
         "$APP" -appearance "$ap" -ApplePersistenceIgnoreState YES "$@" >"$TMP/app.log" 2>&1 &
     local pid=$!
     disown

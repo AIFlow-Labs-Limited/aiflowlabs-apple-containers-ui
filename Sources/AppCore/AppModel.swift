@@ -28,6 +28,12 @@ public final class AppModel {
     public let palette = CommandPalette()
     /// "Run" hand-off from Images/Builds to the Containers run sheet.
     public let runRequests = RunRequests()
+    /// App and runtime update checks (GitHub releases); see `AppModel+Updates.swift`.
+    public let updates: UpdateChecker
+    /// "Import Compose File…" hand-off from menus, palette, toolbar and drag-and-drop to the window's sheet.
+    public let composeRequests = ComposeImportRequests()
+    /// Restart policies, enforced by the app because the runtime has none.
+    public let restarts: RestartSupervisor
 
     // Stores are created once and survive backend swaps (they talk to `switchable`), so views' `.task`
     // polling clients stay attached. `storesGeneration` therefore never changes; it exists so views may key
@@ -48,6 +54,9 @@ public final class AppModel {
     /// Engine probe while the app is in the background. `system status` is cheap, and at 30 s an engine started or
     /// stopped from Terminal took ~31 s to show up (PRD: lists recover within 30 s).
     public static let engineBackgroundPollInterval: Duration = .seconds(10)
+    /// Containers poll while no window shows them and restart policies are enforced: a crashed container should
+    /// not wait half a minute to be noticed.
+    public static let supervisedBackgroundPollInterval: Duration = .seconds(10)
 
     /// What every store talks to; forwards to `backend` and is re-pointed by `replaceBackend`.
     @ObservationIgnored private let switchable: SwitchableBackend
@@ -60,10 +69,13 @@ public final class AppModel {
         await self?.refreshEngine()
     }
     @ObservationIgnored private var didBootstrap = false
+    /// The engine has been seen stopped (or not seen at all yet) since it last ran.
+    @ObservationIgnored private var engineWasDown = true
 
     public init(
         backend: any ContainerBackend, settings: SettingsStore = SettingsStore(),
-        buildsHistoryURL: URL = BuildsStore.defaultHistoryURL, observeAppActivation: Bool = true
+        buildsHistoryURL: URL = BuildsStore.defaultHistoryURL, observeAppActivation: Bool = true,
+        updates: UpdateChecker? = nil, supervision: SupervisionSharing? = nil
     ) {
         let gate = PollingGate(interval: .seconds(settings.pollingInterval))
         let tasks = TaskCenter()
@@ -71,8 +83,13 @@ public final class AppModel {
         self.settings = settings
         self.gate = gate
         self.taskCenter = tasks
+        self.updates = updates ?? UpdateChecker(settings: settings, defaults: settings.defaults)
         let switchable = SwitchableBackend(backend)
         self.switchable = switchable
+        restarts = RestartSupervisor(
+            isEnabled: settings.restartPoliciesEnabled, defaults: settings.defaults, state: supervision?.state,
+            claim: { supervision?.claim.hold() ?? true }, taskCenter: tasks
+        ) { try await switchable.startContainer($0) }
         (containers, images, volumes, networks, builds, machines, clusters, registries, system) =
             Self.makeStores(backend: switchable, gate: gate, tasks: tasks, historyURL: buildsHistoryURL)
         configureStores()
@@ -89,7 +106,10 @@ public final class AppModel {
         selection: BackendSelection = .fromEnvironment, mock: () -> any ContainerBackend,
         settings: SettingsStore = SettingsStore()
     ) -> AppModel {
-        AppModel(backend: makeBackend(selection: selection, mock: mock), settings: settings)
+        // Only the real engine is shared with the background helper; a mock run keeps to itself.
+        AppModel(
+            backend: makeBackend(selection: selection, mock: mock), settings: settings,
+            supervision: selection == .cli ? .app(adopting: settings.defaults) : nil)
     }
 
     static func makeBackend(selection: BackendSelection, mock: () -> any ContainerBackend) -> any ContainerBackend {
@@ -115,7 +135,6 @@ public final class AppModel {
         if case .stopped = engine, settings.startEngineOnLaunch { await startEngine() }
         enginePoller.backgroundInterval = Self.engineBackgroundPollInterval
         enginePoller.start(interval: .seconds(5))
-        containers.poller.backgroundInterval = Self.backgroundPollInterval
         updateBackgroundPolling()
         notificationsWereEnabled = settings.notificationsEnabled
         if settings.notificationsEnabled { Task { await requestNotificationPermission() } }
@@ -129,7 +148,11 @@ public final class AppModel {
     /// Keeps an AppModel-owned background client on the containers poller while the menu bar or notifications
     /// need fresh data (window closed / app inactive). Called on bootstrap and when those settings change.
     public func updateBackgroundPolling() {
-        let wanted = settings.menuBarEnabled || settings.notificationsEnabled
+        let supervising = settings.restartPoliciesEnabled
+        restarts.isEnabled = supervising
+        containers.poller.backgroundInterval =
+            supervising ? Self.supervisedBackgroundPollInterval : Self.backgroundPollInterval
+        let wanted = settings.menuBarEnabled || settings.notificationsEnabled || supervising
         guard wanted != backgroundPolling else { return }
         backgroundPolling = wanted
         if wanted { containers.poller.startBackground() } else { containers.poller.stopBackground() }
@@ -193,6 +216,8 @@ public final class AppModel {
     public func stopEngine() async {
         guard !engineBusy else { return }
         engineBusy = true
+        // The engine takes its containers down with it; that is not a crash to recover from.
+        restarts.engineWillStop()
         do {
             try await backend.systemStop()
             engineBusy = false
@@ -200,6 +225,7 @@ public final class AppModel {
             toasts.info("Container system stopped")
         } catch {
             engineBusy = false
+            restarts.engineStopFailed()
             let wrapped = BackendError(wrapping: error)
             record(wrapped)
             toasts.error("Could not stop the container system", message: wrapped.errorDescription)
@@ -209,8 +235,18 @@ public final class AppModel {
 
     private func setEngine(_ state: EngineState) {
         let wasRunning = engine.isRunning
+        // A different CLI version (upgraded while the app runs) may have gained or renamed the Kubernetes plugin.
+        if let version = state.version, version != engine.version { clusters.invalidateAvailability() }
         if engine != state { engine = state }
         gate.engineRunning = state.isRunning
+        // Coming up (launch, Start button, started from the CLI, after a reboot) is when `always` containers start.
+        // Only a real start counts: after a status hiccup (`.error`) supervision just carries on.
+        switch state {
+        case .running: if engineWasDown { restarts.engineCameUp() } else { restarts.resume() }
+        case .error: restarts.engineWentDown()
+        default: restarts.engineWentDown(); engineWasDown = true
+        }
+        if state.isRunning { engineWasDown = false }
         // Engine came up (launch, Start button, or started from the CLI): load every section once.
         if state.isRunning && !wasRunning { Task { await refreshAll() } }
     }
@@ -288,6 +324,13 @@ public final class AppModel {
     private func configureStores() {
         containers.showStopped = settings.showStoppedContainers
         containers.hideSystemManaged = settings.hideSystemContainers
+        containers.restartSupervisor = restarts
+        restarts.onGiveUp = { [weak self] id, attempts in
+            self?.toasts.error(
+                "\(id) is not restarted again",
+                message: "It stopped again after \(attempts) restart\(attempts == 1 ? "" : "s"), the limit of its "
+                    + "on-failure policy. Start it yourself once the cause is fixed.")
+        }
         containers.onUnexpectedExit = { [weak self] c in
             guard let self else { return }
             self.toasts.error("\(c.id) exited", message: c.imageReference)

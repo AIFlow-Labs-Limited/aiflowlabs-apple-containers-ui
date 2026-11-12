@@ -113,12 +113,19 @@ struct ContainerActions {
 
     func openFirstPort(_ c: Container) { if let p = c.configuration.publishedPorts.first { openInBrowser(p) } }
 
+    // MARK: Files / images
+
+    func browseFiles(_ id: String) { ui.open(id, tab: .files) }
+
+    /// Opens "Save as Image…" (`container commit`, Apple container 1.6+).
+    func saveAsImage(_ c: Container) { ui.commitRequest = CommitSheetRequest(container: c) }
+
     // MARK: Export
 
     /// Asks for a destination, then runs `exportContainer` as an Activity task.
     func export(_ c: Container) {
         let panel = NSSavePanel()
-        panel.title = "Export “\(c.id)”"
+        panel.title = "Export the filesystem of “\(c.id)”"
         panel.nameFieldStringValue = "\(c.id).tar"
         panel.allowedContentTypes = [UTType(filenameExtension: "tar") ?? .data]
         panel.canCreateDirectories = true
@@ -127,11 +134,12 @@ struct ContainerActions {
         let id = c.id
         let path = url.path
         model.taskCenter.run(
-            title: "Export \(id)", kind: .other,
-            stream: .single {
-                try await backend.exportContainer(id, to: path)
-                return "Exported \(id) to \(path)"
-            })
+            title: "Export filesystem of \(id)",
+            steps: [
+                TaskStep("Exporting the filesystem of \(id) to \(path) (large containers take a while)") {
+                    try await backend.exportContainer(id, to: path)
+                }
+            ], summary: "Exported \(id) to \(path)")
     }
 }
 
@@ -177,6 +185,7 @@ struct ContainerMenuItems: View {
             Button("Open Terminal", systemImage: "terminal") { actions.openTerminal(c.id) }
                 .disabled(!c.isRunning)
             Button("View Logs", systemImage: "text.alignleft") { actions.viewLogs(c.id) }
+            Button("Browse Files", systemImage: "folder") { actions.browseFiles(c.id) }
             if let port = c.configuration.publishedPorts.first, let url = port.hostURL {
                 Button("Open \(url.absoluteString)", systemImage: "safari") { actions.openInBrowser(port) }
             }
@@ -186,7 +195,14 @@ struct ContainerMenuItems: View {
             Button("Copy “container run” Command") { actions.copyRunCommand(c) }
             Button("Run Similar…") { actions.runSimilar(c) }
             Divider()
-            Button("Export…", systemImage: "square.and.arrow.up") { actions.export(c) }
+            Button("Export Filesystem…", systemImage: "square.and.arrow.up") { actions.export(c) }
+            Button(
+                actions.ui.commitSupported == false
+                    ? "Save as Image… (Requires container 1.6 or later)" : "Save as Image…",
+                systemImage: "photo.badge.plus"
+            ) { actions.saveAsImage(c) }
+            .disabled(actions.ui.commitSupported != true)
+            .help("Create a new image from this container's filesystem (container commit)")
         }
         Divider()
         Button(

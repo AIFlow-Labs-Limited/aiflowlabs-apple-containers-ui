@@ -1,0 +1,50 @@
+[
+  {
+    "configuration": {
+      "cni": null,
+      "creationDate": "2026-11-12T05:23:50Z",
+      "fqdn": "cd-it-v17-k8s.test",
+      "kubernetesVersion": "v1.35.5",
+      "labels": {},
+      "name": "cd-it-v17-k8s",
+      "nodes": [
+        {
+          "kind": "linux",
+          "name": "cd-it-v17-k8s",
+          "roles": [
+            "control-plane"
+          ]
+        },
+        {
+          "kind": "linux",
+          "name": "cd-it-v17-k8s-worker-1",
+          "roles": [
+            "worker"
+          ]
+        }
+      ],
+      "remove": false,
+      "sharedImageStore": false
+    },
+    "id": "cd-it-v17-k8s",
+    "status": {
+      "nodes": [
+        {
+          "addresses": [
+            "192.168.64.88"
+          ],
+          "name": "cd-it-v17-k8s",
+          "status": "running"
+        },
+        {
+          "addresses": [
+            "192.168.64.89"
+          ],
+          "name": "cd-it-v17-k8s-worker-1",
+          "status": "running"
+        }
+      ],
+      "state": "running"
+    }
+  }
+]

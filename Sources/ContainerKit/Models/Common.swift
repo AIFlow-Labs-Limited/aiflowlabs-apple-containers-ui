@@ -58,9 +58,13 @@ public enum ResourceLabel {
     }
 }
 
-/// Label this app attaches to resources it creates (compose-style grouping).
+/// Labels this app attaches to resources it creates.
 public enum AppLabel {
+    /// Compose-style grouping: the project a container, volume or network belongs to.
     public static let project = "io.aiflowlabs.containerdesktop.project"
+    /// Restart policy enforced by the app (`always`, `unless-stopped`, `on-failure`, `on-failure:5`); see
+    /// `RestartPolicy`.
+    public static let restart = "io.aiflowlabs.containerdesktop.restart"
 }
 
 /// Memory size strings as accepted by the CLI (`512m`, `4g`, `2048mb`). Binary units.

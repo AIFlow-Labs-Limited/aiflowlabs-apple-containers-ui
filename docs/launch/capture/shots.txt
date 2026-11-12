@@ -19,3 +19,6 @@ settings-network|settings|4|Network|-settings.selectedTab network
 command-palette|palette|4||
 activity|pull,activity|6|Activity|
 cleanup|cleanup|4||
+container-files|section=containers,select=api,tab=files,files=/app,expand=/app/docs|6||
+compose-import|section=containers,compose|6||
+settings-updates|settings|5|Updates|-settings.selectedTab updates

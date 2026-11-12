@@ -1,0 +1,38 @@
+OVERVIEW: Create and start a local Kubernetes cluster and optional worker nodes
+
+--cpus and --memory size the control-plane node, or the single node if no
+workers are specified (default 1/4 of host CPUs and memory, minimum 2 CPUs and
+2g). Size workers with --workers count=<n>,cpus=<n>,memory=<size>; a group's
+count defaults to 1, and cpus and memory left out default to the single-node
+sizes: 1/4 of host CPUs and memory (minimum 2 CPUs and 2g).
+
+USAGE: cluster create [--name <name>] [--rm] [--cpus <cpus>] [--memory <memory>] [--scheme <scheme>] [--max-concurrent-downloads <max-concurrent-downloads>] [--node-image <node-image>] [--cni <cni>] [--workers <workers> ...] [--shared-image-store]
+
+RESOURCE OPTIONS:
+  -c, --cpus <cpus>       Number of CPUs to allocate to the container
+  -m, --memory <memory>   Amount of memory (1MiByte granularity), with optional
+                          K, M, G, T, or P suffix
+
+REGISTRY OPTIONS:
+  --scheme <scheme>       Scheme to use when connecting to the container
+                          registry. One of (http, https) (default: https)
+
+IMAGE FETCH OPTIONS:
+  --max-concurrent-downloads <max-concurrent-downloads>
+                          Maximum number of concurrent downloads (default: 3)
+
+OPTIONS:
+  --name <name>           Cluster name (default: cluster-dev)
+  --rm, --remove          Remove the cluster container after it stops
+  --node-image <node-image>
+                          Node image reference (default:
+                          docker.io/kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95)
+  --cni <cni>             Optional path to a CNI manifest to apply, or "NONE"
+                          to skip installing a CNI.
+  --workers <workers>     Worker nodes to create: a number, or
+                          count=<n>,cpus=<n>,memory=<size> (repeat for groups
+                          of differently sized workers)
+  --shared-image-store    Let nodes pull images from the local image store
+  --version               Show the version.
+  -h, --help              Show help information.
+

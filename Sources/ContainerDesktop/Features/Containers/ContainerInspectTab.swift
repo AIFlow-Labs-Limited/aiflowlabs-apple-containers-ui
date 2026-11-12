@@ -7,6 +7,7 @@ import SwiftUI
 /// Inspect tab: key facts grid on top, collapsible JSON tree of the full `Container`, Copy JSON.
 struct ContainerInspectTab: View {
     let container: Container
+    @Environment(AppModel.self) private var model
     @State private var showJSON = true
     @State private var showSecrets = false
 
@@ -23,7 +24,7 @@ struct ContainerInspectTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
-                KeyValueGrid(Self.keyFacts(container))
+                KeyValueGrid(Self.keyFacts(container) + Self.restartFacts(container, supervisor: model.restarts))
                     .padding(Spacing.l)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -74,6 +75,44 @@ struct ContainerInspectTab: View {
         return (try? encoder.encode(container)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
     }
 
+    /// The restart policy and what the app has done about it. Empty for a container without a policy.
+    @MainActor
+    static func restartFacts(_ c: Container, supervisor: RestartSupervisor) -> [(String, String)] {
+        let policy = c.restartPolicy
+        guard policy.isEnforced else {
+            return [("Restart policy", "None. It can only be chosen when a container is created.")]
+        }
+        var facts = [
+            (
+                "Restart policy",
+                "\(policy.rawValue) — \(policy.summary) Enforced by Container Desktop while it is running"
+                    + (supervisor.isEnabled ? "" : " (switched off in Settings › General)")
+                    + "; fixed when the container was created."
+            )
+        ]
+        if supervisor.isStandingDown {
+            let stopped = supervisor.isIntentionallyStopped(c.id) && !c.isRunning
+            facts.append(
+                (
+                    "Restarts",
+                    "Made by the background helper (Settings › General), which does not report a count here"
+                        + (stopped ? " · stopped from the app, so it stays stopped" : "")
+                ))
+            return facts
+        }
+        let status = supervisor.status(for: c.id) ?? RestartSupervisor.Status()
+        var restarts = "\(status.restartCount) since Container Desktop was opened"
+        if supervisor.isIntentionallyStopped(c.id) && !c.isRunning {
+            restarts += " · stopped from the app, so it stays stopped"
+        } else if status.gaveUp {
+            restarts += " · gave up after \(status.consecutiveAttempts) attempts in a row"
+        } else if let next = status.nextAttempt {
+            restarts += " · next attempt \(RelativeDate.format(next))"
+        }
+        facts.append(("Restarts", restarts))
+        return facts
+    }
+
     static func keyFacts(_ c: Container) -> [(String, String)] {
         let cfg = c.configuration
         let process = cfg.initProcess
@@ -120,5 +159,6 @@ struct ContainerInspectTab: View {
                     reference: "alpine", descriptor: Descriptor(digest: "sha256:ab", mediaType: "x", size: 1)),
                 creationDate: .now, initProcess: .init(executable: "sh")))
     ContainerInspectTab(container: c)
+        .appModelEnvironment(AppModel(backend: MockBackend(), observeAppActivation: false))
         .frame(width: 900, height: 480)
 }

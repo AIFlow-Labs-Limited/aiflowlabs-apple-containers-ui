@@ -1,0 +1,12 @@
+OVERVIEW: Clean one or more running containers
+
+USAGE: container clean [--debug] [<container-ids> ...]
+
+ARGUMENTS:
+  <container-ids>         Container IDs
+
+OPTIONS:
+  --debug                 Enable debug output [environment: CONTAINER_DEBUG]
+  --version               Show the version.
+  -h, --help              Show help information.
+

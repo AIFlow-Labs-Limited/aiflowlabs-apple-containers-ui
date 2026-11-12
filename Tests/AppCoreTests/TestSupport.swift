@@ -18,6 +18,10 @@ enum TestSupport {
             path: "builds.json")
     }
 
+    /// Whether the background helper macOS runs for the installed app is alive. It enforces restart policies on
+    /// every container of the real engine, also the ones integration tests create.
+    static var backgroundHelperIsRunning: Bool { FileLock.isLockedElsewhere(SupervisionPaths.standard.helperLock) }
+
     static func model(_ backend: any ContainerBackend = MockBackend()) -> AppModel {
         AppModel(
             backend: backend, settings: SettingsStore(defaults: defaults()), buildsHistoryURL: historyURL(),
@@ -109,4 +113,21 @@ struct FailingBackend: ContainerBackend {
     ) -> LineStream { fail() }
 
     private func fail() -> LineStream { let e = error; return AsyncThrowingStream { $0.finish(throwing: e) } }
+}
+
+extension FailingBackend {
+    func listDirectory(_ id: String, path: String, limit: Int) async throws -> ContainerDirectoryListing {
+        throw error
+    }
+    func readFile(_ id: String, path: String, maxBytes: Int) async throws -> Data { throw error }
+    func makeDirectory(_ id: String, path: String) async throws { throw error }
+    func moveItem(_ id: String, from source: String, to destination: String) async throws { throw error }
+    func deleteItem(_ id: String, path: String) async throws { throw error }
+    func copyOut(_ id: String, path: String, to localPath: String) async throws { throw error }
+    func copyIn(_ id: String, localPath: String, to path: String) async throws { throw error }
+    func supportsCommit() async -> Bool { false }
+    func commitContainer(_ id: String, reference: String) -> LineStream {
+        let e = error
+        return AsyncThrowingStream { $0.finish(throwing: e) }
+    }
 }

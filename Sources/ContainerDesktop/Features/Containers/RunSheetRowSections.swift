@@ -28,6 +28,7 @@ struct RunPortsSection: View {
                     }
                     .labelsHidden()
                     .fixedSize()
+                    .accessibilityLabel("Protocol")
                     Spacer()
                     RemoveRowButton(label: "Remove port") { form.ports.removeAll { $0.id == row.id } }
                 }
@@ -70,6 +71,7 @@ struct RunVolumesSection: View {
                     }
                     .labelsHidden()
                     .fixedSize()
+                    .accessibilityLabel("Mount type")
                     switch row.kind {
                     case .bind:
                         TextField("Host folder", text: $row.source, prompt: Text("~/project"))

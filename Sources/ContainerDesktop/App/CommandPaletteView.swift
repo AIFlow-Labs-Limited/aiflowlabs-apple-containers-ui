@@ -87,6 +87,11 @@ struct CommandPaletteView: View {
         case .openActivity: openWindow(id: SceneID.activity)
         case .refresh: Task { if let s = model.navigation.section { await model.refresh(s) } }
         case .toggleTerminal: model.navigation.isTerminalOpen.toggle()
+        case .importCompose:
+            // After the palette sheet has gone, so the import sheet can attach to the window.
+            Task {
+                try? await Task.sleep(for: .milliseconds(250)); model.composeRequests.request()
+            }
         }
     }
 }

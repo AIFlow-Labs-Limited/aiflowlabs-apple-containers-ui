@@ -1,0 +1,112 @@
+[
+  {
+    "configuration": {
+      "capAdd": [
+        "ALL"
+      ],
+      "capDrop": [],
+      "creationDate": "2026-11-12T05:09:41Z",
+      "dns": {
+        "nameservers": [],
+        "options": [],
+        "searchDomains": []
+      },
+      "id": "buildkit",
+      "image": {
+        "descriptor": {
+          "digest": "sha256:ce2b82ea93134c193ee61dfe2b1b630fef23b517ce788c81d065b8843daaade7",
+          "mediaType": "application/vnd.oci.image.index.v1+json",
+          "size": 856
+        },
+        "reference": "ghcr.io/apple/container-builder-shim/builder:0.13.3"
+      },
+      "initProcess": {
+        "arguments": [
+          "--debug",
+          "--vsock"
+        ],
+        "environment": [
+          "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "BUILDKIT_SETUP_CGROUPV2_ROOT=1",
+          "NO_COLOR=true"
+        ],
+        "executable": "/usr/local/bin/container-builder-shim",
+        "rlimits": [],
+        "supplementalGroups": [],
+        "terminal": false,
+        "user": {
+          "id": {
+            "gid": 0,
+            "uid": 0
+          }
+        },
+        "workingDirectory": "/"
+      },
+      "labels": {
+        "com.apple.container.plugin": "builder",
+        "com.apple.container.resource.role": "builder"
+      },
+      "mounts": [
+        {
+          "destination": "/run",
+          "options": [],
+          "source": "",
+          "type": {
+            "tmpfs": {}
+          }
+        },
+        {
+          "destination": "/var/lib/container-builder-shim/exports",
+          "options": [],
+          "source": "/Users/ilessio/Library/Application Support/com.apple.container/builder/",
+          "type": {
+            "virtiofs": {}
+          }
+        }
+      ],
+      "networks": [
+        {
+          "network": "default",
+          "options": {
+            "hostname": "buildkit"
+          }
+        }
+      ],
+      "platform": {
+        "architecture": "arm64",
+        "os": "linux",
+        "variant": "v8"
+      },
+      "publishedPorts": [],
+      "publishedSockets": [],
+      "readOnly": false,
+      "resources": {
+        "cpuOverhead": 1,
+        "cpus": 2,
+        "memoryInBytes": 2147483648
+      },
+      "rosetta": true,
+      "runtimeHandler": "container-runtime-linux",
+      "ssh": false,
+      "sysctls": {},
+      "useInit": false,
+      "virtualization": false
+    },
+    "id": "buildkit",
+    "status": {
+      "networks": [
+        {
+          "hostname": "buildkit",
+          "ipv4Address": "192.168.64.38/24",
+          "ipv4Gateway": "192.168.64.1",
+          "ipv6Address": "fd39:2018:8755:87f8:f4dd:bff:fef4:1df0/64",
+          "macAddress": "f6:dd:0b:f4:1d:f0",
+          "network": "default",
+          "variant": "reserved"
+        }
+      ],
+      "startedDate": "2026-11-12T05:09:42Z",
+      "state": "running"
+    }
+  }
+]

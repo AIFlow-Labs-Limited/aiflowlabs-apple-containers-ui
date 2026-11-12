@@ -24,7 +24,7 @@ Never run `container` commands that delete/prune real user resources from tests;
    Backends are actors or `Sendable` structs.
 3. **Models mirror CLI JSON field names** (`configuration.id`, `status.state`, …). Add derived helpers as
    computed properties, never rename decoded fields. Unknown enum strings decode to `.unknown`, never throw.
-4. **Fixtures are truth.** `Sources/ContainerKitMock/Resources/cli-1.5.0/*.json` were recorded from CLI 1.5.0.
+4. **Fixtures are truth.** `Sources/ContainerKitMock/Resources/cli-1.5.0/` and `cli-1.7.1/` were recorded from those CLIs.
    New decoders get a test against a fixture. Re-record with `scripts/record-fixtures.sh`.
 5. **Docker Desktop parity in layout and vocabulary** (sidebar: Containers · Images · Volumes · Networks ·
    Builds · Machines · Kubernetes · Registries; container tabs: Logs · Inspect · Terminal · Stats · Mounts · Ports),
@@ -55,6 +55,7 @@ Never run `container` commands that delete/prune real user resources from tests;
 | `Sources/ContainerDesktop/Features/Containers/**` | features-containers |
 | `Sources/ContainerDesktop/Features/{Images,Volumes,Networks,Builds}/**` | features-resources |
 | `Sources/ContainerDesktop/Features/{Machines,Kubernetes,Registries}/**` | features-platform |
+| `Sources/ContainerKit/Compose/**`, `Sources/AppCore/Compose/**`, `Sources/ContainerDesktop/Features/Compose/**`, `docs/COMPOSE.md` | compose (compose-file import) |
 | `Makefile`, `scripts/**`, `.github/**`, `Resources/**`, `README.md`, `docs/release/**` | packaging |
 
 Touch another stream's files only to fix a compile break, and say so in the commit message.

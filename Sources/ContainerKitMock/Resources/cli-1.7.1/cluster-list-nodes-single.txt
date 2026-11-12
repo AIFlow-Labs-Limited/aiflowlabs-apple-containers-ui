@@ -1,0 +1,2 @@
+CLUSTER       NODE          ROLE                  STATE    CPUS  MEMORY  ADDR           PORTS
+cd-it-v17-rm  cd-it-v17-rm  control-plane,worker  running  2     2 GB    192.168.64.95  

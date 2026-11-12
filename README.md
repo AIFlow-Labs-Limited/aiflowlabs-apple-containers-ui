@@ -23,6 +23,7 @@
 <p align="center">
   <a href="#install">Install</a> ·
   <a href="#what-you-get">Features</a> ·
+  <a href="#new-in-v02">New in v0.2</a> ·
   <a href="#demo">Demo</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#roadmap">Roadmap</a>
@@ -41,8 +42,9 @@ Container Desktop is that window. It keeps Docker Desktop's layout and vocabular
 re-learn, behaves like a Mac app (SF Symbols, native tables, Settings, a menu bar extra, light and dark), and exposes
 what only Apple's runtime has: container machines, DNS domains, Rosetta for `amd64` images and local Kubernetes.
 
-> **Status: v0.1, pre-1.0.** It works against `container` 1.5. Expect rough edges until 1.0, and builds that are
-> not notarized yet (see [Install](#install)).
+> **Status: v0.2, pre-1.0.** It works with `container` 1.5.0 through 1.7.1 (see
+> [compatibility](docs/COMPATIBILITY.md)). Expect rough edges until 1.0, and builds that are not notarized yet
+> (see [Install](#install)).
 
 ## What you get
 
@@ -159,6 +161,46 @@ running count, CPU, RAM and disk usage, a **Clean up** sheet that names what it 
 Docker Hub, GHCR and others (passwords go to the CLI over stdin only), and `linux/amd64` runs and builds through
 Rosetta next to native `arm64`. More screens: [`docs/screenshots/`](docs/screenshots/).
 
+## New in v0.2
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/compose-import-dark.png">
+        <img src="docs/screenshots/compose-import-light.png" alt="The Import Compose File sheet showing services, hostnames, variables and differences from Docker Compose">
+      </picture>
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/container-files-dark.png">
+        <img src="docs/screenshots/container-files-light.png" alt="The Files tab browsing a running container's /app folder">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+- **Import Compose File.** Open a `compose.yaml` or `docker-compose.yml` (File menu, ⇧⌘O, the Containers toolbar,
+  ⌘K, or drop it on the window). The app shows the services, volumes and networks it found, lists the exact
+  `container` commands it will run, and names everything Apple's runtime cannot do instead of dropping it
+  silently. The stack then appears as a project group with Start All, Stop All and Delete All.
+  Supported keys and limits: [docs/COMPOSE.md](docs/COMPOSE.md).
+- **Restart policies and health checks.** Always, Unless stopped and On failure for any container, and compose
+  services that wait for a healthy dependency. Apple's runtime has neither, so Container Desktop enforces them
+  while it is running (the window can be closed). An optional background helper (Settings › General) keeps
+  restart policies enforced after you quit the app.
+- **Files tab** on every container: browse a running container's filesystem, save files and folders to your Mac,
+  upload by file picker or drag from Finder, preview text, Quick Look the rest, rename, delete (with confirmation)
+  and export the whole filesystem as a tar.
+- **Save as Image…** turns a container into an image (`container commit`, needs `container` 1.6 or later).
+- **Updates.** The app tells you when a newer Container Desktop or a newer Apple runtime exists, in the status bar
+  and in **Settings → Updates**. It checks github.com once a day, sends nothing about you, installs nothing by
+  itself, and can be turned off.
+- **Runtime 1.6 and 1.7.** Kubernetes follows Apple's rename from `container k8s` to `container cluster`, with
+  worker nodes and the shared image store on runtimes that have them. The app asks the installed runtime what it
+  supports, so 1.5 keeps working.
+- **Easier install:** Homebrew cask and a one-line installer that verifies the download checksum.
+
 ## Demo
 
 <p align="center">
@@ -170,24 +212,103 @@ shell. A higher-quality [MP4](docs/launch/demo.mp4) is in the repo.
 
 ## Install
 
-**Requirements:** macOS 26 (Tahoe) on Apple silicon.
+**Requirements:** macOS 26 (Tahoe) or later on Apple silicon, and Apple's
+[`container`](https://github.com/apple/container) runtime 1.5.0 or later (tested up to 1.7.1). Container Desktop
+is a dashboard for that runtime; it does not include it.
 
-1. **Install Apple's `container` 1.5 or later** from
-   [github.com/apple/container/releases](https://github.com/apple/container/releases) and run
-   `container system start` once (or press **Start** in the app).
-2. **Download** `Container-Desktop-<version>-arm64.dmg` from
-   [Releases](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/releases), open it and drag
-   *Container Desktop* to *Applications*. Each release has a `.sha256` file to check the download against.
-3. **First launch.** Builds are ad-hoc signed and not notarized yet, so macOS blocks the first launch
-   (right-click → Open no longer bypasses this, and a quarantined ad-hoc app can be reported as "damaged"). Either
-   open the app once, then go to **System Settings → Privacy & Security** and click **Open Anyway**, or remove the
-   quarantine flag:
+### 1. Homebrew (recommended)
 
-   ```bash
-   xattr -dr com.apple.quarantine "/Applications/Container Desktop.app"
-   ```
+```bash
+brew install container                                            # Apple's runtime, if you do not have it yet
+brew install --cask AIFlow-Labs-Limited/tap/container-desktop
+```
 
-**Homebrew:** a cask is coming. Until then, use the DMG.
+### 2. One-line installer
+
+No Homebrew? This downloads the latest release, checks it against its published SHA-256 checksum and copies the
+app to `/Applications`. It does not use `sudo`, and it asks before replacing an existing copy.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/main/scripts/install.sh | bash
+```
+
+To see what it would do without changing anything, add `-s -- --dry-run` after `bash`. Other options:
+`--yes` (replace without asking), `--version X.Y.Z`, `--dir ~/Applications`. You can
+[read the script](scripts/install.sh) first.
+
+### 3. Download the DMG
+
+1. Download `Container-Desktop-<version>-arm64.dmg` from
+   [Releases](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/releases/latest), open it and
+   drag *Container Desktop* to *Applications*.
+2. Optional: each release has a `.sha256` file. With both files in the same folder,
+   `shasum -a 256 -c Container-Desktop-<version>-arm64.dmg.sha256` should print `OK`.
+
+### First launch
+
+Builds are ad-hoc signed and not notarized yet, so macOS blocks the first launch of a copy installed with
+Homebrew or from the DMG (right-click → Open no longer bypasses this, and a quarantined ad-hoc app can be
+reported as "damaged"). Either open the app once, then go to **System Settings → Privacy & Security** and click
+**Open Anyway**, or remove the quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Container Desktop.app"
+```
+
+A copy installed with the one-line installer normally opens without this step, because `curl` does not mark
+downloads as quarantined.
+
+### The runtime
+
+If Apple's runtime is missing, Container Desktop says so on launch and shows the way: install it with
+`brew install container` or with the signed installer from
+[apple/container releases](https://github.com/apple/container/releases/latest), press **Check Again**, then press
+**Start container system** (the app runs `container system start` for you).
+
+### Updating
+
+Container Desktop checks github.com once a day for a newer release of itself and of the runtime and shows a small
+"Update available" note in the status bar; details are in **Settings → Updates** (or **Container Desktop → Check
+for Updates…**). The check sends nothing about you or your containers, and you can turn it off there. The app
+never downloads or installs anything by itself.
+
+| Installed with | Update Container Desktop | Update the runtime |
+|---|---|---|
+| Homebrew | `brew upgrade --cask container-desktop` | `brew upgrade container` |
+| One-line installer | run the installer again (add `-s -- --yes` after `bash` to skip the question) | installer from [apple/container releases](https://github.com/apple/container/releases/latest) |
+| DMG | download the new DMG and replace the app in *Applications* | installer from [apple/container releases](https://github.com/apple/container/releases/latest) |
+
+Quit Container Desktop before replacing it; your containers keep running. Upgrading the **runtime** is different:
+running containers stop, so stop what matters first and start the container system again afterwards. Homebrew's
+`container` formula can be a few days behind Apple's release.
+
+### Uninstalling
+
+| Installed with | Remove the app | Also remove its settings and build history |
+|---|---|---|
+| Homebrew | `brew uninstall --cask container-desktop` | `brew uninstall --zap --cask container-desktop` |
+| Installer or DMG | quit the app, then move *Container Desktop* from *Applications* to the Trash | see below |
+
+If you switched on *Keep enforcing when Container Desktop is closed*, switch it off under Settings › General
+**before** you remove the app: that stops the background helper and deletes its LaunchAgent. If the app is
+already gone, or you uninstalled with Homebrew without `--zap`, remove the helper by hand (otherwise a
+LaunchAgent that points at the deleted app stays behind):
+
+```bash
+launchctl bootout gui/$(id -u)/io.aiflowlabs.containerdesktop.supervisor
+rm -f ~/Library/LaunchAgents/io.aiflowlabs.containerdesktop.supervisor.plist
+```
+
+Container Desktop keeps two more things outside the app, both small:
+
+```bash
+rm -rf ~/Library/Application\ Support/Container\ Desktop                 # build history, restart-policy state
+rm -f ~/Library/Preferences/io.aiflowlabs.containerdesktop.plist         # settings
+```
+
+Removing Container Desktop does not touch your containers, images or volumes: they belong to Apple's runtime.
+To remove the runtime as well, follow [apple/container](https://github.com/apple/container)'s instructions (or
+`brew uninstall container` if you installed it with Homebrew).
 
 ### Build from source
 
@@ -206,7 +327,7 @@ make dmg        # build/Container-Desktop-<version>-arm64.dmg
 ```
 SwiftUI views ─▶ @Observable stores (AppCore) ─▶ ContainerBackend protocol (ContainerKit)
                                                    ├─ CLIBackend   runs `container … --format json` (today)
-                                                   ├─ MockBackend  recorded CLI 1.5 fixtures (previews, tests)
+                                                   ├─ MockBackend  recorded CLI fixtures (previews, tests)
                                                    └─ XPC backend  talks to the container services directly (planned)
 ```
 
@@ -221,11 +342,14 @@ Details in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); scope in [`docs/PRD.m
 
 ## Roadmap
 
-- **v0.1 (this release):** the dashboard. Containers, Images, Volumes, Networks, Builds, Machines, Kubernetes,
-  Registries, engine control, settings, menu bar extra; ad-hoc signed DMG.
-- **v0.2:** compose-file import, a file browser inside containers, a signed and notarized DMG.
-- **v0.3:** XPC backend (no CLI round-trips), menu-bar-only mode.
+- **v0.1:** the dashboard. Containers, Images, Volumes, Networks, Builds, Machines, Kubernetes, Registries,
+  engine control, settings, menu bar extra; ad-hoc signed DMG.
+- **v0.2 (this release):** compose-file import, a file browser inside containers, Save as Image, update checks,
+  Homebrew cask and one-line installer, support for `container` 1.6 and 1.7.
+- **Next:** a signed and notarized DMG, XPC backend (no CLI round-trips), menu-bar-only mode.
 - **Later:** remote hosts.
+
+How this compares with Docker Desktop today, including what is still missing: [docs/COMPARISON.md](docs/COMPARISON.md).
 
 Ideas and votes are welcome in [Issues](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/issues).
 

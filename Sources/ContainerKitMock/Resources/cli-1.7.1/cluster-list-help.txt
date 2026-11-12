@@ -1,0 +1,13 @@
+OVERVIEW: List clusters
+
+USAGE: cluster list [--nodes] [--format <format>] [--quiet]
+
+OPTIONS:
+  --nodes                 Show information about the nodes on clusters
+  --format <format>       Format of the output (values: json, table, yaml,
+                          toml; default: table)
+  -q, --quiet             Only output the cluster name (the node name with
+                          --nodes)
+  --version               Show the version.
+  -h, --help              Show help information.
+

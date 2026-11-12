@@ -52,6 +52,16 @@ struct GeneralSettingsTab: View {
                     .onChange(of: settings.showStoppedContainers) {
                         model.containers.showStopped = settings.showStoppedContainers
                     }
+                Toggle("Enforce restart policies", isOn: $settings.restartPoliciesEnabled)
+                Text(
+                    "Containers created with a restart policy (Run sheet, or `restart:` in a compose file) are "
+                        + "started again by Container Desktop when they stop, and when the app or the container "
+                        + "system starts. Apple's runtime has no restart policies, so this only works while the app, "
+                        + "its menu bar item or the background helper below is running. Switching it on starts "
+                        + "stopped containers whose policy is “always”."
+                )
+                .font(.caption).foregroundStyle(.secondary)
+                BackgroundSupervisionRows()
                 Toggle("Hide system containers (builder, Kubernetes nodes)", isOn: $settings.hideSystemContainers)
                     .onChange(of: settings.hideSystemContainers) {
                         model.containers.hideSystemManaged = settings.hideSystemContainers
@@ -75,32 +85,14 @@ struct GeneralSettingsTab: View {
         }
         .formStyle(.grouped)
         // The user can approve or remove the login item in System Settings at any time.
-        .onAppear { model.settings.refreshLaunchAtLogin() }
+        .onAppear {
+            model.settings.refreshLaunchAtLogin()
+            model.settings.refreshBackgroundSupervision()
+        }
     }
 }
 
-struct UpdatesSettingsTab: View {
-    var body: some View {
-        Form {
-            Section("Container Desktop") {
-                LabeledContent("Installed version", value: Diagnostics.appVersion)
-                Link(
-                    destination: URL(
-                        string: "https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/releases")!
-                ) {
-                    Label("Check on GitHub", systemImage: "arrow.up.right.square")
-                }
-                Text("Automatic update checks arrive in a later release.").font(.caption).foregroundStyle(.secondary)
-            }
-            Section("container runtime") {
-                Link(destination: URL(string: "https://github.com/apple/container/releases")!) {
-                    Label("apple/container releases", systemImage: "arrow.up.right.square")
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
+// `UpdatesSettingsTab` lives in SettingsUpdatesTab.swift.
 
 struct AboutSettingsTab: View {
     @Environment(AppModel.self) private var model

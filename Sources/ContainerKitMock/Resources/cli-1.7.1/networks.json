@@ -1,0 +1,36 @@
+[
+  {
+    "configuration": {
+      "creationDate": "2026-11-12T05:15:22Z",
+      "labels": {},
+      "mode": "nat",
+      "name": "cd-it-v17-net",
+      "options": {},
+      "plugin": "container-network-vmnet"
+    },
+    "id": "cd-it-v17-net",
+    "status": {
+      "ipv4Gateway": "192.168.65.1",
+      "ipv4Subnet": "192.168.65.0/24",
+      "ipv6Subnet": "fd51:9a72:4851:bd9a::/64"
+    }
+  },
+  {
+    "configuration": {
+      "creationDate": "2026-11-12T05:07:51Z",
+      "labels": {
+        "com.apple.container.resource.role": "builtin"
+      },
+      "mode": "nat",
+      "name": "default",
+      "options": {},
+      "plugin": "container-network-vmnet"
+    },
+    "id": "default",
+    "status": {
+      "ipv4Gateway": "192.168.64.1",
+      "ipv4Subnet": "192.168.64.0/24",
+      "ipv6Subnet": "fd39:2018:8755:87f8::/64"
+    }
+  }
+]

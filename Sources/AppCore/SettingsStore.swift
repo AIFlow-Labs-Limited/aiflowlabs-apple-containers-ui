@@ -24,11 +24,14 @@ public final class SettingsStore {
         public static let pollingInterval = "pollingInterval"
         public static let notifications = "notificationsEnabled"
         public static let appearance = "appearance"
+        public static let automaticUpdateChecks = "automaticUpdateChecks"
+        public static let restartPoliciesEnabled = "restartPoliciesEnabled"
     }
 
     public static let pollingRange: ClosedRange<Double> = 1...10
 
-    @ObservationIgnored private let defaults: UserDefaults
+    /// Where preferences live; `UpdateChecker` keeps its throttle timestamp in the same store.
+    @ObservationIgnored let defaults: UserDefaults
     /// Hooks for AppModel (polling interval → gate, container filters → store).
     @ObservationIgnored public var onPollingIntervalChange: (@MainActor (Double) -> Void)?
     /// Menu bar / notifications toggled (AppModel starts or stops its background polling client).
@@ -74,13 +77,43 @@ public final class SettingsStore {
         didSet { defaults.set(notificationsEnabled, forKey: Key.notifications); onBackgroundNeedsChange?() }
     }
     public var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
+    /// Ask github.com for new app and runtime releases at most once a day (on by default).
+    public var automaticUpdateChecks: Bool {
+        didSet { defaults.set(automaticUpdateChecks, forKey: Key.automaticUpdateChecks) }
+    }
+
+    /// Enforce restart policies (`AppLabel.restart`) while the app runs (on by default).
+    public var restartPoliciesEnabled: Bool {
+        didSet {
+            defaults.set(restartPoliciesEnabled, forKey: Key.restartPoliciesEnabled)
+            onBackgroundNeedsChange?()
+        }
+    }
+
+    /// Whether the background helper is registered (mirrors `backgroundSupervision`); setting it (un)registers.
+    public var keepEnforcingWhenClosed: Bool {
+        didSet {
+            guard !isSyncingBackgroundSupervision else { return }
+            applyBackgroundSupervision()
+        }
+    }
+    /// The helper's state as macOS reports it (refreshed by `refreshBackgroundSupervision()`).
+    public private(set) var backgroundSupervision: BackgroundSupervisionStatus = .disabled
+    /// Why the last (un)registration of the helper failed, if it did.
+    public private(set) var backgroundSupervisionError: String?
+    @ObservationIgnored private var isSyncingBackgroundSupervision = false
+    /// Registers the helper; injectable for tests.
+    @ObservationIgnored let supervisionService: any BackgroundSupervisionService
 
     public init(
         defaults: UserDefaults = .standard,
-        loginItemStatus: @escaping @MainActor () -> SMAppService.Status = { SMAppService.mainApp.status }
+        loginItemStatus: @escaping @MainActor () -> SMAppService.Status = { SMAppService.mainApp.status },
+        supervisionService: any BackgroundSupervisionService = LaunchAgentSupervisionService()
     ) {
         self.defaults = defaults
         self.loginItemStatus = loginItemStatus
+        self.supervisionService = supervisionService
+        keepEnforcingWhenClosed = false
         defaults.register(defaults: [
             Key.launchAtLogin: false,
             Key.startEngineOnLaunch: false,
@@ -90,6 +123,8 @@ public final class SettingsStore {
             Key.pollingInterval: 2.0,
             Key.notifications: true,
             Key.appearance: Appearance.system.rawValue,
+            Key.automaticUpdateChecks: true,
+            Key.restartPoliciesEnabled: true,
         ])
         launchAtLogin = false
         startEngineOnLaunch = defaults.bool(forKey: Key.startEngineOnLaunch)
@@ -99,7 +134,32 @@ public final class SettingsStore {
         pollingInterval = min(max(defaults.double(forKey: Key.pollingInterval), 1), 10)
         notificationsEnabled = defaults.bool(forKey: Key.notifications)
         appearance = Appearance(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
+        automaticUpdateChecks = defaults.bool(forKey: Key.automaticUpdateChecks)
+        restartPoliciesEnabled = defaults.bool(forKey: Key.restartPoliciesEnabled)
         refreshLaunchAtLogin()
+        // An app that was moved or updated takes its helper along.
+        try? supervisionService.repairIfNeeded()
+        refreshBackgroundSupervision()
+    }
+
+    /// Re-reads the helper's state from the system (it can be switched off outside the app at any time).
+    /// Call when the Settings window appears.
+    public func refreshBackgroundSupervision() {
+        let status = supervisionService.status()
+        if status != backgroundSupervision { backgroundSupervision = status }
+        isSyncingBackgroundSupervision = true
+        if keepEnforcingWhenClosed != status.isRegistered { keepEnforcingWhenClosed = status.isRegistered }
+        isSyncingBackgroundSupervision = false
+    }
+
+    private func applyBackgroundSupervision() {
+        do {
+            if keepEnforcingWhenClosed { try supervisionService.enable() } else { try supervisionService.disable() }
+            backgroundSupervisionError = nil
+        } catch {
+            backgroundSupervisionError = error.localizedDescription
+        }
+        refreshBackgroundSupervision()  // the system is the source of truth
     }
 
     /// Re-reads the login item state from the system (the user may change it in System Settings at any time).
@@ -139,6 +199,9 @@ public final class SettingsStore {
             ("Show stopped", "\(showStoppedContainers)"), ("Hide system containers", "\(hideSystemContainers)"),
             ("Menu bar", "\(menuBarEnabled)"), ("Polling interval", "\(pollingInterval)s"),
             ("Notifications", "\(notificationsEnabled)"), ("Appearance", appearance.rawValue),
+            ("Automatic update checks", "\(automaticUpdateChecks)"),
+            ("Restart policies", "\(restartPoliciesEnabled)"),
+            ("Background helper", "\(backgroundSupervision)"),
         ]
             + (launchAtLoginRequiresApproval ? [("Login item", "requires approval")] : [])
     }

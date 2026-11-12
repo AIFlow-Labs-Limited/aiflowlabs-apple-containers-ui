@@ -1,0 +1,15 @@
+[
+  {
+    "configuration": {
+      "creationDate": "2026-11-12T05:15:22Z",
+      "driver": "local",
+      "format": "ext4",
+      "labels": {},
+      "name": "cd-it-v17-vol",
+      "options": {},
+      "sizeInBytes": 549755813888,
+      "source": "/Users/ilessio/Library/Application Support/com.apple.container/volumes/cd-it-v17-vol/volume.img"
+    },
+    "id": "cd-it-v17-vol"
+  }
+]

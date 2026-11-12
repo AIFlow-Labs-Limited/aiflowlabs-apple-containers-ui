@@ -8,7 +8,7 @@ APP           := $(BUILD_DIR)/$(APP_NAME).app
 DMG           := $(BUILD_DIR)/$(subst $(subst ,, ),-,$(APP_NAME))-$(VERSION)-arm64.dmg
 # SIGN_IDENTITY (default "-" = ad-hoc) and NOTARY_PROFILE are read from the environment by the scripts.
 
-.PHONY: help build test app run run-mock dmg notarize icon lint format check release clean
+.PHONY: help build test app run run-mock dmg notarize cask icon lint format check release clean
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -33,6 +33,9 @@ dmg: app ## Build build/Container-Desktop-<version>-arm64.dmg (verified)
 
 notarize: ## Notarize + staple the DMG (no-op without NOTARY_PROFILE)
 	scripts/notarize.sh "$(DMG)"
+
+cask: ## Render build/container-desktop.rb (Homebrew cask) from the built DMG's sha256. Usage: make cask VERSION=x.y.z
+	scripts/make-cask.sh "$(VERSION)" "$(BUILD_DIR)"
 
 icon: ## Regenerate Resources/AppIcon.icns from scripts/make-icon.swift
 	scripts/make-icon.sh

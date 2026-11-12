@@ -32,14 +32,23 @@ public final class ContainersStore: PollingStore {
     public let statsHistory = ContainerStatsHistory(window: 300)
     /// Called when a container stops without the app having asked it to (crash notification).
     @ObservationIgnored public var onUnexpectedExit: (@MainActor (Container) -> Void)?
+    /// Enforces restart policies. Fed by the poller with every fresh list, and told about the stops and starts
+    /// the user makes here so that those are not undone.
+    @ObservationIgnored public var restartSupervisor: RestartSupervisor?
     /// Clock for expected-stop expiry (tests override it).
     @ObservationIgnored var now: () -> Date = { Date() }
 
     @ObservationIgnored private let backend: any ContainerBackend
     @ObservationIgnored public private(set) lazy var poller = Poller(gate: gate) { [weak self] in
         guard let self else { return }
+        let generation = self.listGeneration
         await self.refresh()
         if let error = self.loadError { throw error }
+        // Only a list that arrived during this tick is news; a refresh that lost to a newer one leaves `items`
+        // as they were, and acting on those could undo something that happened since.
+        if self.listGeneration != generation {
+            await self.restartSupervisor?.observe(self.items, busy: Set(self.pendingActions.keys))
+        }
         await self.refreshStats()
     }
     @ObservationIgnored private let gate: PollingGate
@@ -49,6 +58,8 @@ public final class ContainersStore: PollingStore {
     /// that lands while a slow stop is still in flight cannot turn it into an "exited unexpectedly" alert.
     @ObservationIgnored private var expectedStops: [String: Date] = [:]
     @ObservationIgnored private var hasLoadedOnce = false
+    /// Counts the lists that reached `items`.
+    @ObservationIgnored private var listGeneration = 0
 
     public init(backend: any ContainerBackend, gate: PollingGate) {
         self.backend = backend
@@ -119,6 +130,7 @@ public final class ContainersStore: PollingStore {
         // the window; the Stats tab only renders the history, so it never resets it on disappear.
         statsHistory.retain(only: Set(list.map(\.id)), now: now())
         hasLoadedOnce = true
+        listGeneration += 1
     }
 
     /// Samples stats for running containers, updates `cpuPercent` from the previous sample and appends to `statsHistory`.
@@ -126,7 +138,11 @@ public final class ContainersStore: PollingStore {
         let ids = items.filter(\.isRunning).map(\.id)
         guard !ids.isEmpty else { stats = [:]; cpuPercent = [:]; return }
         guard let samples = try? await backend.containerStats(ids: ids) else { return }
-        var percent: [String: Double] = [:]
+        // CLIs that report `cpuUtilization` (container 1.7+) give a CPU figure on the very first sample; older
+        // ones need two of ours (`ContainerStats.cpuPercent` prefers the reported value either way).
+        var percent = Dictionary(
+            samples.compactMap { sample in sample.reportedCPUPercent.map { (sample.id, $0) } },
+            uniquingKeysWith: { $1 })
         if let last = lastSampleAt {
             let interval = date.timeIntervalSince(last)
             for sample in samples {
@@ -166,15 +182,20 @@ public final class ContainersStore: PollingStore {
     private func expectStops(_ ids: [String]) {
         let date = now()
         for id in ids { expectedStops[id] = date }
+        // Only containers with a restart policy need remembering; the rest are never started by the app.
+        let supervised = ids.filter { container(id: $0)?.restartPolicy.isEnforced ?? false }
+        if !supervised.isEmpty { restartSupervisor?.noteStopRequested(supervised) }
     }
 
     // MARK: Actions
 
     @discardableResult
     public func start(_ ids: [String]) async -> BulkResult {
-        await tracking(ids, .starting) {
+        let result = await tracking(ids, .starting) {
             await performEach(ids: ids) { try await backend.startContainer($0) }
         }
+        restartSupervisor?.noteStartRequested(result.succeeded)
+        return result
     }
 
     @discardableResult
@@ -200,7 +221,7 @@ public final class ContainersStore: PollingStore {
     public func restart(_ ids: [String]) async -> BulkResult {
         expectStops(ids)
         let running = Set(items.filter(\.isRunning).map(\.id))
-        return await tracking(ids, .restarting) {
+        let result = await tracking(ids, .restarting) {
             await performEach(ids: ids) { id in
                 if running.contains(id) || container(id: id) == nil {
                     try await backend.stopContainer(id, timeoutSeconds: nil, signal: nil)
@@ -209,6 +230,8 @@ public final class ContainersStore: PollingStore {
                 try await backend.startContainer(id)
             }
         }
+        restartSupervisor?.noteStartRequested(result.succeeded)
+        return result
     }
 
     /// Deletes each id. `force` only applies to containers that are running (a stopped container is always

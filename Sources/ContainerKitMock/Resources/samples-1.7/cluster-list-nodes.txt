@@ -1,0 +1,6 @@
+CLUSTER      NODE              ROLE                  STATE    CPUS  MEMORY  ADDR          PORTS
+cluster-dev  cluster-dev       control-plane,worker  running  4     8 GB    192.168.64.5  
+staging      staging           control-plane         running  2     4 GB    192.168.64.8  
+staging      staging-worker-1  worker                running  4     8 GB    192.168.64.9  
+staging      staging-worker-2  worker                stopped  4     8 GB                  
+temp         temp              control-plane,worker  stopped                              
