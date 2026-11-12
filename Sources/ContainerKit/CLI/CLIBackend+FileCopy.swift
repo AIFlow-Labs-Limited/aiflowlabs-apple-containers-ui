@@ -39,8 +39,10 @@ extension CLIBackend {
             do {
                 try await execute(arguments, timeout: nil)
             } catch {
-                // "Not found" for something that is there: it is on a mount `container cp` cannot see.
-                guard Self.isCopyPathNotFound(error), try await containerPathExists(id, path) else { throw error }
+                // A failed copy of something that is there: it is on a mount `container cp` cannot see. The
+                // CLI usually says "path not found", but for some mounts (seen with /dev/shm on 1.5.0) it
+                // says "no metadata received", so the wording is not relied on.
+                guard Self.mayRetryCopy(error), try await containerPathExists(id, path) else { throw error }
                 try await copyOutThroughRootFilesystem(id, path, to: stagedPath, tryLink: false)
             }
         } else {
@@ -151,10 +153,11 @@ extension CLIBackend {
         }
     }
 
-    /// The CLI's wording for a source it cannot see (`notFound: "copy: path not found '/x'"`).
-    static func isCopyPathNotFound(_ error: any Error) -> Bool {
-        guard case BackendError.commandFailed(_, _, let message) = error else { return false }
-        return message.localizedCaseInsensitiveContains("path not found")
+    /// Whether a failed `container cp` out is worth retrying through the root filesystem: any failure the CLI
+    /// itself reported (not a cancellation, timeout or launch problem).
+    static func mayRetryCopy(_ error: any Error) -> Bool {
+        if case BackendError.commandFailed = error { return true }
+        return false
     }
 
     /// The normalized absolute container path for `container cp`, which splits its operands on `:` and so
@@ -221,7 +224,7 @@ extension CLIBackend {
                     return
                 } catch {
                     await removeQuietly(id, temporary)
-                    guard Self.isCopyPathNotFound(error), try await containerPathExists(id, path) else { throw error }
+                    guard Self.mayRetryCopy(error), try await containerPathExists(id, path) else { throw error }
                 }
             }
         }
