@@ -67,6 +67,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   list and inspector.
 - New cluster: worker nodes (container 1.6+), separately sized worker groups and the shared image store (container
   1.7+), with Apple's security warning. Options the installed CLI lacks are disabled with a one-line reason.
+- **Reclaim Disk Space** in a running container's menu (`container clean`, container 1.7 or later; hidden on
+  older runtimes). Space freed inside a container, on its root filesystem and its named volumes, stays allocated
+  on the Mac until this runs. It deletes nothing, so there is no confirmation; the Activity entry starts with the
+  exact command. In a test it gave back 340 MB after a 300 MB file was deleted in the container.
+- **Local registries over plain HTTP.** The Pull and Push sheets offer "Connection: HTTPS / HTTP" when the
+  registry is on this Mac or the local network (`localhost:5000`, an IP address, `.local` …). Apple's CLI
+  defaults to HTTPS and a registry started locally usually serves HTTP.
 
 ### Changed
 - **container 1.7.1 support is verified on a live engine (2026-11-12).** Save as Image, clusters with a worker
@@ -81,6 +88,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   `brew install container`, press **Check Again**, then **Start**.
 - "Export…" is now "Export Filesystem…" and is also offered from the Files tab, including for stopped containers
   and images that cannot be browsed.
+- **Push, pull and registry login were run against a live container 1.7.1 (2026-11-12)**, with a throwaway local
+  registry over plain HTTP: push, pull back and run; login through stdin, the login list, logout. Not covered: a
+  login that a registry actually checks (1.7.1 refuses to send credentials over HTTP, and HTTPS needs a trusted
+  certificate), Docker Hub and ghcr.io. Details in `docs/COMPATIBILITY.md`.
+- The registry login sheet no longer says that credentials are sent unencrypted over HTTP. container 1.7 refuses
+  to send them, and the sheet now says that an HTTP login only works for a registry without authentication.
 
 ### Fixed
 - Accented and Korean text in environment values, commands and paths reached the runtime in a different Unicode
@@ -109,10 +122,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   single platform.
 - Save as Image: a container that no longer exists is reported as "not found" instead of a raw command failure
   (container 1.7.1 words that error differently).
+- Push and pull could not reach a registry that serves plain HTTP at all: there was no way to pass `--scheme
+  http`, and the attempt ended after 43 seconds with `-9836: bad protocol version`.
+- Registry failures now say what to do instead of repeating the runtime's wording: the registry serves HTTP
+  rather than HTTPS, nothing is listening at that address, the host name does not exist, or the registry asks
+  for a login over plain HTTP. The runtime's own message follows in parentheses.
+- A failed push showed dozens of "Pushing image … 0% [25s]" progress lines as its error. Only the error is shown.
+- Pushing "All platforms" of an image that was only downloaded for this Mac failed with a bare `content with
+  digest sha256:…`. The Push sheet now warns about it and the error says to choose a single platform.
 
 ### Known limitations
 - container 1.6.0 and 1.6.1 were never installed: support for them is still read from Apple's source code. 1.5.0
   and 1.7.1 are verified live.
+- Logging in to a registry that requires a password, and pushing with those credentials, has not been run
+  against a real registry (Docker Hub, ghcr.io) or over HTTPS. A wrong scheme or an unreachable registry takes
+  the runtime about 43 seconds to report (a login nearer two minutes); the app cannot shorten that.
 - Save as Image keeps the container's running process as the new image's entrypoint and command (that is what
   `container commit` does). Starting the image with a different command appends it to that entrypoint; set the
   entrypoint in the Run sheet to replace it.
