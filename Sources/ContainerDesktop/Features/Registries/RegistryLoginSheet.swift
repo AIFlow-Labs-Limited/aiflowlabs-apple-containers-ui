@@ -69,7 +69,9 @@ struct RegistryLoginSheet: View {
                     .pickerStyle(.segmented)
                     if useHTTP {
                         Text(
-                            "Only for local registries (for example localhost:5000). Credentials are sent unencrypted."
+                            "Apple container 1.7 refuses to send a password over plain HTTP, so this only succeeds "
+                                + "for a registry without authentication, which needs no login to push or pull. "
+                                + "Use HTTPS for a registry that asks for one."
                         )
                         .font(.caption).foregroundStyle(.statusWarning)
                     }

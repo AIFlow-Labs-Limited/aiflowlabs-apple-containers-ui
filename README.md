@@ -195,6 +195,10 @@ Rosetta next to native `arm64`. More screens: [`docs/screenshots/`](docs/screens
   upload by file picker or drag from Finder, preview text, Quick Look the rest, rename, delete (with confirmation)
   and export the whole filesystem as a tar.
 - **Save as Image…** turns a container into an image (`container commit`, needs `container` 1.6 or later).
+- **Reclaim Disk Space** gives space freed inside a running container and its volumes back to your Mac
+  (`container clean`, needs `container` 1.7 or later). It deletes nothing.
+- **Local registries.** Pull from and push to a registry on your Mac or network over plain HTTP
+  (`localhost:5000`), with errors that say what to change when a registry cannot be reached.
 - **Updates.** The app tells you when a newer Container Desktop or a newer Apple runtime exists, in the status bar
   and in **Settings → Updates**. It checks github.com once a day, sends nothing about you, installs nothing by
   itself, and can be turned off.

@@ -67,8 +67,8 @@ struct FailingBackend: ContainerBackend {
     }
     func listImages() async throws -> [Image] { throw error }
     func inspectImage(_ reference: String) async throws -> Image { throw error }
-    func pullImage(_ reference: String, platform: Platform?) -> LineStream { fail() }
-    func pushImage(_ reference: String, platform: Platform?) -> LineStream { fail() }
+    func pullImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream { fail() }
+    func pushImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream { fail() }
     func deleteImage(_ reference: String) async throws { throw error }
     func tagImage(_ reference: String, newReference: String) async throws { throw error }
     func pruneImages(all: Bool) async throws { throw error }
@@ -140,6 +140,11 @@ extension FailingBackend {
     func copyIn(_ id: String, localPath: String, to path: String) async throws { throw error }
     func supportsCommit() async -> Bool { false }
     func commitContainer(_ id: String, reference: String) -> LineStream {
+        let e = error
+        return AsyncThrowingStream { $0.finish(throwing: e) }
+    }
+    func supportsClean() async -> Bool { false }
+    func cleanContainers(_ ids: [String]) -> LineStream {
         let e = error
         return AsyncThrowingStream { $0.finish(throwing: e) }
     }

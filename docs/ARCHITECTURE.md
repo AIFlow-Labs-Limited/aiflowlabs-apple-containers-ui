@@ -50,6 +50,11 @@ Errors are `BackendError` — the UI switches on `.systemNotRunning` / `.cliNotI
   `registry ls` (fallback), `system version`.
 - Kubernetes commands are built from `KubernetesCapabilities`, detected from the plugin's own `--help` (command
   word `k8s` or `cluster`, workers, shared image store, `load-image`, JSON listing). See `docs/COMPATIBILITY.md`.
+- Features newer than 1.5.0 are probed, not assumed: `supportsCommit()` and `supportsClean()` run the command's
+  `--help` once and remember whether it exists.
+- Registry failures of `image push` / `image pull` / `registry login` (wrong scheme, nothing listening, unknown
+  host, a login asked for over plain HTTP) are rewritten by `RegistryFailure` into what to change, with the CLI's
+  own text kept at the end.
 - Detects "apiserver not running" from stderr (`apiserver is not running`, `Plugins are unavailable` when
   `system status` fails) → `.systemNotRunning`.
 - `createDNSDomain` runs `container system dns create` as admin via `osascript -e 'do shell script … with

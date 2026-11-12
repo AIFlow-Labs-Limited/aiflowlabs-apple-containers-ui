@@ -2,9 +2,11 @@ import Foundation
 
 /// Turns a failed `container` invocation into a `BackendError` with a human-readable message.
 enum CLIErrorMapper {
-    /// `true` for CLI progress lines such as `[3/6] Fetching kernel [0s]`.
+    /// `true` for CLI progress lines such as `[3/6] Fetching kernel [0s]` and, as `image push` prints them on
+    /// 1.7.1, `Pushing image localhost:5000/app:1 0% [25s]` (no step counter; the elapsed time closes the line).
     static func isProgressLine(_ line: String) -> Bool {
         let trimmed = line.drop { $0 == " " }
+        if trimmed.wholeMatch(of: /.*\[(\d+[hms] ?)+\]\s*/) != nil { return true }
         guard trimmed.first == "[" else { return false }
         let inner = trimmed.dropFirst().prefix { $0 != "]" }
         let parts = inner.split(separator: "/", omittingEmptySubsequences: false)

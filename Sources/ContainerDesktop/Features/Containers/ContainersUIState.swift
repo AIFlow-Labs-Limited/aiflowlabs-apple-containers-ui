@@ -47,6 +47,8 @@ final class ContainersUIState {
     var commitRequest: CommitSheetRequest?
     /// Whether the runtime has `container commit` (1.6+); `nil` until probed.
     private(set) var commitSupported: Bool?
+    /// Whether the runtime has `container clean` (1.7+); `nil` until probed.
+    private(set) var cleanSupported: Bool?
     /// Files tab state per container, so switching tabs keeps the folder that was open.
     @ObservationIgnored private var filesModels: [String: ContainerFilesModel] = [:]
     /// Detail pane visible for a single selection (Return re-opens it after "Hide details").
@@ -82,9 +84,11 @@ final class ContainersUIState {
         if let data = try? JSONEncoder().encode(tabs) { defaults.set(data, forKey: Self.tabsKey) }
     }
 
-    /// Asks the backend whether "Save as Image…" is available (the backend caches the answer).
+    /// Asks the backend whether "Save as Image…" and "Reclaim Disk Space" are available (the backend caches
+    /// the answers).
     func loadCapabilities(_ backend: any ContainerBackend) async {
         commitSupported = await backend.supportsCommit()
+        cleanSupported = await backend.supportsClean()
     }
 
     /// The Files tab model for a container (created on first use; a handful are kept).

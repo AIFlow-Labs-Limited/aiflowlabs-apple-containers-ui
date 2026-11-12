@@ -51,8 +51,8 @@ public struct UnavailableBackend: ContainerBackend {
     // MARK: Images
     public func listImages() async throws -> [Image] { throw error }
     public func inspectImage(_ reference: String) async throws -> Image { throw error }
-    public func pullImage(_ reference: String, platform: Platform?) -> LineStream { fail() }
-    public func pushImage(_ reference: String, platform: Platform?) -> LineStream { fail() }
+    public func pullImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream { fail() }
+    public func pushImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream { fail() }
     public func deleteImage(_ reference: String) async throws { throw error }
     public func tagImage(_ reference: String, newReference: String) async throws { throw error }
     public func pruneImages(all: Bool) async throws { throw error }

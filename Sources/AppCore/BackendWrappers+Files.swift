@@ -1,7 +1,7 @@
 import ContainerKit
 import Foundation
 
-// `ContainerFileOperations` for the two wrapper backends (kept out of their main files, which every
+// `ContainerFileOperations` and `container clean` for the two wrapper backends (kept out of their main files, which every
 // backend change touches).
 
 extension SwitchableBackend {
@@ -32,6 +32,12 @@ extension SwitchableBackend {
     public func commitContainer(_ id: String, reference: String) -> LineStream {
         current.commitContainer(id, reference: reference)
     }
+    public func supportsClean() async -> Bool {
+        await current.supportsClean()
+    }
+    public func cleanContainers(_ ids: [String]) -> LineStream {
+        current.cleanContainers(ids)
+    }
 }
 
 extension UnavailableBackend {
@@ -50,6 +56,11 @@ extension UnavailableBackend {
     public func copyIn(_ id: String, localPath: String, to path: String) async throws { throw notInstalled }
     public func supportsCommit() async -> Bool { false }
     public func commitContainer(_ id: String, reference: String) -> LineStream {
+        let error = notInstalled
+        return AsyncThrowingStream { $0.finish(throwing: error) }
+    }
+    public func supportsClean() async -> Bool { false }
+    public func cleanContainers(_ ids: [String]) -> LineStream {
         let error = notInstalled
         return AsyncThrowingStream { $0.finish(throwing: error) }
     }

@@ -49,6 +49,13 @@ public protocol ContainerOperations: Sendable {
     /// `container cp` — either side may be `<container>:<path>`.
     func copy(from source: String, to destination: String) async throws
     func exportContainer(_ id: String, to tarPath: String) async throws
+    /// Whether this runtime has `container clean` (Apple container 1.7 or later). Cached after the first
+    /// definite answer; `false` when it cannot be determined.
+    func supportsClean() async -> Bool
+    /// `container clean`: gives unused space on the root filesystem and the named volumes of **running**
+    /// containers back to the Mac. It deletes nothing inside them. Streams the CLI's output (the id of each
+    /// cleaned container).
+    func cleanContainers(_ ids: [String]) -> LineStream
     /// Command line an embedded terminal should spawn for an interactive session.
     func terminalCommand(for target: TerminalTarget) -> CommandLine
 }
@@ -56,8 +63,10 @@ public protocol ContainerOperations: Sendable {
 public protocol ImageOperations: Sendable {
     func listImages() async throws -> [Image]
     func inspectImage(_ reference: String) async throws -> Image
-    func pullImage(_ reference: String, platform: Platform?) -> LineStream
-    func pushImage(_ reference: String, platform: Platform?) -> LineStream
+    /// `scheme` is `"http"` for a registry that serves plain HTTP (a local one); `nil` lets the CLI use HTTPS.
+    func pullImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream
+    /// `scheme` as for `pullImage`.
+    func pushImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream
     func deleteImage(_ reference: String) async throws
     func tagImage(_ reference: String, newReference: String) async throws
     func pruneImages(all: Bool) async throws
@@ -68,6 +77,18 @@ public protocol ImageOperations: Sendable {
     func builderStart(cpus: Int?, memory: MemorySize?) async throws
     func builderStop() async throws
     func builderDelete() async throws
+}
+
+extension ImageOperations {
+    /// `pullImage` over the CLI's default scheme (HTTPS).
+    public func pullImage(_ reference: String, platform: Platform?) -> LineStream {
+        pullImage(reference, platform: platform, scheme: nil)
+    }
+
+    /// `pushImage` over the CLI's default scheme (HTTPS).
+    public func pushImage(_ reference: String, platform: Platform?) -> LineStream {
+        pushImage(reference, platform: platform, scheme: nil)
+    }
 }
 
 public protocol VolumeOperations: Sendable {
@@ -88,7 +109,8 @@ public protocol NetworkOperations: Sendable {
 
 public protocol RegistryOperations: Sendable {
     func listRegistries() async throws -> [RegistryLogin]
-    /// Password is passed on stdin, never as an argument.
+    /// Password is passed on stdin, never as an argument. `scheme` is `"http"` or `nil` (HTTPS). Apple container
+    /// 1.7 refuses to send credentials over plain HTTP, so `"http"` only works for a registry without a login.
     func registryLogin(server: String, username: String, password: String, scheme: String?) async throws
     func registryLogout(server: String) async throws
 }

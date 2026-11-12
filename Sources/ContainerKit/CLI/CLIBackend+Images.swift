@@ -14,25 +14,58 @@ extension CLIBackend {
         return try await inspectFirst(Image.self, kind: "image", id: reference, ["image", "inspect", "--", reference])
     }
 
-    /// `container image pull --progress plain [--platform P] -- REF`.
-    public nonisolated func pullImage(_ reference: String, platform: Platform?) -> LineStream {
-        validatedStream {
-            try Self.validateOperand(reference, "Image reference")
-            return streamCommand(Self.transferArguments("pull", reference, platform: platform))
-        }
+    /// `container image pull [--scheme S] --progress plain [--platform P] -- REF`.
+    public nonisolated func pullImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream {
+        transfer("pull", reference, platform: platform, scheme: scheme, action: .pull)
     }
 
-    /// `container image push --progress plain [--platform P] -- REF`.
-    public nonisolated func pushImage(_ reference: String, platform: Platform?) -> LineStream {
+    /// `container image push [--scheme S] --progress plain [--platform P] -- REF`.
+    ///
+    /// Without a platform the CLI pushes every platform in the image's index, which fails for an image that was
+    /// pulled for this Mac only (the same `content with digest sha256:…` as `image save`).
+    public nonisolated func pushImage(_ reference: String, platform: Platform?, scheme: String?) -> LineStream {
+        transfer("push", reference, platform: platform, scheme: scheme, action: .push)
+    }
+
+    /// Streams a pull or push; a registry failure (wrong scheme, nothing listening, refused login) ends the
+    /// stream with an explained error (`RegistryFailure`).
+    private nonisolated func transfer(
+        _ verb: String, _ reference: String, platform: Platform?, scheme: String?, action: RegistryFailure.Action
+    ) -> LineStream {
         validatedStream {
             try Self.validateOperand(reference, "Image reference")
-            return streamCommand(Self.transferArguments("push", reference, platform: platform))
+            if let scheme { try Self.validateScheme(scheme) }
+            let stream = streamCommand(Self.transferArguments(verb, reference, platform: platform, scheme: scheme))
+            let host = RegistryFailure.host(ofReference: reference)
+            return AsyncThrowingStream(bufferingPolicy: .bufferingNewest(ProcessRunner.streamBufferLimit)) {
+                continuation in
+                let task = Task {
+                    do {
+                        for try await line in stream { continuation.yield(line) }
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(
+                            throwing: RegistryFailure.explain(error, host: host, action: action, platform: platform))
+                    }
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
         }
     }
 
     /// argv for `image pull` / `image push`.
-    static func transferArguments(_ verb: String, _ reference: String, platform: Platform?) -> [String] {
-        ["image", verb, "--progress", "plain"] + (platform.map { ["--platform", $0.slug] } ?? []) + ["--", reference]
+    static func transferArguments(
+        _ verb: String, _ reference: String, platform: Platform?, scheme: String? = nil
+    ) -> [String] {
+        ["image", verb] + (scheme.map { ["--scheme", $0] } ?? []) + ["--progress", "plain"]
+            + (platform.map { ["--platform", $0.slug] } ?? []) + ["--", reference]
+    }
+
+    /// The CLI's `--scheme` takes `http` or `https` (1.7.1 help); anything else is refused before it runs.
+    static func validateScheme(_ scheme: String) throws {
+        guard ["http", "https"].contains(scheme) else {
+            throw BackendError.other("The registry connection must be http or https, not “\(scheme)”.")
+        }
     }
 
     /// `container image rm -- REF`.

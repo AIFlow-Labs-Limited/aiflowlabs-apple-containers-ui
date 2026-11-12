@@ -125,7 +125,11 @@ decide what to check from the CLI's `--help`, so they pass or return early on 1.
 | Machines | `machine create --no-boot`, `machine ls --format json`, `machine inspect`, `machine rm`: same JSON as 1.5.0. | `CLIBackendImageIntegrationTests.machineCreatedWithoutBootIsListedInspectedAndDeleted` |
 | `build` | Still a plugin; its step lines arrive while the build runs, not at the end. | `CLIBackendImageIntegrationTests.buildStreamsItsProgress`, `ComposeBuildIntegrationTests` |
 | `cp`, `export`, `exec`, Files tab | Behave as described for 1.5.0 above. | `CLIBackendFilesIntegrationTests`, `CLIBackendFileCopyIntegrationTests`, `CLIBackendExportIntegrationTests` |
-| Volumes, networks, registry list, `system` commands | Same JSON shapes as 1.5.0. `registry ls --format json` is `[]` with no logins (a login was not tried). | `CLIBackendIntegrationTests.readOnlyListings`, `ComposeIntegrationTests`, `RecordedCLI171Tests` |
+| Volumes, networks, registry list, `system` commands | Same JSON shapes as 1.5.0. `registry ls --format json` is `[]` with no logins. | `CLIBackendIntegrationTests.readOnlyListings`, `ComposeIntegrationTests`, `RecordedCLI171Tests` |
+| `image push` / `image pull` to a local registry over plain HTTP | With `--scheme http` and one platform, an image is pushed to a `registry:2` container, its local tag removed, pulled back and run. Progress goes to stderr, one line a second, and reaches the app while the command runs; the pushed reference is the last line of stdout. Not Docker Hub, not ghcr.io, not HTTPS: see [Registries](#registries-login-push-and-pull). | `RegistryIntegrationTests.pushesAndPullsBackOverPlainHTTP` |
+| `registry login` / `list` / `logout` | `login --scheme http --username U --password-stdin` against a registry **without** authentication prints `Login succeeded` and stores the login. `registry list --format json` then has one record with exactly `id`, `name`, `username`, `labels`, `creationDate`, `modificationDate` (`id` and `name` are the host with its port; no password, no scheme). `logout` removes it, and exits 0 for a host that has no login. The password is absent from the process table, from the listing and from every error. | `RegistryIntegrationTests.logsInThroughStdinListsAndLogsOut`; fixture `registries-login.json` |
+| A registry that asks for a password, over plain HTTP | Refused before any credential is sent, for login, push and pull: `refusing insecure credential exchange: registry <host> issued an authentication challenge over an insecure connection`. | `RegistryIntegrationTests.aLoginOverPlainHTTPIsRefusedWithAdvice` |
+| `clean` | Gives the blocks of deleted files back to the Mac and deletes nothing: see [`container clean`](#container-clean). | `CleanIntegrationTests.cleanGivesSpaceBackAndDeletesNothing` |
 
 ### What 1.7.1 changed outside Kubernetes
 
@@ -146,7 +150,7 @@ Compared with the 1.5.0 recording, key by key:
   (`docker.io/kindest/node@sha256:…`), and shows as `<none>` in `container image ls`.
 - **Volumes, networks, machines, `system df`, `system status`, builder**: unchanged.
 - **`machine create`** gained `--user`, `--uid`, `--gid` and `--home`. The app does not pass them.
-- **`container clean`** is new: see below.
+- **`container clean`** is new: see below. The app offers it as "Reclaim Disk Space".
 
 ### Found on the live engine
 
@@ -161,10 +165,61 @@ Compared with the 1.5.0 recording, key by key:
 
 ### `container clean`
 
-`container clean <id>…` "cleans unused space on the root filesystem and each named volume mount" of running
-containers (Apple's command reference; it fails for a container that is not running). It deletes nothing.
-Container Desktop does not call it and nothing in the app depends on the list of top-level commands, so its
-arrival changes nothing. It was not run during this pass.
+`container clean <id>…` is new in 1.7. The app offers it as **Reclaim Disk Space** in a running container's
+menu (context menu and the ⋯ menu of the detail pane), only when `container clean --help` exits 0, so it is
+hidden on 1.5.0. It runs as an Activity task whose output starts with the exact command. There is no
+confirmation, because the command deletes nothing. Checked on 1.7.1 with an `alpine` container and a named
+volume mounted at `/data`:
+
+| Step | Root filesystem on the Mac | Volume on the Mac |
+|---|---|---|
+| Fresh container | 1,342 MB | 39 MB |
+| After writing 300 MB to `/root` and 200 MB to `/data` | 1,650 MB | 244 MB |
+| After deleting both files in the container (`rm`, `sync`) | 1,650 MB (unchanged) | 244 MB (unchanged) |
+| After `container clean` | 1,310 MB | 37 MB |
+
+So space freed inside a container stays allocated on the Mac until `clean` runs; `clean` gave back about 340 MB
+and 207 MB here (`du -sk` of `~/Library/Application Support/com.apple.container/containers/<id>` and of the
+volume's image). The other files in `/root` and `/data` had the same checksums and directory listings before and
+after, the container kept running, and the volume stayed. The command takes about a second and prints the id of
+each container it cleaned.
+
+- A stopped container: `internalError: "failed to clean container" (cause: "invalidState: "container is not
+  running"")`, exit 1. The app says "Disk space can only be reclaimed from a running container."
+- An unknown id: `… (cause: "notFound: "container with ID <id> not found"")`, exit 1. With several ids the
+  others are still cleaned.
+- No ids: `no containers specified`. `container clean -- <id>` (with the separator the app always sends) works.
+- The command reports no sizes. The app does not invent one; the status bar's disk figure is refreshed afterwards.
+
+### Registries: login, push and pull
+
+Checked on 1.7.1 against `docker.io/library/registry:2` running in a container on the same Mac, reached at
+`127.0.0.1:<published port>` and at `<container address>:5000`. **Plain HTTP only.** No real registry and no
+real account were used.
+
+- **`--scheme` is `http` or `https`, default `https`** (`image push`, `image pull`, `registry login`). There is
+  no automatic choice for `localhost`. The app's pull and push sheets therefore offer "Connection: HTTPS / HTTP"
+  when the registry host is on this Mac or the local network (`localhost`, an IP address, a name without a dot,
+  `.local`, `.test`, `.internal`, `.lan`).
+- **The wrong scheme costs about 43 seconds** (nearer two minutes for `registry login`): the CLI retries, then prints
+  `-9836: bad protocol version`. The app turns that into "… did not answer with HTTPS. If it serves plain HTTP
+  (a local registry, for example), choose HTTP as the connection and try again."
+- **Nothing listening:** `POSIXErrorCode(rawValue: 61): Connection refused`, also after about 43 seconds. The app
+  says "Nothing answers at <host> (connection refused). Check the host and port, and that the registry is
+  running." **Unknown host:** `failed to resolve either repository hostname <host>` after about 10 seconds.
+- **Credentials are never sent over plain HTTP.** A registry that answers with an authentication challenge over
+  HTTP is refused (`refusing insecure credential exchange`), for login, push and pull alike, with the right
+  password as with a wrong one. A login over HTTP therefore only succeeds against a registry that needs none.
+  The login sheet says so, and the error tells you to use HTTPS.
+- **Pushing "All platforms"** of an image that was pulled for this Mac only fails at once with the same bare
+  `content with digest sha256:…` as `image save`. The push sheet warns about it and the error says to choose a
+  single platform.
+- **Push progress** is printed as `Pushing image <ref> 0% [25s]` on stderr. These lines used to end up in the
+  error message of a failed push (dozens of them before the one line that matters). They are now recognised as
+  progress.
+- **The password** reaches the CLI on stdin (`--password-stdin`). While a login was running, the process table
+  showed `container registry login --username … --password-stdin -- <host>` and nothing containing the
+  password; `registry list` and the CLI's error messages do not contain it either.
 
 ### Still not verified
 
@@ -176,11 +231,19 @@ arrival changes nothing. It was not run during this pass.
   cluster inspector warns about.
 - That clusters created by an earlier CLI are not listed (the 1.5.0 test clusters were deleted before the
   upgrade).
-- `registry login` / `logout`, and `image push`.
 - The workloads view on anything but 1.7.1. It only needs `container exec` on the control-plane node and a node
   image that contains `kubectl`, which 1.5.0's clusters also had, but it was not run there. A node image without
   `kubectl` (a custom `--node-image`) shows "not available" with the reason. Multi-container pods and init
   containers are covered by hand-written tests only; the recorded cluster had single-container pods.
+- **A login that a registry actually checks.** Everything above ran over plain HTTP, where 1.7.1 refuses to
+  send credentials, and HTTPS needs a certificate this Mac trusts (not set up for a test). So these were not run:
+  a successful login to a registry that requires one, a push or pull that uses the stored credentials, and the
+  message for a wrong password. The app maps the wording found in the 1.7.1 binary (`access denied or wrong
+  credentials`) to "did not accept the user name or password", unseen.
+- **Docker Hub, ghcr.io and any other real registry**, for login and for push. No account was used.
+- Certificate failures over HTTPS (self-signed, wrong host name). The app has a general sentence for the Secure
+  Transport error codes, unseen.
+- Whether 1.5.0 has the same `--scheme` values and refuses credentials over HTTP in the same way.
 - Whether `create` restores the previous current context of a kubeconfig that already had one.
 
 ## Fixtures
@@ -192,7 +255,7 @@ scripts/record-fixtures.sh     # writes Sources/ContainerKitMock/Resources/cli-<
 | Folder | What it is |
 |---|---|
 | `cli-1.5.0/` | Recorded from 1.5.0. `MockBackend` and most decoder tests are built on it (`Fixtures`). |
-| `cli-1.7.1/` | Recorded from 1.7.1 on 2026-11-12 (`FixtureSet.cli171`): JSON listings and inspects, the help screens the detectors read, a two-node cluster running, degraded and stopped, and a one-node `--rm` cluster before and after its node went away. |
+| `cli-1.7.1/` | Recorded from 1.7.1 on 2026-11-12 (`FixtureSet.cli171`): JSON listings and inspects, the help screens the detectors read, a two-node cluster running, degraded and stopped, and a one-node `--rm` cluster before and after its node went away. `registries-login.json` is `registry list --format json` with one login to a throwaway local registry (recorded by hand during the registry pass; the script records whatever logins exist). |
 | `samples-1.7/` | Three hand-written cluster scenarios in the recorded shape, for the mock and the presentation tests. Not recordings; see its `README.md`. |
 
 The script only runs list, inspect, status and `--help` commands; it records whatever exists on the engine. It

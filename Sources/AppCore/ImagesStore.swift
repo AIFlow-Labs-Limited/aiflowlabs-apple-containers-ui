@@ -59,18 +59,24 @@ public final class ImagesStore: PollingStore {
         items = list.sorted { $0.reference.localizedStandardCompare($1.reference) == .orderedAscending }
     }
 
-    /// Streams `container image pull` into the Activity panel; refreshes when done.
+    /// Streams `container image pull` into the Activity panel; refreshes when done. `scheme` is `"http"` for a
+    /// registry that serves plain HTTP.
     @discardableResult
-    public func pull(_ reference: String, platform: Platform? = nil) -> LongRunningTask {
-        tasks.run(title: "Pull \(reference)", kind: .pull, stream: backend.pullImage(reference, platform: platform)) {
-            [weak self] _ in
+    public func pull(_ reference: String, platform: Platform? = nil, scheme: String? = nil) -> LongRunningTask {
+        tasks.run(
+            title: "Pull \(reference)", kind: .pull,
+            stream: backend.pullImage(reference, platform: platform, scheme: scheme)
+        ) { [weak self] _ in
             await self?.refresh()
         }
     }
 
+    /// Streams `container image push` into the Activity panel. `scheme` as for `pull`.
     @discardableResult
-    public func push(_ reference: String, platform: Platform? = nil) -> LongRunningTask {
-        tasks.run(title: "Push \(reference)", kind: .push, stream: backend.pushImage(reference, platform: platform))
+    public func push(_ reference: String, platform: Platform? = nil, scheme: String? = nil) -> LongRunningTask {
+        tasks.run(
+            title: "Push \(reference)", kind: .push,
+            stream: backend.pushImage(reference, platform: platform, scheme: scheme))
     }
 
     public func delete(_ references: [String]) async {
