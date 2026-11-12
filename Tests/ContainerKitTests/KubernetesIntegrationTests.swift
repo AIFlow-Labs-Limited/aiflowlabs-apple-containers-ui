@@ -25,7 +25,21 @@ struct KubernetesIntegrationTests {
         await backend.forgetKubernetesCapabilities()
         #expect(try await backend.kubernetesCapabilities() == capabilities)  // and so does a fresh detection
 
+        // The plugin word is the one `container --help` lists.
+        let rootHelp = try await backend.execute(["--help"]).stdoutText
+        #expect(rootHelp.contains("\n  \(capabilities.commandWord) "), "\(capabilities.commandWord) is not in --help")
+
+        // This is the one place that knows what a given release must look like: it checks the detector.
         let version = await backend.clientVersion() ?? ""
+        if version.hasPrefix("1.7.") {
+            // 1.7.1: the `cluster` plugin, worker groups, shared image store, JSON and `--nodes`, no `load-image`.
+            #expect(capabilities == KubernetesCapabilities.modern)
+            #expect(capabilities.displayCommand == "container cluster")
+            #expect(capabilities.defaultClusterName == "cluster-dev")
+            #expect(capabilities.workersUnavailableReason == nil)
+            #expect(capabilities.workerGroupsUnavailableReason == nil)
+            #expect(capabilities.sharedImageStoreUnavailableReason == nil)
+        }
         guard version.hasPrefix("1.5.") else { return }
         // 1.5.0: the `k8s` plugin, single-node clusters, a per-node table and `load-image` without `--node`.
         #expect(capabilities == KubernetesCapabilities.legacy)
@@ -110,7 +124,7 @@ struct KubernetesIntegrationTests {
     }
 
     /// Node containers of a cluster this suite created that `delete` did not remove (only `cd-it-…` names).
-    private func removeLeftovers(of name: String) async {
+    func removeLeftovers(of name: String) async {
         guard name.hasPrefix("cd-it-") else { return }
         for container in (try? await backend.listContainers(includeStopped: true)) ?? []
         where container.id.hasPrefix(name) {
