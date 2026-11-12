@@ -114,13 +114,13 @@ struct KubernetesListView: View {
             TableColumn("Nodes") { row in
                 Text(row.node?.role ?? "\(row.cluster.nodes.count)").monospacedDigit()
             }
-            .width(min: 50, ideal: 90)
+            .width(min: 44, ideal: 60)
             TableColumn("State") { row in Text(row.stateLabel).lineLimit(1).help(row.stateLabel) }
-                .width(min: 60, ideal: 130)
+                .width(min: 120, ideal: 150)
             TableColumn("Kubernetes") { row in
                 Text(row.node == nil ? (row.cluster.kubernetesVersion ?? emDash) : "").monospacedDigit()
             }
-            .width(min: 60, ideal: 80)
+            .width(min: 84, ideal: 90)
             TableColumn("CPUs") { row in Text(row.cpus > 0 ? "\(row.cpus)" : emDash).monospacedDigit() }
                 .width(45)
             TableColumn("Memory") { row in

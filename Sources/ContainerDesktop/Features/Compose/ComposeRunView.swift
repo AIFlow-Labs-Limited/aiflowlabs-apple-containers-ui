@@ -142,22 +142,26 @@ enum ComposePreviewSample {
             image: ghcr.io/example/shop-web:${TAG:-1.4}
             ports: ["8080:3000"]
             environment:
-              DATABASE_URL: postgres://shop:secret@db:5432/shop
-            depends_on: [db]
+              DATABASE_URL: postgres://shop:secret@postgres:5432/shop
+            depends_on: [postgres]
             restart: unless-stopped
-          db:
+          postgres:
             image: postgres:16-alpine
             environment:
               POSTGRES_PASSWORD: secret
-            volumes: ["pgdata:/var/lib/postgresql/data"]
+            volumes: ["shop-data:/var/lib/postgresql/data"]
             healthcheck:
               test: ["CMD", "pg_isready"]
         volumes:
-          pgdata:
+          shop-data:
         """
 
     static func url() -> URL {
-        let folder = FileManager.default.temporaryDirectory.appending(path: "container-desktop-compose-preview")
+        // The capture kit points this at a tidy demo folder so screenshots do not show a temporary path.
+        let override = ProcessInfo.processInfo.environment["CONTAINER_DESKTOP_COMPOSE_SAMPLE_DIR"]
+        let folder =
+            override.map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.temporaryDirectory.appending(path: "container-desktop-compose-preview")
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let url = folder.appending(path: "compose.yaml")
         try? Data(yaml.utf8).write(to: url)

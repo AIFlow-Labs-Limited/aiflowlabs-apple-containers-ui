@@ -163,6 +163,23 @@ Rosetta next to native `arm64`. More screens: [`docs/screenshots/`](docs/screens
 
 ## New in v0.2
 
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/compose-import-dark.png">
+        <img src="docs/screenshots/compose-import-light.png" alt="The Import Compose File sheet showing services, hostnames, variables and differences from Docker Compose">
+      </picture>
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/container-files-dark.png">
+        <img src="docs/screenshots/container-files-light.png" alt="The Files tab browsing a running container's /app folder">
+      </picture>
+    </td>
+  </tr>
+</table>
+
 - **Import Compose File.** Open a `compose.yaml` or `docker-compose.yml` (File menu, ⇧⌘O, the Containers toolbar,
   ⌘K, or drop it on the window). The app shows the services, volumes and networks it found, lists the exact
   `container` commands it will run, and names everything Apple's runtime cannot do instead of dropping it

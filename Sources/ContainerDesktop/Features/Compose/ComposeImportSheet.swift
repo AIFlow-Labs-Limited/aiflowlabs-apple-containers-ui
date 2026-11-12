@@ -49,7 +49,7 @@ struct ComposeImportSheet: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("Import Compose File").font(.title2.bold())
                 if let source = session.source {
-                    Text(source.url.path(percentEncoded: false))
+                    Text((source.url.path(percentEncoded: false) as NSString).abbreviatingWithTildeInPath)
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
                         .textSelection(.enabled)
                 }
