@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-12
+
 ### Added
 - The Homebrew cask removes the macOS quarantine flag after the checksum check, so a Homebrew install opens on
   first launch without the Gatekeeper step.

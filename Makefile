@@ -1,7 +1,7 @@
 # Container Desktop — build helpers. `make help` lists targets.
 APP_NAME      ?= Container Desktop
 BUNDLE_ID     ?= io.aiflowlabs.containerdesktop
-VERSION       ?= 0.1.0
+VERSION       ?= 0.2.0
 BUILD_DIR     ?= build
 CONFIG        ?= release
 APP           := $(BUILD_DIR)/$(APP_NAME).app
