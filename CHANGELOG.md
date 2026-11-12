@@ -6,7 +6,49 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+- **Import Compose File** (File › Import Compose File…, ⇧⌘O; also in the Containers toolbar, the ⌘K palette, or drop
+  a `compose.yaml` / `docker-compose.yml` on the window). Container Desktop reads the file, shows the services,
+  volumes and networks it found, and lists the exact `container` commands it will run before anything starts.
+  - Supports the common Compose keys: images and builds, ports, volumes and bind mounts, environment and env files,
+    `depends_on` start order, resource limits, profiles, and `${VARIABLE}` values from the `.env` file next to the
+    compose file (each can be overridden in the preview).
+  - Everything Apple's runtime cannot do (restart policies, health checks, secrets, host networking, …) is listed
+    per service in the preview instead of being silently dropped. See `docs/COMPOSE.md`.
+  - The preview says which hostname services can use to reach each other on your setup, and warns when no DNS
+    domain is configured.
+  - Running a project shows progress per step. If a step fails, the run stops, says what was already created, and
+    offers to remove it. Existing containers with the same name are never replaced without asking; existing
+    volumes and networks are reused.
+- **Files tab** on every container: browse the filesystem of a running container with a path bar, back/up, inline
+  expandable folders, a hidden-files toggle, and mounted volumes marked. Works with GNU, BusyBox and other minimal
+  images; images without a shell show an explanation instead of an error. (#7)
+  - Save files or folders to your Mac, upload from a file picker or by dragging from Finder, preview text files
+    inline, open anything else in Quick Look, copy paths, create folders, rename and delete (with confirmation; the
+    root, system directories and mount points are protected).
+- **Save as Image…** creates a new image from a container (`container commit`). Requires Apple container 1.6 or
+  later; on older versions the menu item says so.
+- **Update checks.** Container Desktop says when a newer version of the app or of Apple's `container` runtime is
+  available: a small "Update available" note in the status bar and menu bar, and a new **Settings → Updates** tab
+  with release notes, a Download button and the matching Homebrew command. Also under **Container Desktop → Check
+  for Updates…**. It checks github.com at most once a day, sends nothing about you or your containers, never
+  installs anything by itself, and can be turned off.
+- **Runtime compatibility notice** when the installed `container` is older than 1.5.0 or newer than the latest
+  tested version.
+- **Homebrew cask:** `brew install --cask AIFlow-Labs-Limited/tap/container-desktop`, upgrade with
+  `brew upgrade --cask container-desktop`.
+- **One-line installer** for Macs without Homebrew: downloads the latest release, verifies its checksum and copies
+  the app to Applications (`scripts/install.sh`, with `--dry-run`).
+
+### Changed
+- The "runtime not installed" screen is now a three-step guide: download Apple's installer or run
+  `brew install container`, press **Check Again**, then **Start**.
+- "Export…" is now "Export Filesystem…" and is also offered from the Files tab, including for stopped containers
+  and images that cannot be browsed.
+
 ### Fixed
+- Pressing Return in the Run sheet's Name or Command field now runs the container. (#1)
+- The Run sheet's Image, Name, Command and other fields now have accessibility labels for VoiceOver. (#4)
 - Engine: after `container system stop` the app showed a connection error with only Retry instead of the Stopped
   screen with Start. CLI 1.5.0 reports `{"status":"unregistered"}` with exit code 1, and list commands fail with an
   XPC connection error; both now mean "stopped". Start from the app works, and "Not installed" names the path that
