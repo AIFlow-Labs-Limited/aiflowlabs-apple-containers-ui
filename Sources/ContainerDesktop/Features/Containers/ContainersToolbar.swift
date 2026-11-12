@@ -25,6 +25,15 @@ struct ContainersToolbar: ToolbarContent {
             .help("Run a new container (⌘N)")
             .accessibilityLabel("Run a new container")
         }
+        ToolbarItem(placement: .navigation) {
+            Button {
+                model.composeRequests.request()
+            } label: {
+                Label("Import Compose File", systemImage: "square.stack.3d.down.right")
+            }
+            .help("Import a compose.yaml / docker-compose.yml file (⇧⌘O)")
+            .accessibilityLabel("Import a compose file")
+        }
         ToolbarItemGroup {
             ToolbarActionButton("Start", systemImage: "play.fill") { actions.start(selectedIDs) }
                 .disabled(!selected.contains { !$0.isRunning })

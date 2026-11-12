@@ -49,6 +49,7 @@ struct MainWindow: View {
             Task { await model.stopEngine() }
         }
         .sheet(isPresented: $nav.isCleanupOpen) { CleanupSheet() }
+        .composeImportHost()  // "Import Compose File…" sheet + compose files dropped on the window
         .overlay(alignment: .bottomTrailing) { ToastOverlay().padding(.bottom, 40).padding(.trailing, Spacing.l) }
         .background {
             // ⌘F focuses the toolbar search field.
