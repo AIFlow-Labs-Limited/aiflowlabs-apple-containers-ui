@@ -129,7 +129,9 @@ what only Apple's runtime has: container machines, DNS domains, Rosetta for `amd
       </picture>
       <h3>Local Kubernetes <sub>experimental</sub></h3>
       Clusters through the <code>container</code> k8s plugin, where each node is a container. Create, delete,
-      load local images into a cluster, copy the <code>kubectl --context</code>. Shown only when the plugin is installed.
+      load local images into a cluster, copy the <code>kubectl --context</code>. Select a running cluster to see
+      its pods, deployments and services, read pod events and logs, delete a pod, restart or scale a deployment,
+      with no <code>kubectl</code> or DNS setup on the Mac. Shown only when the plugin is installed.
     </td>
   </tr>
   <tr>
