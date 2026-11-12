@@ -18,6 +18,10 @@ enum TestSupport {
             path: "builds.json")
     }
 
+    /// Whether the background helper macOS runs for the installed app is alive. It enforces restart policies on
+    /// every container of the real engine, also the ones integration tests create.
+    static var backgroundHelperIsRunning: Bool { FileLock.isLockedElsewhere(SupervisionPaths.standard.helperLock) }
+
     static func model(_ backend: any ContainerBackend = MockBackend()) -> AppModel {
         AppModel(
             backend: backend, settings: SettingsStore(defaults: defaults()), buildsHistoryURL: historyURL(),

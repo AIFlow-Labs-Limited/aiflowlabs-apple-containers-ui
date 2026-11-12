@@ -28,6 +28,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Apple's runtime has no restart policies, so this works only while Container Desktop is running (the window can
   be closed), a `container stop` typed in a terminal is treated as a crash, and "On failure" reacts to any
   unexpected stop because the runtime reports no exit codes. Switch it off under Settings › General.
+- **Restart policies while the app is closed** (optional, off by default). Settings › General › "Keep enforcing
+  when Container Desktop is closed" installs a small background helper that takes over the restarts, keeps going
+  after you quit the app and starts at login. Containers you stop in the app still stay stopped, and the app and
+  the helper never both restart a container. The helper waits for the container system and does not start it, so
+  after a reboot nothing comes back until the container system is running. Its restarts are in the system log,
+  not in Activity. Switching the setting off removes the helper; if you delete the app while it is on, see
+  "Uninstalling" in the README. A `container stop` typed in a terminal is still treated as a crash.
 - **Compose: wait for healthy dependencies.** `depends_on` with `condition: service_healthy` runs the dependency's
   `healthcheck` inside its container and starts the dependent service only once it passes, with a live "Waiting
   for db to be healthy (attempt 3)" step. `service_completed_successfully` waits for the dependency to finish. A

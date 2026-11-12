@@ -179,20 +179,58 @@ Apple's runtime has no restart policies either (`container run` and `container c
 - Every restart is an entry in the Activity window and a toast ("Restart db, attempt 2"); the container's
   Inspect tab shows the policy and the number of restarts since the app was opened.
 - **Settings › General › Enforce restart policies** turns all of it off.
+- **Settings › General › Keep enforcing when Container Desktop is closed** (off by default) installs a small
+  background helper, so the policies are also enforced after you quit the app. See
+  [The background helper](#the-background-helper).
 - A container without the label is never started by the app.
 
 What differs from Docker, and cannot be fixed from the app:
 
 | | Docker | Container Desktop |
 |---|---|---|
-| Who enforces it | The daemon, always | The app, **only while it is running** (its window can be closed; the menu bar item is enough). Quit the app and nothing is restarted. |
+| Who enforces it | The daemon, always | The app while it is running (its window can be closed; the menu bar item is enough). After you quit it, nothing is restarted unless the optional background helper is switched on. |
 | `container stop` in a terminal | Respected like any stop | Cannot be told apart from a crash: the container is started again. Stop it from the app, or delete it. |
 | `on-failure` | Restarts on a non-zero exit code only | The runtime reports no exit code, so it restarts whenever the container stops without the app having stopped it, also after a clean exit. Not started on launch. |
 | Delay before a restart | 100 ms, doubling, up to 1 minute; reset after 10 s of uptime | 1 s, doubling, up to 1 minute; reset after 30 s of uptime. The restart happens at the next look at the list: a few seconds with a window open, up to about 10 s more without. |
-| `always` after a manual stop | Comes back when the daemon restarts | Comes back when the app is launched or the container system starts. |
-| Restart count | Kept by the engine | Counted since the app was opened. |
+| `always` after a manual stop | Comes back when the daemon restarts | Comes back when the app is launched or the container system starts (with the helper: when the helper starts, which is at login, or the container system starts). |
+| Restart count | Kept by the engine | Counted since the app was opened. Restarts made by the helper are not counted in the app. |
+| After a reboot | The daemon starts and brings the containers back | Something has to start the container system first: you, or the app with *Launch at login* and *Start the container system when the app launches*. The helper waits for it and does not start it. |
 | Changing the policy | `docker update --restart` | Not possible; recreate the container. |
 | With `--rm` | Refused | Refused in the Run sheet. |
+
+### The background helper
+
+Without it, restart policies stop being enforced the moment you quit Container Desktop. With **Settings › General ›
+Keep enforcing when Container Desktop is closed** switched on:
+
+- A per-user LaunchAgent (`~/Library/LaunchAgents/io.aiflowlabs.containerdesktop.supervisor.plist`) runs the
+  app's own executable with `--supervise`: no window, no Dock icon, no menu bar item. launchd starts it when you
+  switch it on and at every login, and starts it again if it crashes. Switching the setting off stops it and
+  removes the file.
+- It applies the same rules as the app (same delays, same limits), reading the container list every 10 s while
+  at least one container has a policy and every 30 s otherwise. When a restart is due it wakes up for it, so a
+  container that stops is typically running again within about 15 s.
+- **Exactly one of the two enforces.** While the helper is alive the app stands down and only records what you
+  do; when the helper goes away (switched off, or it crashed) the app takes over at its next look. The hand-over
+  uses file locks that the system releases when a process ends, so the two can never both restart a container.
+  A change of hands is not treated as a launch: what you stopped stays stopped, also with `always`.
+- **Stops made in the app are respected by the helper.** The app writes them to
+  `~/Library/Application Support/Container Desktop/Supervision/state.json` (container names and timestamps
+  only), which the helper reads before every look. The same goes for stopping the container system from the app.
+- It **waits for the container system and never starts it**. While the system is not running, or the `container`
+  CLI is missing, it checks again every 20 to 30 s and does nothing else.
+- Its restarts are not in the Activity window. They are in the system log:
+  `log show --last 1h --predicate 'subsystem == "io.aiflowlabs.containerdesktop" AND category == "supervisor"'`.
+  The log holds container names and CLI error messages, never environment variables or commands.
+- "Enforce restart policies" switched off makes the helper idle as well.
+- After an update or after moving the app, opening Container Desktop once re-installs the helper for the new
+  copy. Until then the old helper process keeps running.
+- From a terminal: `"/Applications/Container Desktop.app/Contents/MacOS/ContainerDesktop"
+  --background-supervision status` (or `register` / `unregister`).
+
+What the helper does not change: a `container stop` typed in a terminal still looks like a crash and is undone,
+`on-failure` still reacts to every unexpected stop (no exit codes), and the policy is still fixed when the
+container is created.
 
 ## Names and networking
 
@@ -279,6 +317,21 @@ Health checks and restart policies, same day and engine
 | A crashing container without the label | Never started. |
 | The whole path in the app (compose file with `restart: always` → run → Containers polling → supervisor) | Restarted twice with Activity entries "Restart …, attempt 1/2". After Stop through the Containers store it stays stopped. |
 
+The background helper, 2026-11-12, with an ad-hoc signed `make app` build. By then the engine on the test Mac had
+been upgraded, so these ran on **container 1.7.1** (CLI and server), not 1.5.0
+(`BackgroundSupervisorIntegrationTests.swift` and by hand):
+
+| What | Observed |
+|---|---|
+| Switching the helper on while the app is running | launchd runs `ContainerDesktop --supervise`. Its log: "Container Desktop is enforcing restart policies. Standing by.", and 11 s later "Enforcing restart policies (1 container with a policy)." The lock file that marks the enforcer moved from the app's process to the helper's. |
+| App quit, then `container stop` on a container with `always` | Running again 8 s after the stop returned; the log has "Restart …, attempt 1". After `container kill`: running again 13 s later, "attempt 2". |
+| A container stopped through the app's Containers store while the helper enforces | Left stopped for the 35 s it was watched; the mark was in `state.json` and was removed after the container was deleted. Before that, the same container, killed from the CLI, had been started again by the helper. |
+| The helper while idle | 0.05 s of CPU time in its first minute with no supervised container, 0.11 s in 2 min 24 s with one; about 20 MB of memory. |
+| The helper killed with `kill -9` | launchd started it again 10 s later, and it went back to enforcing. |
+| Switching the helper off (`--background-supervision unregister`, and by hand with `launchctl bootout` + `rm`) | It logs "Background supervision stopped." and exits; the job and the property list are gone. |
+| The app bundle replaced by a newer build while the helper is installed | The helper starts from the new build. Opening the app once replaces the helper (old one stopped, new one started 2 s later). |
+| The same with `SMAppService.agent` (tried first) | Registered and ran on the first build. After the bundle was replaced, launchd refused to start it (`OS_REASON_CODESIGNING`) while the API still reported it enabled, and registering again did not repair it. That is why the helper is a plain LaunchAgent. |
+
 Bugs this found:
 
 - The preview used to promise name resolution whenever the engine property `dns.domain` was set. That is not
@@ -304,6 +357,11 @@ Bugs this found:
   the container system, a real reboot with *Launch at login*, and the app left running for hours with its window
   closed. The logic is unit-tested with a fake clock; the screens (Run sheet picker, Inspect rows, Settings
   switch, the wait step's live status) were built and compiled but not looked at in a running app in this pass.
+- The background helper: a real logout, login or reboot (it was loaded with `launchctl`, which is what login
+  does, but nobody logged out); the container system being stopped or started under it (that would have stopped
+  other containers on the test Mac; waiting and backoff are unit-tested on the mock engine); the helper running
+  for days; how it is listed under System Settings › General › Login Items; the Settings switch itself (the
+  service behind it was driven with `--background-supervision`); the helper on CLI 1.5.0 or 1.6.
 - Anything on CLI 1.6 or 1.7.
 
 ## For contributors
@@ -313,6 +371,7 @@ Bugs this found:
 | YAML → `ComposeFile`, interpolation, warnings (no UI; the only code that uses Yams) | `Sources/ContainerKit/Compose/` |
 | `ComposePlanner` (file + options + what exists → ordered `ComposePlan`), `ComposeRun` (execution), `ComposeWait` (health and completion waits), `ComposeImport` (sheet state), `ComposeLoader` | `Sources/AppCore/Compose/` |
 | `RestartPolicy` (the label) and `RestartSupervisor` (enforcement, fed by the containers poller) | `Sources/ContainerKit/Models/RestartPolicy.swift`, `Sources/AppCore/RestartSupervisor.swift` |
+| The background helper: its loop, the hand-over locks, the shared state file, the LaunchAgent, the `--supervise` entry point | `Sources/AppCore/Supervision/`, `Sources/ContainerDesktop/App/HeadlessSupervisor.swift` |
 | Import sheet | `Sources/ContainerDesktop/Features/Compose/` |
 | Sample files and tests | `Tests/ContainerKitTests/Resources/compose/`, `Compose*Tests.swift` in both test targets |
 

@@ -5,7 +5,19 @@ import ContainerKitMock
 import DesignSystem
 import SwiftUI
 
+/// Process entry point: the app, unless an argument asks for the windowless helper (`HeadlessSupervisor`).
 @main
+enum Main {
+    static func main() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if HeadlessSupervisor.handles(arguments) {
+            HeadlessSupervisor.main(arguments)
+        } else {
+            ContainerDesktopApp.main()
+        }
+    }
+}
+
 struct ContainerDesktopApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel.make(mock: { MockBackend() })
