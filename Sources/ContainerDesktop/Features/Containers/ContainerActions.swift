@@ -120,6 +120,15 @@ struct ContainerActions {
     /// Opens "Save as Image…" (`container commit`, Apple container 1.6+).
     func saveAsImage(_ c: Container) { ui.commitRequest = CommitSheetRequest(container: c) }
 
+    /// "Reclaim Disk Space" (`container clean`, Apple container 1.7+) for the running containers among `ids`,
+    /// as an Activity task that starts with the exact command. No confirmation: the command deletes nothing.
+    func reclaimDiskSpace(_ ids: [String]) {
+        let system = model.system
+        DiskReclaim.run(containers(ids), backend: model.backend, taskCenter: model.taskCenter) { _ in
+            await system.refreshDiskUsage()
+        }
+    }
+
     // MARK: Export
 
     /// Asks for a destination, then runs `exportContainer` as an Activity task.
@@ -203,6 +212,14 @@ struct ContainerMenuItems: View {
             ) { actions.saveAsImage(c) }
             .disabled(actions.ui.commitSupported != true)
             .help("Create a new image from this container's filesystem (container commit)")
+        }
+        // Hidden on a runtime without `container clean` (before 1.7) and when nothing selected is running.
+        if actions.ui.cleanSupported == true, containers.contains(where: \.isRunning) {
+            if single == nil { Divider() }
+            Button("Reclaim Disk Space", systemImage: "arrow.3.trianglepath") { actions.reclaimDiskSpace(ids) }
+                .help(
+                    "Give space freed inside the container and its named volumes back to the Mac "
+                        + "(container clean). Deletes nothing.")
         }
         Divider()
         Button(
