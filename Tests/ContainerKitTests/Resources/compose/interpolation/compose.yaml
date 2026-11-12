@@ -1,0 +1,18 @@
+# Variable interpolation. `dot.env` in this folder is the `.env` file (tests copy it into place).
+name: ${PROJECT:-demo}
+services:
+  app:
+    image: "example/app:${TAG}"
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    environment:
+      GREETING: "${GREETING-hello}"
+      EMPTY_OK: "${EMPTY:-fallback}"
+      EMPTY_KEPT: "${EMPTY-unused}"
+      PRICE: "$$5"
+      NESTED: "${MISSING:-${TAG}-nested}"
+      PLAIN: $TAG
+      UNSET_ONE: "${NOT_SET_ANYWHERE}"
+      ONLY_IF_SET: "${TAG:+tagged}"
+    volumes:
+      - ${DATA_DIR:-./data}:/data

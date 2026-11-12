@@ -1,0 +1,29 @@
+# Services built from local Dockerfiles: short and long `build:` forms.
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+      target: dev
+      args:
+        NODE_VERSION: "22"
+        GIT_SHA: abc123
+    image: example/api:dev
+    ports:
+      - "3000:3000"
+    env_file: .env.api
+    depends_on:
+      worker:
+        condition: service_started
+  worker:
+    build: ./worker
+    entrypoint: ["python", "-m", "worker"]
+    command: --queues default
+    init: true
+    read_only: true
+    tty: true
+    stdin_open: true
+    platform: linux/amd64
+    dns:
+      - 1.1.1.1
+    tmpfs: /tmp
