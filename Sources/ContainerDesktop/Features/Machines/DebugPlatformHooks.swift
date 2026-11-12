@@ -65,7 +65,7 @@
             guard !model.clusters.items.contains(where: { $0.name == name }) else {
                 log("cluster \(name) already exists; not touching it"); log("done"); return
             }
-            var form = ClusterForm()
+            var form = ClusterForm(capabilities: model.clusters.effectiveCapabilities)
             form.name = name
             log("create: \(form.previewCommand())")
             let started = Date.now

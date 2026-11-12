@@ -3,10 +3,13 @@ import ContainerKit
 import DesignSystem
 import SwiftUI
 
-/// "Load image…": `container k8s load-image --name CLUSTER [--platform P] REF`, streamed via TaskCenter.
+/// "Load image…": `container <k8s|cluster> load-image --name CLUSTER [--platform P] REF`, streamed via TaskCenter.
+/// Only presented when the installed CLI has `load-image` (container 1.7 dropped it for the shared image store).
 struct LoadImageSheet: View {
     let cluster: String
     let localImages: [String]
+    /// What the installed CLI's Kubernetes plugin supports; picks the command word for the preview.
+    var capabilities: KubernetesCapabilities = .legacy
     let load: (String, Platform?) -> Void
 
     /// `load-image` takes one platform; native or Rosetta are the useful choices.
@@ -33,16 +36,11 @@ struct LoadImageSheet: View {
             Picker("Platform", selection: $platform) {
                 ForEach(Self.choices) { Text($0.title).tag($0) }
             }
-            CommandPreview(command: command)
+            CommandPreview(
+                command: LoadImageCommand.preview(
+                    cluster: cluster, reference: reference, platform: platform.single, capabilities: capabilities))
             Text("Then use it in a pod with imagePullPolicy: Never.").font(.caption).foregroundStyle(.secondary)
         }
-    }
-
-    private var command: String {
-        var args = ["k8s", "load-image", "--name", cluster]
-        if let p = platform.single { args += ["--platform", p.slug] }
-        args.append(reference.isEmpty ? "IMAGE" : reference)
-        return ContainerKit.CommandLine(executable: "container", arguments: args).display
     }
 }
 

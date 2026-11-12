@@ -32,9 +32,13 @@ struct Sidebar: View {
                 .lineLimit(1)
                 .layoutPriority(1)
             if section == .kubernetes {
-                TagBadge("Beta", tint: .statusWarning)
-                    .fixedSize()
-                    .help("Experimental: Kubernetes support relies on the container k8s plugin preview")
+                // Apple's own word for the plugin, the same as on the Kubernetes page. Where the full badge does
+                // not fit beside the title and the count, it falls back to a flask icon with the same tooltip.
+                ViewThatFits(in: .horizontal) {
+                    TagBadge("Experimental", tint: .statusWarning).fixedSize()
+                    Image(systemName: "flask").font(.caption).foregroundStyle(Color.statusWarning)
+                }
+                .help("Experimental: Apple ships Kubernetes support as an experimental container plugin")
             }
         }
         .badge(count)
