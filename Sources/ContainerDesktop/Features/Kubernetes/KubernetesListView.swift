@@ -12,6 +12,16 @@ struct KubernetesListView: View {
     @State private var showCreate = false
     @State private var loadInto: String?
     @State private var pendingDelete: [String] = []
+    #if DEBUG
+        @State private var debugSelect = false
+
+        /// `cluster-select`: the first running cluster (else the first), as soon as clusters are listed.
+        private func selectForDebug() {
+            guard debugSelect, let cluster = store.items.first(where: \.isRunning) ?? store.items.first else { return }
+            debugSelect = false
+            selection = [cluster.name]
+        }
+    #endif
 
     static let docsURL = URL(string: "https://github.com/apple/container/tree/main/docs")!
 
@@ -56,7 +66,10 @@ struct KubernetesListView: View {
             }
             #if DEBUG
                 .debugHook("cluster-create") { showCreate = true }
-                .debugHook("cluster-select") { selection = Set(store.items.prefix(1).map(\.name)) }
+                .debugHook("cluster-select") { debugSelect = true }
+                // A real engine lists its clusters after the hook fires; select once there is one.
+                .onChange(of: store.items.isEmpty, initial: true) { selectForDebug() }
+                .onChange(of: debugSelect) { selectForDebug() }
             #endif
     }
 
@@ -78,8 +91,16 @@ struct KubernetesListView: View {
                     Link("Docs", destination: Self.docsURL).font(.callout)
                 }
                 Divider()
-                table
-                    .overlay { emptyState }
+                if let c = selectedCluster {
+                    // The selected cluster's pods, deployments and services, under the cluster list.
+                    VSplitView {
+                        table.frame(minHeight: 80, idealHeight: 130, maxHeight: 240)
+                        ClusterWorkloadsView(cluster: c).frame(minHeight: 220, idealHeight: 420)
+                    }
+                } else {
+                    table
+                        .overlay { emptyState }
+                }
             }
             .inspector(isPresented: .constant(selectedCluster != nil)) {
                 if let c = selectedCluster {
