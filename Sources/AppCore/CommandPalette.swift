@@ -5,6 +5,7 @@ import Observation
 public enum PaletteAction: Hashable, Sendable {
     case navigate(SidebarSection, itemID: String?)
     case startEngine, stopEngine, cleanUp, openSettings, openActivity, refresh, toggleTerminal
+    case importCompose
 }
 
 /// One row of the command palette.
@@ -51,6 +52,10 @@ public final class CommandPalette {
         PaletteItem(
             id: "action.refresh", title: "Refresh", subtitle: "Reload the current section", symbol: "arrow.clockwise",
             action: .refresh),
+        PaletteItem(
+            id: "action.import-compose", title: "Import Compose File…",
+            subtitle: "Run a compose.yaml / docker-compose.yml stack", symbol: "square.stack.3d.down.right",
+            action: .importCompose),
         PaletteItem(
             id: "action.terminal", title: "Toggle terminal", subtitle: "Integrated terminal panel", symbol: "terminal",
             action: .toggleTerminal),

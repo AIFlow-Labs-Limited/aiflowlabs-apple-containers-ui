@@ -28,6 +28,8 @@ public final class AppModel {
     public let palette = CommandPalette()
     /// "Run" hand-off from Images/Builds to the Containers run sheet.
     public let runRequests = RunRequests()
+    /// "Import Compose File…" hand-off from menus, palette, toolbar and drag-and-drop to the window's sheet.
+    public let composeRequests = ComposeImportRequests()
 
     // Stores are created once and survive backend swaps (they talk to `switchable`), so views' `.task`
     // polling clients stay attached. `storesGeneration` therefore never changes; it exists so views may key
