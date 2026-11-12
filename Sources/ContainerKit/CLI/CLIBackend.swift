@@ -16,6 +16,8 @@ public actor CLIBackend: ContainerBackend {
     public let runner: any CommandRunning
     /// Explicit `config.toml` location; `nil` means `$CONTAINER_CONFIG_PATH` or `~/.config/container/config.toml`.
     public let configPath: String?
+    /// Cached answer of the `container commit --help` probe (`supportsCommit()`); `nil` until it is known.
+    var commitSupport: Bool?
 
     /// Default timeout for quick, read-only commands (`ls`, `inspect`, …).
     static let queryTimeout: Duration = .seconds(60)

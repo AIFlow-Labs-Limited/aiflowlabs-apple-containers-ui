@@ -49,6 +49,10 @@ public actor MockBackend: ContainerBackend {
     /// Simulated latency so loading states are visible in previews.
     public var latency: Duration = .milliseconds(60)
     public var systemRunning = true
+    /// Fake filesystems for the Files tab by container id, built on first use (`MockBackend+Files.swift`).
+    var fileSystems: [String: MockFileSystem] = [:]
+    /// Whether the mock pretends its runtime has `container commit` (Apple container 1.6+).
+    public var commitSupported = true
     /// Origin of the fake stats counters (see `containerStats`).
     private let statsEpoch = Date.now
 
