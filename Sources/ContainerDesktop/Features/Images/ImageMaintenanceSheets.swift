@@ -71,6 +71,13 @@ struct SaveImageSheet: View {
                     Text("All platforms").tag("all")
                     ForEach(image?.platforms ?? [], id: \.slug) { Text($0.slug).tag($0.slug) }
                 }
+                // "All platforms" fails for an image pulled only for this Mac, so start on a platform it has.
+                .onAppear {
+                    let slugs = (image?.platforms ?? []).map(\.slug)
+                    if let preferred = slugs.first(where: { $0.hasPrefix("linux/arm64") }) ?? slugs.first {
+                        platform = preferred
+                    }
+                }
                 LabeledContent("Destination") {
                     HStack {
                         Text(destination?.path(percentEncoded: false) ?? "Not chosen").font(.monoCaption)
