@@ -336,6 +336,8 @@ Details in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); scope in [`docs/PRD.m
   XPC backend (no CLI round-trips), menu-bar-only mode.
 - **Later:** remote hosts.
 
+How this compares with Docker Desktop today, including what is still missing: [docs/COMPARISON.md](docs/COMPARISON.md).
+
 Ideas and votes are welcome in [Issues](https://github.com/AIFlow-Labs-Limited/aiflowlabs-apple-containers-ui/issues).
 
 ## Contributing

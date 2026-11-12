@@ -59,6 +59,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and images that cannot be browsed.
 
 ### Fixed
+- Accented and Korean text in environment values, commands and paths reached the runtime in a different Unicode
+  form than typed (`é` became `e` plus a combining accent). It now arrives byte for byte.
 - Pressing Return in the Run sheet's Name or Command field now runs the container. (#1)
 - The Run sheet's Image, Name, Command and other fields now have accessibility labels for VoiceOver. (#4)
 - The sidebar said "Beta" and the Kubernetes page "Experimental"; both now say "Experimental". (#11)
