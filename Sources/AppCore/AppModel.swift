@@ -209,6 +209,8 @@ public final class AppModel {
 
     private func setEngine(_ state: EngineState) {
         let wasRunning = engine.isRunning
+        // A different CLI version (upgraded while the app runs) may have gained or renamed the Kubernetes plugin.
+        if let version = state.version, version != engine.version { clusters.invalidateAvailability() }
         if engine != state { engine = state }
         gate.engineRunning = state.isRunning
         // Engine came up (launch, Start button, or started from the CLI): load every section once.

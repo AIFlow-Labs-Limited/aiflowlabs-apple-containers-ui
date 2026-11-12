@@ -32,7 +32,8 @@ public struct StatsPoint: Hashable, Sendable, Identifiable {
 /// Rolling per-container stats history (default 5 minutes) for the Stats charts.
 ///
 /// Raw `ContainerStats` are cumulative counters; `append` turns consecutive samples into rates. The first
-/// sample of a container only primes the counters (rates and CPU are 0 until a second sample arrives).
+/// sample of a container only primes the counters (rates and CPU are 0 until a second sample arrives; CPU is
+/// there from the first sample when the CLI reports `cpuUtilization`, as container 1.7 and later do).
 @MainActor
 @Observable
 public final class ContainerStatsHistory {
@@ -99,6 +100,8 @@ public final class ContainerStatsHistory {
         var point = StatsPoint(
             date: date, cpuPercent: 0, memoryBytes: current.memoryUsageBytes,
             memoryLimitBytes: current.memoryLimitBytes, processes: current.numProcesses)
+        // A CLI that measures CPU itself (container 1.7+, `cpuUtilization`) needs no previous sample of ours.
+        if let reported = current.reportedCPUPercent { point.cpuPercent = reported }
         guard let previous else { return point }
         let interval = date.timeIntervalSince(previous.date)
         guard interval > 0 else { return point }

@@ -126,7 +126,11 @@ public final class ContainersStore: PollingStore {
         let ids = items.filter(\.isRunning).map(\.id)
         guard !ids.isEmpty else { stats = [:]; cpuPercent = [:]; return }
         guard let samples = try? await backend.containerStats(ids: ids) else { return }
-        var percent: [String: Double] = [:]
+        // CLIs that report `cpuUtilization` (container 1.7+) give a CPU figure on the very first sample; older
+        // ones need two of ours (`ContainerStats.cpuPercent` prefers the reported value either way).
+        var percent = Dictionary(
+            samples.compactMap { sample in sample.reportedCPUPercent.map { (sample.id, $0) } },
+            uniquingKeysWith: { $1 })
         if let last = lastSampleAt {
             let interval = date.timeIntervalSince(last)
             for sample in samples {

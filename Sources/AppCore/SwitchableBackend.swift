@@ -212,6 +212,9 @@ public final class SwitchableBackend: ContainerBackend, Sendable {
     public func kubernetesAvailable() async -> Bool {
         await current.kubernetesAvailable()
     }
+    public func kubernetesCapabilities() async throws -> KubernetesCapabilities? {
+        try await current.kubernetesCapabilities()
+    }
     public func listClusters() async throws -> [KubernetesCluster] {
         try await current.listClusters()
     }
