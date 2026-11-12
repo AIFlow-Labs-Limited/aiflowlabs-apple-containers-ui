@@ -69,6 +69,7 @@ extension ComposePlanBuilder {
         applyNetwork(service, to: &spec)
         var labels = projectLabels(service.labels)
         labels[ComposePlanner.DockerLabel.service] = service.name
+        if let policy = service.restart.labelValue { labels[AppLabel.restart] = policy }
         spec.labels = labels
         spec.useInit = service.useInit
         spec.readOnly = service.readOnly

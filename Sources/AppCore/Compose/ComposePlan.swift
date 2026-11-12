@@ -106,6 +106,18 @@ public struct ComposeStep: Hashable, Sendable, Identifiable {
         /// Deletes an existing container (killed first when running) so its name can be reused.
         case removeContainer(name: String)
         case runContainer(RunSpec)
+        /// Runs `container`'s health check inside it until it passes (`depends_on: condition: service_healthy`).
+        case waitHealthy(container: String, check: ComposeHealthcheck)
+        /// Waits until `container` has stopped (`condition: service_completed_successfully`).
+        case waitCompleted(container: String)
+
+        /// Whether the action only waits (nothing is created or changed).
+        public var isWait: Bool {
+            switch self {
+            case .waitHealthy, .waitCompleted: return true
+            default: return false
+            }
+        }
     }
 
     /// Stable within a plan: `network:shop_default`, `run:db`.
@@ -130,8 +142,13 @@ public struct ComposeStep: Hashable, Sendable, Identifiable {
         case .buildImage(let spec): return "Build \(spec.tag)"
         case .removeContainer(let name): return "Delete existing container \(name)"
         case .runContainer(let spec): return "Run \(spec.name ?? spec.image)"
+        case .waitHealthy(let container, _): return "Wait for \(container) to be healthy"
+        case .waitCompleted(let container): return "Wait for \(container) to finish"
         }
     }
+
+    /// Whether the step only waits (nothing is created or changed).
+    public var isWait: Bool { action.isWait }
 
     /// SF Symbol for the step list.
     public var symbol: String {
@@ -142,6 +159,8 @@ public struct ComposeStep: Hashable, Sendable, Identifiable {
         case .buildImage: return "hammer"
         case .removeContainer: return "trash"
         case .runContainer: return "play.circle"
+        case .waitHealthy: return "waveform.path.ecg"
+        case .waitCompleted: return "hourglass"
         }
     }
 
@@ -167,7 +186,18 @@ public struct ComposeStep: Hashable, Sendable, Identifiable {
             return ShellWords.join(["container", "delete", "-f", "--", name])
         case .runContainer(let spec):
             return spec.commandLineString(maskSecrets: maskSecrets)
+        case .waitHealthy(let container, let check):
+            // What the app does, as a shell loop (without the timeout, retry limit and start period it applies).
+            let probe = ShellWords.join(["container", "exec", "--", container] + check.command)
+            return "until \(probe); do sleep \(Self.seconds(check.interval)); done"
+        case .waitCompleted(let container):
+            return "while container list --quiet | grep -qx \(ShellWords.quote(container)); do sleep 1; done"
         }
+    }
+
+    private static func seconds(_ duration: Duration) -> String {
+        let value = Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
+        return value == value.rounded() ? String(Int(value)) : String(value)
     }
 
     private static func labelArguments(_ labels: [String: String]) -> [String] {
@@ -217,6 +247,12 @@ public struct ComposeServiceSummary: Hashable, Sendable, Identifiable {
     public var ports: [String]
     /// Names other containers of the stack can use to reach it. Empty when only the IP address works.
     public var hostnames: [String]
+    /// The health check the app can run for it, when the file gives one.
+    public var healthcheck: ComposeHealthcheck?
+    /// Restart policy the container is labelled with.
+    public var restart: RestartPolicy = .no
+    /// What it waits for before it starts, e.g. "db to be healthy", "migrate to finish".
+    public var waitsFor: [String] = []
 
     public var id: String { name }
 }

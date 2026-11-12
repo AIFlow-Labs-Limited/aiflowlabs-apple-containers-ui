@@ -156,7 +156,7 @@ struct ComposePlannerTests {
         #expect(
             plan.steps.map(\.id) == [
                 "network:longform_frontend", "network:longform_backend", "volume:tls-certs",
-                "pull:nginx:1.27", "pull:example/app", "run:app", "run:edge-proxy",
+                "pull:nginx:1.27", "pull:example/app", "run:app", "healthy:app", "run:edge-proxy",
             ])
         #expect(
             plan.steps[1].commandLine()
