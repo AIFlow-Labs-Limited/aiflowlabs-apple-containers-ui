@@ -8,6 +8,11 @@ release changed for the app, and how the app copes.
 > at those tags and the 1.7.1 release notes. **It has not yet been run against a live 1.6 or 1.7 engine.** The
 > samples the 1.7 tests use (`Sources/ContainerKitMock/Resources/cli-1.7.1-derived/`) were written from that source,
 > not recorded. See [What still needs a live engine](#what-still-needs-a-live-engine).
+>
+> **Verified on a live 1.5.0 engine on 2026-11-12** (gated suites, `CONTAINER_DESKTOP_INTEGRATION=1 swift test
+> --filter Integration`): Kubernetes capability detection and a cluster created, listed and deleted
+> ([below](#kubernetes-on-cli-150-verified-live)); the Files tab, export and commit
+> ([below](#files-tab-export-and-commit-on-cli-150)); compose import ([COMPOSE.md](COMPOSE.md#verified-on-a-live-engine)).
 
 ## How the app adapts
 
@@ -40,6 +45,53 @@ For stats the app simply uses `cpuUtilization` when the JSON has it.
 | | `container list` hides cluster nodes (even with `--all`); `start` / `stop` / `kill` / `delete` report a node as not found. `inspect`, `logs`, `exec`, `stats` still work on nodes. | The backend adds the running node containers back to the container list by `container inspect`ing them, so they stay under "system containers" and image / network / volume "in use" checks and the system memory figure stay correct. A refused start / stop / kill / delete of a node explains that the node belongs to a cluster. As soon as the app sees a node in `container list` it knows the CLI lists nodes itself and adds nothing. |
 | | Clusters created by an earlier CLI have no stored record and are **not listed** by `cluster list`. | Nothing the app can do: such clusters do not appear in the Kubernetes section. Their node containers (labelled with the old `k8s` plugin name) may still show among system containers. Delete and re-create them. |
 | | Stats JSON gains `cpuUtilization` (fraction of one core, measured by the CLI over 2 s). | Used directly as the CPU figure, from the first sample. Older CLIs keep the two-sample calculation. |
+
+## Kubernetes on CLI 1.5.0, verified live
+
+Checked on 2026-11-12 against a running 1.5.0 engine by `Tests/ContainerKitTests/KubernetesIntegrationTests.swift`
+(no DNS domain was registered on the Mac):
+
+- `kubernetesCapabilities()` finds the `k8s` word (after `container cluster --help` fails with "unknown command")
+  and reads the real help screens as: no `--workers`, no worker groups, no `--shared-image-store`, `load-image`
+  without `--node`, no `--format`, no `--nodes`, default name `k8s-dev`. The cached answer and a fresh detection
+  agree.
+- `listClusters()` with no clusters returns an empty list (the table has a header row only).
+- A spec with workers fails with `.unsupported` before any command runs.
+- `createCluster` with `--name cd-it-… -c 2 -m 2G` and the local `kindest/node` image created a single-node
+  cluster in about a minute. `listClusters()` then shows one running control-plane node with 2 CPUs, 2048 MB and
+  an address; the node is a container the app files under system containers. `deleteCluster` removes the cluster
+  and its node container.
+- The plugin adds a context named after the cluster to `~/.kube/config` on create and removes it on delete.
+
+Not checked: `load-image`, `write-config`, `--cni`, `--rm`, and reaching the API server with `kubectl`.
+
+## Files tab, export and commit on CLI 1.5.0
+
+Checked on 2026-11-12 against a running 1.5.0 engine, in a BusyBox container (`alpine`) and a GNU coreutils one
+(`python:3.11-slim`), by `Tests/ContainerKitTests/CLIBackendFilesIntegrationTests.swift` and
+`CLIBackendFileCopyIntegrationTests.swift`. What the runtime does, and what the app does about it:
+
+| `container` 1.5.0 behaviour (observed) | What the app does |
+|---|---|
+| `container exec` of a program that is not in the image exits **1** (not 126 / 127) with `Error: failed to find target executable <name>`, followed by a second `Error: failed to start process …` line that repeats it. | The listing treats that text for `sh` as "this image has no shell" and offers Export instead. A missing tool other than `sh` is a normal command failure that names the tool. |
+| `exec` and `cp` on a stopped container exit 1 with `container <id> is not running` (`cp` wraps it: `failed to copy from container <id> (cause: "invalidState: "container <id> is not running"")`). `export` works on a stopped container. | The Files tab asks for a running container and offers Start and Export Filesystem. |
+| `container export -o <tar> <id>` writes a valid tar for running and stopped containers. It holds the root filesystem only: the contents of volumes, bind mounts and tmpfs are not in it. | Used as is. |
+| `container cp` only sees the root filesystem. Copying **out** of a volume, bind mount, tmpfs, `/dev/shm` or `/proc` fails with `copy: path not found`. Copying **in** exits 0, but the file lands underneath the mount, where nothing in the container can see it. | Downloads from such a path are first copied to a temporary item in `/` inside the container (`cp -a`). Uploads to a mount go to a temporary item in `/` and are moved into place with `mv`. A direct upload is checked afterwards (`test -e`). |
+| `cp <src> <id>:/existing-dir` puts the source *inside* the directory. | An upload to a path that exists goes to a temporary name, the old item is moved aside, the new one moved in, the old one removed. `/`, system directories and mount points are never replaced. |
+| `cp` sends container paths in decomposed Unicode form. A precomposed `é` (how Linux tools store it) is "not found" on download; an upload creates a second, decomposed `é`. | Such paths are reached through an ASCII alias: a symbolic link in `/` for downloads, a temporary name plus `mv` for uploads. |
+| Uploading a folder replaces every non-ASCII character in the names inside it with `*`. Downloading a folder keeps them. | The folder is uploaded with ASCII placeholder names, which are renamed back inside the container. |
+| `cp` creates a missing parent directory of the destination. | Nothing; noted here. |
+| `container commit` does not exist: `Error: unknown command 'commit'`, exit 64. | `supportsCommit()` is `false`, "Save as Image…" is unavailable, and a commit that is attempted anyway fails with "Save as Image is not available: … added in Apple container 1.6". |
+
+One more thing the pass found is on the Mac side, not in the CLI: Foundation's `Process` passes arguments to a
+child in decomposed Unicode form (`é` becomes `e` + combining accent, a Hangul syllable becomes its jamo). Every
+`exec` on a path with such a character would therefore name a file that does not exist. The file operations send
+those arguments as ASCII `printf` escapes and let `sh` in the container decode them. Other features that pass text
+to a container (the Run sheet's environment values and commands) still go through `Process` unchanged, so an
+accented character there arrives decomposed. It looks the same and compares differently.
+
+The workarounds need `test`, `ln`, `cp`, `mv`, `rm` and, for non-ASCII names, `sh` in the image. A plain ASCII
+path on the root filesystem that does not exist yet is copied directly and needs none of them.
 
 ## What still needs a live engine
 

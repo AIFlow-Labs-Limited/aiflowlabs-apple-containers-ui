@@ -6,8 +6,9 @@ shows what it would do, and then runs the equivalent `container …` commands on
 It is an importer for a defined subset, not a reimplementation of Docker Compose. Everything outside the subset is
 listed in the preview before anything runs.
 
-Last verified against `container` CLI 1.5.0 (`--help` output). The engine was not running while this was written;
-see [What has not been verified](#what-has-not-been-verified).
+Last verified on 2026-11-12 against a running `container` CLI 1.5.0 engine: see
+[Verified on a live engine](#verified-on-a-live-engine) and
+[What has not been verified](#what-has-not-been-verified).
 
 ## How to use it
 
@@ -138,12 +139,14 @@ the name of its container and nothing else. Two options in the preview follow fr
 
 | Setup | From another container |
 |---|---|
-| `default` network, DNS domain configured (for example `test`) | `db` and `db.test` resolve. |
+| `default` network, DNS domain set and registered (`container system dns list` shows it, for example `test`) | `db` and `db.test` resolve. *Not re-checked in the 2026-11-12 pass: registering a domain needs `sudo`.* |
+| `default` network, DNS domain set as a property (`dns.domain`) but not registered | Names do not resolve (`NXDOMAIN`), although `/etc/resolv.conf` in the container says `domain test`. IP address only. *Observed 2026-11-12.* |
 | `default` network, no DNS domain | Names do not resolve. Use the IP address, or set a domain under Settings › Network. |
-| A network created with `container network create` | Names do not resolve ([apple/container#1809](https://github.com/apple/container/issues/1809)). IP address only. |
+| A network created with `container network create` | Names do not resolve ([apple/container#1809](https://github.com/apple/container/issues/1809)). IP address only. *Observed 2026-11-12.* |
 
-The preview reads the engine's DNS domain and existing resources and words its summary accordingly; when the
-engine is stopped it says the DNS setup could not be checked. It never rewrites your environment variables.
+The preview reads the engine's DNS domain, whether that domain is registered, and the existing resources, and
+words its summary accordingly; when the engine is stopped it says the DNS setup could not be checked. It never
+rewrites your environment variables.
 
 From the Mac, `db.test` needs the domain registered with macOS as well (Settings › Network › Enable DNS names,
 which runs `sudo container system dns create`). Published ports (`ports:`) are reachable on `localhost` either way.
@@ -155,21 +158,38 @@ which runs `sudo container system dns create`). Published ports (`ports:`) are r
 - **PostgreSQL on a named volume:** named volumes are ext4 disks with a `lost+found` folder at the top, which makes
   `initdb` refuse `/var/lib/postgresql/data`. The preview adds a note; set
   `PGDATA=/var/lib/postgresql/data/pgdata`.
-- **Missing bind-mount folders:** Docker creates them; the preview warns instead, create them first.
+- **Missing bind-mount folders:** Docker creates them; this runtime refuses to start the container
+  (`path '…' does not exist`). The preview warns; create them first.
 - **`host.docker.internal`** does not exist. Settings › Network has the `host.container.internal` helper.
+
+## Verified on a live engine
+
+Run on 2026-11-12 against a running engine, `container` CLI 1.5.0, through the app's real backend
+(`Tests/AppCoreTests/ComposeIntegrationTests.swift`; `CONTAINER_DESKTOP_INTEGRATION=1 swift test --filter Integration`).
+The Mac had `dns.domain = "test"` set as an engine property and no registered DNS domain.
+
+| What | Observed |
+|---|---|
+| A project with two services from local images, a named volume, a published port, environment variables, a bind mount, `working_dir`, `depends_on` and labels | Planned as *create volume, run dependency, run dependent* with no pull. Both containers run and carry `io.aiflowlabs.containerdesktop.project`, `com.docker.compose.project` and `com.docker.compose.service`; the volume carries the project label. The environment variable, the volume, the bind mount (read and write, visible on the Mac) and the working directory are there. Redis answers on `localhost:<published port>`. "Remove What Was Created" removes the containers and the volume. |
+| `tmpfs` with `size: 16m` → `--tmpfs /scratch:size=16M` | Works: `tmpfs … size=16384k`. Without a size the tmpfs is about half the container's memory. |
+| One service on two networks → `--network a --network b` | Works: the container gets `eth0` and `eth1`, one address per network. The built-in `default` network plus a created one also works. |
+| A bind mount whose host folder is missing | `container run` exits 1 with `Error: path '<absolute path>' does not exist`. No container is left behind and the folder is not created. The run stops at that step. |
+| `entrypoint:` without `command:` → `--entrypoint X` and no arguments | The image's default command is dropped, as in Docker (`redis:7-alpine` with `--entrypoint /bin/hostname` runs `hostname` alone). `--entrypoint "echo hi"` is looked up as one executable and fails, so passing only the first word is right. |
+| Names between containers, no registered DNS domain | On the `default` network and on a created network: the name does not resolve (`NXDOMAIN`), the IP address works. The preview said so in both cases. |
+| A second import of the same file | Blocked: both container names are reported as existing, the volume as reused. |
+
+A bug this found: the preview used to promise name resolution whenever the engine property `dns.domain` was set.
+That is not enough. The domain must also be registered (`container system dns list`). The preview now checks both.
 
 ## What has not been verified
 
-The engine on the development Mac was stopped while this feature was built, so nothing was run against a real
-runtime. The argument lists are covered by tests and match `container <command> --help` on 1.5.0. Not yet
-confirmed on a live engine:
-
-- the name-resolution table above (it comes from earlier manual testing on CLI 1.5.0 and the upstream issue, not
-  from a run of this feature);
-- `--tmpfs <path>:size=<n>` (the help only documents the path form);
-- attaching one container to several networks by repeating `--network`;
-- what `container run` does with a bind-mount source that does not exist;
-- whether `--entrypoint` with no arguments keeps the image's default command (Docker clears it).
+- Name resolution with a **registered** DNS domain (the first row of the table above). Registering one needs
+  `sudo`, which the test run does not use. That row still rests on earlier manual testing on CLI 1.5.0.
+- `build:` services (the builder was not started) and pulling an image that is not local.
+- `env_file`, `user`, `cpus` / `mem_limit`, `platform`, `init`, `read_only`, `cap_add` / `cap_drop`, `shm_size`,
+  `ulimits`, `dns*`, `mac_address`, network `ipam` subnets and `external` volumes or networks: their arguments are
+  covered by unit tests against `container <command> --help` on 1.5.0, not by a run.
+- Anything on CLI 1.6 or 1.7.
 
 ## For contributors
 
