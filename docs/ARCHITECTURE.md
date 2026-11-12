@@ -72,6 +72,10 @@ XPC backend land later for lower latency without touching the UI.
   engine is down, resumes on app activation.
 - `TaskCenter`: in-flight `LongRunningTask` (name, lines, progress, cancel) for pull/push/build/create; feeds the
   Activity panel + notifications.
+- `RestartSupervisor`: enforces the restart policy stored in a container's `AppLabel.restart` label (the runtime
+  has none). It has no timer: `ContainersStore`'s poller hands it every fresh list, and the store tells it about
+  stops and starts the user makes so those are not undone (the "stopped from the app" set is persisted in
+  `UserDefaults`). With enforcement on, `AppModel` keeps a background client on the containers poller at 10 s.
 - `SettingsStore`: `@AppStorage`-backed preferences + config.toml read/write via the backend.
 - `Diagnostics`: collects versions, `system status`, last errors → text for bug reports.
 - `UpdateChecker`: asks GitHub's `releases/latest` for the app and for `apple/container` through the injected
