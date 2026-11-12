@@ -60,8 +60,9 @@ Things the cask states that must stay true: the asset name `Container-Desktop-<v
 identifier `io.aiflowlabs.containerdesktop` (`uninstall quit:` and the preferences file in `zap`), the history
 folder `~/Library/Application Support/Container Desktop` (`BuildsStore.defaultHistoryURL`), and the first-launch
 steps in `caveats`, which mirror the README. The minimum runtime version in the caveats is read from
-`Sources/AppCore/RuntimeSupport.swift`. Once builds are notarized, delete the "not notarized" half of the caveats
-from the template.
+`Sources/AppCore/RuntimeSupport.swift`. Because builds are not notarized, the cask's `postflight` removes the
+quarantine flag after Homebrew has checked the sha256. Once builds are notarized, delete that `postflight` block and
+the "not notarized" half of the caveats from the template.
 
 The one-line installer (`scripts/install.sh`, linked from the README) needs no per-release step: it follows
 `releases/latest` and reads the `.sha256` asset, so it keeps working as long as both assets are attached to
