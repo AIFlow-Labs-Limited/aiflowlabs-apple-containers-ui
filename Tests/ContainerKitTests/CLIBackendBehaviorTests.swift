@@ -232,7 +232,8 @@ struct CLIBackendBehaviorTests {
         let backend = try CLIBackend.recording(runner)
         #expect(try await !backend.checkKubernetesAvailable())
         #expect(await !backend.kubernetesAvailable())
-        #expect(runner.commands.prefix(2) == [["k8s", "--help"], ["system", "status"]])
+        // Both plugin names are tried (`cluster` since 1.6.1, `k8s` before) before `system status` decides.
+        #expect(runner.commands.prefix(3) == [["cluster", "--help"], ["k8s", "--help"], ["system", "status"]])
     }
 
     @Test func kubernetesAvailabilityThrowsWhenSystemIsDown() async throws {

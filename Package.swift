@@ -30,7 +30,7 @@ let package = Package(
         .target(
             name: "ContainerKitMock",
             dependencies: ["ContainerKit"],
-            resources: [.copy("Resources/cli-1.5.0")],
+            resources: [.copy("Resources/cli-1.5.0"), .copy("Resources/cli-1.7.1-derived")],
             swiftSettings: swiftSettings
         ),
         // MARK: Design tokens + reusable SwiftUI components (no business logic)

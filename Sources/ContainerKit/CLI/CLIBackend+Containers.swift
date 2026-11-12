@@ -3,9 +3,12 @@ import Foundation
 // MARK: - ContainerOperations
 
 extension CLIBackend {
-    /// `container ls [-a] --format json`.
+    /// `container ls [-a] --format json`, plus the cluster node containers a 1.7+ CLI leaves out of that listing
+    /// (see `CLIBackend+ClusterNodes.swift`).
     public func listContainers(includeStopped: Bool) async throws -> [Container] {
-        try await decodeList(Container.self, ["ls"] + (includeStopped ? ["-a"] : []) + ["--format", "json"])
+        let listed = try await decodeList(
+            Container.self, ["ls"] + (includeStopped ? ["-a"] : []) + ["--format", "json"])
+        return await addingHiddenClusterNodes(to: listed, includeStopped: includeStopped)
     }
 
     /// `container inspect -- ID` (the CLI returns a one-element array).
@@ -55,7 +58,7 @@ extension CLIBackend {
     /// `container start -- ID`.
     public func startContainer(_ id: String) async throws {
         try Self.validateOperand(id, "Container")
-        try await execute(["start", "--", id], timeout: Self.actionTimeout)
+        try await executeLifecycle(["start", "--", id], id: id, action: "Starting", timeout: Self.actionTimeout)
     }
 
     /// `container stop [-t SECONDS] [-s SIGNAL] -- ID`.
@@ -66,19 +69,23 @@ extension CLIBackend {
         if let signal { arguments += ["-s", signal] }
         arguments += ["--", id]
         // Allow the requested grace period on top of the usual action timeout.
-        try await execute(arguments, timeout: Self.actionTimeout + .seconds(timeoutSeconds ?? 0))
+        try await executeLifecycle(
+            arguments, id: id, action: "Stopping", timeout: Self.actionTimeout + .seconds(timeoutSeconds ?? 0))
     }
 
     /// `container kill [-s SIGNAL] -- ID`.
     public func killContainer(_ id: String, signal: String?) async throws {
         try Self.validateOperand(id, "Container")
-        try await execute(["kill"] + (signal.map { ["-s", $0] } ?? []) + ["--", id], timeout: Self.actionTimeout)
+        try await executeLifecycle(
+            ["kill"] + (signal.map { ["-s", $0] } ?? []) + ["--", id], id: id, action: "Killing",
+            timeout: Self.actionTimeout)
     }
 
     /// `container delete [-f] -- ID`.
     public func deleteContainer(_ id: String, force: Bool) async throws {
         try Self.validateOperand(id, "Container")
-        try await execute(["delete"] + (force ? ["-f"] : []) + ["--", id], timeout: Self.actionTimeout)
+        try await executeLifecycle(
+            ["delete"] + (force ? ["-f"] : []) + ["--", id], id: id, action: "Deleting", timeout: Self.actionTimeout)
     }
 
     /// `container prune` (removes stopped containers).

@@ -23,6 +23,9 @@ public actor MockBackend: ContainerBackend {
     public var networks: [Network]
     public var machines: [Machine]
     public var clusters: [KubernetesCluster] = []
+    /// Which Kubernetes plugin the mock plays: `.legacy` (container 1.5.0's `k8s`), `.modern` (1.7's `cluster`)
+    /// or `nil` (no plugin). Also decides whether stats carry `cpuUtilization`, as a 1.7 CLI's do.
+    public var kubernetes: KubernetesCapabilities?
     public var registries: [RegistryLogin] = [
         RegistryLogin(server: "docker.io", username: "you"), RegistryLogin(server: "ghcr.io", username: "you"),
     ]
@@ -52,7 +55,11 @@ public actor MockBackend: ContainerBackend {
     /// Origin of the fake stats counters (see `containerStats`).
     private let statsEpoch = Date.now
 
-    public init() {
+    /// - Parameter kubernetes: the plugin to play; 1.5.0's unless `CONTAINER_DESKTOP_MOCK_CLI` says otherwise
+    ///   (`1.7` plays the new `cluster` plugin, `none` plays a CLI without one).
+    public init(kubernetes: KubernetesCapabilities? = MockBackend.environmentKubernetes()) {
+        self.kubernetes = kubernetes
+        clusters = MockClusters.seed(for: kubernetes)
         containers = (try? MockBackend.scrubbed([Container].self, "containers.json")) ?? []
         images = (try? Fixtures.images()) ?? []
         volumes = (try? MockBackend.scrubbed([Volume].self, "volumes.json")) ?? []
@@ -245,7 +252,8 @@ public actor MockBackend: ContainerBackend {
                 networkRxBytes: integral(Double(1_200 + i * 450), phase),
                 networkTxBytes: integral(Double(450 + i * 200), phase + 2.2),
                 blockReadBytes: 21_660_672, blockWriteBytes: integral(Double(6_000 + i * 1_000), phase + 4.1),
-                numProcesses: 1 + i * 5)
+                numProcesses: 1 + i * 5,
+                cpuUtilization: MockClusters.cpuUtilization(kubernetes, index: i, time: t, phase: phase))
         }
     }
     public func execCapture(
@@ -487,39 +495,69 @@ public actor MockBackend: ContainerBackend {
 
     // MARK: Kubernetes
 
-    public func kubernetesAvailable() async -> Bool { true }
-    public func checkKubernetesAvailable() async throws -> Bool { try requireRunning(); return true }
+    public func kubernetesAvailable() async -> Bool { kubernetes != nil }
+    public func checkKubernetesAvailable() async throws -> Bool { try requireRunning(); return kubernetes != nil }
+    public func kubernetesCapabilities() async throws -> KubernetesCapabilities? {
+        try requireRunning(); return kubernetes
+    }
+    /// Switches the plugin the mock plays (tests, previews); `nil` plays a CLI without it.
+    public func setKubernetes(_ capabilities: KubernetesCapabilities?) { kubernetes = capabilities }
+    /// The plugin `CONTAINER_DESKTOP_MOCK_CLI` asks for (1.5.0's when unset).
+    public static func environmentKubernetes() -> KubernetesCapabilities? { MockClusters.environmentCapabilities() }
     public func listClusters() async throws -> [KubernetesCluster] {
         try requireRunning(); await wait(); return clusters
     }
+    /// Like the CLI backend: options the played plugin lacks fail with `.unsupported` before anything is created.
     public nonisolated func createCluster(_ spec: ClusterSpec) -> LineStream {
-        stream(
-            [
-                "Pulling node image kindest/node:v1.35.5", "Creating control-plane node \(spec.name)",
-                "Initializing kubeadm", "Installing kindnet CNI",
-                "Writing kubeconfig context \(spec.name)", "Cluster \(spec.name) is ready",
-            ], delay: .milliseconds(200)
-        ) { [self] in
-            await self.appendCluster(spec)
+        prepared { backend in
+            let capabilities = try await backend.requireKubernetes()
+            if let error = spec.unsupportedOption(for: capabilities) { throw error }
+            return backend.stream(MockClusters.createLines(spec), delay: .milliseconds(200)) {
+                await backend.appendCluster(MockClusters.cluster(for: spec, capabilities: capabilities))
+            }
         }
     }
-    private func appendCluster(_ spec: ClusterSpec) {
-        clusters.append(
-            KubernetesCluster(
-                name: spec.name,
-                nodes: [
-                    .init(
-                        name: spec.name, role: "control-plane", state: .running, cpus: spec.cpus ?? 4,
-                        memoryMB: (spec.memory?.bytes ?? (4 << 30)) >> 20, address: "192.168.64.70", ports: "6443->6443"
-                    )
-                ]))
+    private func appendCluster(_ cluster: KubernetesCluster) {
+        clusters.removeAll { $0.name == cluster.name }
+        clusters.append(cluster)
+    }
+    private func requireKubernetes() throws -> KubernetesCapabilities {
+        guard let kubernetes else {
+            throw BackendError.unsupported(feature: "Kubernetes", reason: "the mock plays a CLI without the plugin.")
+        }
+        return kubernetes
+    }
+    /// A stream that first asks the actor for something (the played capabilities), then forwards `make`'s lines.
+    private nonisolated func prepared(
+        _ make: @escaping @Sendable (MockBackend) async throws -> LineStream
+    ) -> LineStream {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await line in try await make(self) { continuation.yield(line) }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
     public func deleteCluster(_ name: String) async throws { await wait(); clusters.removeAll { $0.name == name } }
     public nonisolated func loadImage(
         _ reference: String, intoCluster cluster: String?, nodes: [String], platform: Platform?
     ) -> LineStream {
-        stream([
-            "Exporting \(reference)", "Importing into \(cluster ?? "k8s-dev") containerd (k8s.io namespace)", "Done",
-        ])
+        prepared { backend in
+            let capabilities = try await backend.requireKubernetes()
+            guard capabilities.supportsLoadImage, nodes.isEmpty || capabilities.supportsLoadImageNodes else {
+                throw BackendError.unsupported(
+                    feature: "Loading an image into a cluster",
+                    reason: "`\(capabilities.displayCommand)` cannot do that in this CLI version.")
+            }
+            let target = cluster ?? capabilities.defaultClusterName
+            return backend.stream([
+                "Exporting \(reference)", "Importing into \(target) containerd (k8s.io namespace)", "Done",
+            ])
+        }
     }
 }

@@ -1,0 +1,4 @@
+NAME         NODES  K8S VERSION  STATE
+cluster-dev  1      v1.35.5      running
+staging      3      v1.34.11     degraded (2 of 3 up)
+temp         1      v1.35.5      stopped
