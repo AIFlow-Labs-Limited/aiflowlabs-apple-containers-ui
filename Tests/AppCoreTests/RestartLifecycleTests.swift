@@ -293,8 +293,10 @@ struct RestartLifecycleTests {
         for _ in 0..<3 { await model.containers.poller.fireNow() }
         #expect(model.containers.container(id: "db")?.isRunning == false)
 
-        // Deleting forgets it.
+        // Deleting forgets it, one look later: a mark younger than the previous look may belong to a container
+        // that is not in the list yet.
         await model.containers.delete(["db"], force: true)
+        await model.containers.poller.fireNow()
         await model.containers.poller.fireNow()
         #expect(!model.restarts.isIntentionallyStopped("db"))
     }

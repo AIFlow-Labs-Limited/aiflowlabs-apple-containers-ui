@@ -56,11 +56,12 @@ struct GeneralSettingsTab: View {
                 Text(
                     "Containers created with a restart policy (Run sheet, or `restart:` in a compose file) are "
                         + "started again by Container Desktop when they stop, and when the app or the container "
-                        + "system starts. Apple's runtime has no restart policies, so this only works while the app "
-                        + "or its menu bar item is running. Switching it on starts stopped containers whose policy "
-                        + "is “always”."
+                        + "system starts. Apple's runtime has no restart policies, so this only works while the app, "
+                        + "its menu bar item or the background helper below is running. Switching it on starts "
+                        + "stopped containers whose policy is “always”."
                 )
                 .font(.caption).foregroundStyle(.secondary)
+                BackgroundSupervisionRows()
                 Toggle("Hide system containers (builder, Kubernetes nodes)", isOn: $settings.hideSystemContainers)
                     .onChange(of: settings.hideSystemContainers) {
                         model.containers.hideSystemManaged = settings.hideSystemContainers
@@ -84,7 +85,10 @@ struct GeneralSettingsTab: View {
         }
         .formStyle(.grouped)
         // The user can approve or remove the login item in System Settings at any time.
-        .onAppear { model.settings.refreshLaunchAtLogin() }
+        .onAppear {
+            model.settings.refreshLaunchAtLogin()
+            model.settings.refreshBackgroundSupervision()
+        }
     }
 }
 

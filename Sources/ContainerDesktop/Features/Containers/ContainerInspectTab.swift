@@ -90,6 +90,16 @@ struct ContainerInspectTab: View {
                     + "; fixed when the container was created."
             )
         ]
+        if supervisor.isStandingDown {
+            let stopped = supervisor.isIntentionallyStopped(c.id) && !c.isRunning
+            facts.append(
+                (
+                    "Restarts",
+                    "Made by the background helper (Settings › General), which does not report a count here"
+                        + (stopped ? " · stopped from the app, so it stays stopped" : "")
+                ))
+            return facts
+        }
         let status = supervisor.status(for: c.id) ?? RestartSupervisor.Status()
         var restarts = "\(status.restartCount) since Container Desktop was opened"
         if supervisor.isIntentionallyStopped(c.id) && !c.isRunning {

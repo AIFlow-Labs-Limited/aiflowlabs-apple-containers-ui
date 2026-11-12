@@ -75,7 +75,7 @@ public final class AppModel {
     public init(
         backend: any ContainerBackend, settings: SettingsStore = SettingsStore(),
         buildsHistoryURL: URL = BuildsStore.defaultHistoryURL, observeAppActivation: Bool = true,
-        updates: UpdateChecker? = nil
+        updates: UpdateChecker? = nil, supervision: SupervisionSharing? = nil
     ) {
         let gate = PollingGate(interval: .seconds(settings.pollingInterval))
         let tasks = TaskCenter()
@@ -87,7 +87,8 @@ public final class AppModel {
         let switchable = SwitchableBackend(backend)
         self.switchable = switchable
         restarts = RestartSupervisor(
-            isEnabled: settings.restartPoliciesEnabled, defaults: settings.defaults, taskCenter: tasks
+            isEnabled: settings.restartPoliciesEnabled, defaults: settings.defaults, state: supervision?.state,
+            claim: { supervision?.claim.hold() ?? true }, taskCenter: tasks
         ) { try await switchable.startContainer($0) }
         (containers, images, volumes, networks, builds, machines, clusters, registries, system) =
             Self.makeStores(backend: switchable, gate: gate, tasks: tasks, historyURL: buildsHistoryURL)
@@ -105,7 +106,10 @@ public final class AppModel {
         selection: BackendSelection = .fromEnvironment, mock: () -> any ContainerBackend,
         settings: SettingsStore = SettingsStore()
     ) -> AppModel {
-        AppModel(backend: makeBackend(selection: selection, mock: mock), settings: settings)
+        // Only the real engine is shared with the background helper; a mock run keeps to itself.
+        AppModel(
+            backend: makeBackend(selection: selection, mock: mock), settings: settings,
+            supervision: selection == .cli ? .app(adopting: settings.defaults) : nil)
     }
 
     static func makeBackend(selection: BackendSelection, mock: () -> any ContainerBackend) -> any ContainerBackend {
@@ -221,7 +225,7 @@ public final class AppModel {
             toasts.info("Container system stopped")
         } catch {
             engineBusy = false
-            restarts.resume()
+            restarts.engineStopFailed()
             let wrapped = BackendError(wrapping: error)
             record(wrapped)
             toasts.error("Could not stop the container system", message: wrapped.errorDescription)

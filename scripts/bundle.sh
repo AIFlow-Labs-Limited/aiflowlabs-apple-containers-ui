@@ -29,7 +29,8 @@ cd "$ROOT"
 TEMPLATE="Resources/Info.plist.template"
 ENTITLEMENTS="Resources/ContainerDesktop.entitlements"
 ICON="Resources/AppIcon.icns"
-for f in "$TEMPLATE" "$ENTITLEMENTS" "$ICON"; do
+AGENT_TEMPLATE="Resources/LaunchAgents/io.aiflowlabs.containerdesktop.supervisor.plist"
+for f in "$TEMPLATE" "$ENTITLEMENTS" "$ICON" "$AGENT_TEMPLATE"; do
     [[ -f "$f" ]] || { echo "error: missing $f" >&2; exit 1; }
 done
 
@@ -64,6 +65,16 @@ sed \
     -e "s|@BUILD_NUMBER@|$(render "$BUILD_NUMBER")|g" \
     "$TEMPLATE" > "$CONTENTS/Info.plist"
 plutil -lint "$CONTENTS/Info.plist" > /dev/null
+
+# The background helper's LaunchAgent (restart policies while the app is closed). SMAppService.agent(plistName:)
+# looks for it in Contents/Library/LaunchAgents; it runs this bundle's executable with --supervise.
+AGENT_PLIST="io.aiflowlabs.containerdesktop.supervisor.plist"
+mkdir -p "$CONTENTS/Library/LaunchAgents"
+sed \
+    -e "s|@EXECUTABLE@|$(render "$PRODUCT")|g" \
+    -e "s|@BUNDLE_ID@|$(render "$BUNDLE_ID")|g" \
+    "$AGENT_TEMPLATE" > "$CONTENTS/Library/LaunchAgents/$AGENT_PLIST"
+plutil -lint "$CONTENTS/Library/LaunchAgents/$AGENT_PLIST" > /dev/null
 
 # SwiftPM resource bundles (Bundle.module looks in Bundle.main.resourceURL for app bundles).
 shopt -s nullglob
